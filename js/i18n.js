@@ -56,7 +56,7 @@
       "settings.guide": "Guide / FAQ",
       "settings.updates": "Updates",
       "settings.updateCheck": "Tell me when a new version is out",
-      "settings.updateHint": "Off by default. When on, Downbeat asks GitHub once every three days for the number of the latest release. Nothing about you is sent, and nothing is installed: you download an update yourself.",
+      "settings.updateHint": "Asked once at the first start. When on, Downbeat asks GitHub once every three days for the number of the latest release. Nothing about you is sent, and nothing is installed: you download an update yourself.",
       "settings.updateChecking": "Checking…",
       "settings.updateNone": "You have the latest version ({version}).",
       "settings.updateNew": "Version {latest} is out (you have {version}).",
@@ -360,6 +360,10 @@
       "tour.finishBody": "You can replay this tour anytime from Settings. Select a clip on your timeline to get started.",
 
       "lang.pickTitle": "Choose your language",
+      "updatePick.title": "Tell you about new versions?",
+      "updatePick.body": "Downbeat can ask GitHub once every three days whether a new version is out. This would be the only time it goes online; nothing about you is sent and nothing is installed by itself. You can change this later in Settings.",
+      "updatePick.yes": "Yes, tell me",
+      "updatePick.no": "No, stay offline",
       "lang.pickBody": "You can change this later in Settings.",
     },
 
@@ -402,7 +406,7 @@
       "settings.guide": "Гайд / FAQ",
       "settings.updates": "Обновления",
       "settings.updateCheck": "Сообщать о новой версии",
-      "settings.updateHint": "По умолчанию выключено. Когда включено, Downbeat раз в три дня спрашивает у GitHub номер последнего релиза. Ничего о вас не отправляется и ничего не устанавливается: обновление вы скачиваете сами.",
+      "settings.updateHint": "Спрашивается один раз при первом запуске. Когда включено, Downbeat раз в три дня спрашивает у GitHub номер последнего релиза. Ничего о вас не отправляется и ничего не устанавливается: обновление вы скачиваете сами.",
       "settings.updateChecking": "Проверяю…",
       "settings.updateNone": "У вас последняя версия ({version}).",
       "settings.updateNew": "Вышла версия {latest} (у вас {version}).",
@@ -708,6 +712,10 @@
       "tour.finishBody": "Обучение можно пройти заново в любой момент через настройки. Выберите клип на таймлайне, чтобы начать.",
 
       "lang.pickTitle": "Выберите язык",
+      "updatePick.title": "Сообщать о новых версиях?",
+      "updatePick.body": "Downbeat может раз в три дня спрашивать у GitHub, не вышла ли новая версия. Это единственный случай, когда он выходит в интернет: ничего о вас не отправляется и ничего не устанавливается само. Позже это можно изменить в настройках.",
+      "updatePick.yes": "Да, сообщать",
+      "updatePick.no": "Нет, без интернета",
       "lang.pickBody": "Позже это можно изменить в настройках.",
     },
 
@@ -750,7 +758,7 @@
       "settings.guide": "Guía / FAQ",
       "settings.updates": "Actualizaciones",
       "settings.updateCheck": "Avisarme de una versión nueva",
-      "settings.updateHint": "Desactivado por defecto. Si lo activas, Downbeat pregunta a GitHub una vez cada tres días por el número de la última versión. No se envía nada sobre ti y no se instala nada: la actualización la descargas tú.",
+      "settings.updateHint": "Se pregunta una sola vez al primer inicio. Si lo activas, Downbeat pregunta a GitHub una vez cada tres días por el número de la última versión. No se envía nada sobre ti y no se instala nada: la actualización la descargas tú.",
       "settings.updateChecking": "Comprobando…",
       "settings.updateNone": "Tienes la última versión ({version}).",
       "settings.updateNew": "Ya está la versión {latest} (tienes la {version}).",
@@ -1054,6 +1062,10 @@
       "tour.finishBody": "Puedes repetir este recorrido en cualquier momento desde Ajustes. Selecciona un clip en tu línea de tiempo para empezar.",
 
       "lang.pickTitle": "Elige tu idioma",
+      "updatePick.title": "¿Avisarte de versiones nuevas?",
+      "updatePick.body": "Downbeat puede preguntar a GitHub una vez cada tres días si hay una versión nueva. Sería la única vez que se conecta a internet: no se envía nada sobre ti y no se instala nada por sí solo. Puedes cambiarlo más tarde en Ajustes.",
+      "updatePick.yes": "Sí, avísame",
+      "updatePick.no": "No, sin internet",
       "lang.pickBody": "Puedes cambiarlo más tarde en Ajustes.",
     }
   };

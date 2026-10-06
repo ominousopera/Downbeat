@@ -382,8 +382,9 @@ El icono del engranaje, arriba a la derecha:
   - **Borrar** olvida todos los resultados del análisis (pulsa dos veces
     para confirmar). Tus carpetas se quedan, e Iniciar análisis en la
     pestaña Biblioteca las vuelve a analizar.
-- **Actualizaciones**: **Avisarme de una versión nueva** viene desactivado.
-  Si lo activas, Downbeat pregunta a GitHub una vez cada tres días por el
+- **Actualizaciones**: **Avisarme de una versión nueva** se pregunta una sola vez, al
+  primer inicio (un «no» deja Downbeat totalmente sin conexión); aquí puedes
+  cambiarlo. Si está activado, Downbeat pregunta a GitHub una vez cada tres días por el
   número de la última versión (no se envía nada sobre ti). Si hay una versión
   más nueva, el engranaje muestra un punto y esta sección un botón que abre la
   página de la versión; la descarga y la instalación las haces tú.

@@ -344,8 +344,9 @@ The gear icon, top right:
   - **Clear** forgets all analysis results (click it twice to confirm).
     Your folders stay, and Start scan in the Library tab analyzes them
     again.
-- **Updates** — **Tell me when a new version is out** is off by default. When
-  you switch it on, Downbeat asks GitHub once every three days for the number
+- **Updates** — **Tell me when a new version is out** is asked once, at the first
+  start (a "no" keeps Downbeat fully offline); change it here any time. When
+  it is on, Downbeat asks GitHub once every three days for the number
   of the latest release (nothing about you is sent). If a newer version exists,
   the gear shows a dot and this section shows a button that opens the release
   page; you download and install the update yourself. **Check now** asks right

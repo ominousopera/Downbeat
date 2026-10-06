@@ -437,22 +437,45 @@
     });
   });
 
+  // One question, asked once: whether to switch on the update notice. Asked
+  // on the first run (after the language) and once for anyone who has not
+  // answered yet, e.g. after updating from a version without the notice.
+  // Either answer is saved, so it is never asked again.
+  function askAboutUpdateNotice(then) {
+    if (typeof initialSettings.updateCheck === "boolean") {
+      then();
+      return;
+    }
+    var overlay = document.getElementById("updatePickOverlay");
+    overlay.hidden = false;
+    function answer(on) {
+      overlay.hidden = true;
+      persistSettings({ updateCheck: on });
+      _settingsPanel.applySettings(initialSettings);
+      then();
+    }
+    document.getElementById("updatePickYesBtn").addEventListener("click", function () { answer(true); }, { once: true });
+    document.getElementById("updatePickNoBtn").addEventListener("click", function () { answer(false); }, { once: true });
+  }
+  function startTourOnce() {
+    window.BeatMarkerTour.start(function () {
+      persistSettings({ onboardingCompleted: true });
+    });
+  }
   if (isFirstRun) {
     document.getElementById("langPickOverlay").hidden = false;
     var onLangPicked = function () {
       document.getElementById("langPickOverlay").hidden = true;
-      window.BeatMarkerTour.start(function () {
-        persistSettings({ onboardingCompleted: true });
-      });
+      askAboutUpdateNotice(startTourOnce);
     };
     var pickButtons = document.querySelectorAll("#langPickOverlay .lang-btn");
     for (var pb = 0; pb < pickButtons.length; pb++) {
       pickButtons[pb].addEventListener("click", onLangPicked, { once: true });
     }
   } else if (!initialSettings.onboardingCompleted) {
-    window.BeatMarkerTour.start(function () {
-      persistSettings({ onboardingCompleted: true });
-    });
+    askAboutUpdateNotice(startTourOnce);
+  } else {
+    askAboutUpdateNotice(function () {});
   }
 
   (function sweepLeftoverTempFiles() {

@@ -2396,3 +2396,6 @@ body.on-library #tabContentLibrary .g-lib-body > #libFolderList:empty { display:
 /* The key's "agreed / uncertain" word in a Library row. */
 .lib-row-conf { color: var(--text-faint); }
 .lib-row-conf.is-warn { color: var(--danger-bright); }
+
+/* The one-time update-notice question: the two answers side by side. */
+.update-pick-actions { display: flex; justify-content: center; gap: 12px; margin-top: 12px; }

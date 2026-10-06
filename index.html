@@ -91,7 +91,7 @@
       <label><input type="checkbox" id="updateCheckCheckbox"> <span data-i18n="settings.updateCheck">Tell me when a new version is out</span></label>
     </div>
     <div class="row" style="margin-top:6px">
-      <span class="hint" data-i18n="settings.updateHint">Off by default. When on, Downbeat asks GitHub once every three days for the number of the latest release. Nothing about you is sent, and nothing is installed: you download an update yourself.</span>
+      <span class="hint" data-i18n="settings.updateHint">Asked once at the first start. When on, Downbeat asks GitHub once every three days for the number of the latest release. Nothing about you is sent, and nothing is installed: you download an update yourself.</span>
     </div>
     <div class="row g-status-row">
       <span id="updateStatus" class="hint"></span>
@@ -668,6 +668,18 @@
         <button type="button" class="lang-btn" data-lang="es">ES</button>
       </div>
       <p class="tour-card-body" data-i18n="lang.pickBody">You can change this later in Settings.</p>
+    </div>
+  </div>
+
+  <!-- ONE-TIME QUESTION: THE UPDATE NOTICE (first run, or once after an update that brought it) -->
+  <div id="updatePickOverlay" class="tour-overlay" hidden>
+    <div class="tour-card lang-pick-card">
+      <p class="tour-card-title" data-i18n="updatePick.title">Tell you about new versions?</p>
+      <p class="tour-card-body" data-i18n="updatePick.body">Downbeat can ask GitHub once every three days whether a new version is out. This would be the only time it goes online; nothing about you is sent and nothing is installed by itself. You can change this later in Settings.</p>
+      <div class="update-pick-actions">
+        <button id="updatePickNoBtn" type="button" class="ghost" data-i18n="updatePick.no">No, stay offline</button>
+        <button id="updatePickYesBtn" type="button" class="primary" data-i18n="updatePick.yes">Yes, tell me</button>
+      </div>
     </div>
   </div>
 

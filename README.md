@@ -303,8 +303,9 @@ components and their licenses are listed in [`NOTICE.md`](NOTICE.md).
 <summary><b>Does it work offline? Is anything uploaded?</b></summary>
 
 It works completely offline. Nothing is uploaded, there is no account and no
-analytics. The panel goes online only if you switch on **Settings → Updates →
-Tell me when a new version is out** (off by default): then, once every three
+analytics. The panel goes online only if you say yes to the one-time question at the first
+start, or switch on **Settings → Updates → Tell me when a new version is out**
+later (a "no" keeps it fully offline): then, once every three
 days, it asks GitHub for the number of the latest release and shows a link when
 a newer one exists. No data about you is sent (GitHub sees your IP address, as
 any website does), and nothing is installed by itself. Apart from that, the
@@ -401,7 +402,7 @@ developer sections further down this page.
 <summary><b>Privacy and security</b></summary>
 
 Everything runs on your computer. The panel makes no network calls except the
-optional update notice (off by default), and `scripts/check-code.js` fails the
+optional update notice (your choice at the first start), and `scripts/check-code.js` fails the
 build if any other code that could is added. Saved data
 (settings, track library, temporary files) lives in `Documents/Downbeat`,
 never inside the plugin's own folder. Report a vulnerability privately through
@@ -518,7 +519,7 @@ comments, is this repository.
 
 The bundled runtimes are fetched once, manually, by the two scripts above
 (pinned versions, hash-checked), never automatically. The plugin itself
-goes online only for the optional update notice, which is off by default.
+goes online only for the optional update notice, which you choose at the first start.
 
 ## Uninstall
 

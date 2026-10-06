@@ -1,8 +1,8 @@
 # Security
 
 Downbeat is a local panel: it has no server and no account, and it makes no
-network calls except one optional request: if you switch on the update notice
-in Settings (off by default), it asks `api.github.com` for the latest release
+network calls except one optional request: if you say yes to the one-time question
+about the update notice (or switch it on in Settings; "no" is the default), it asks `api.github.com` for the latest release
 of this project once every three days, sends nothing about you, and installs
 nothing (`scripts/check-code.js` fails the build if any other code that could
 go online is added, or if the notice talks to anything but this project's
