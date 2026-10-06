@@ -101,16 +101,12 @@ never changed.
 
 ## What it does
 
-<table>
-<tr>
-<td width="42%" valign="top">
-
-<img src="docs/images/analyze.png" alt="The Analyze tab: waveform with beat markers, 124 BPM, marker settings" width="100%">
-
-</td>
-<td valign="top">
-
 ### Analyze
+
+<p align="center">
+  <img src="docs/images/analyze.png" alt="The Analyze tab: waveform with beat markers, 124 BPM, marker settings" width="420">
+</p>
+
 
 Finds the tempo, beats and downbeats with two detectors (a classic algorithm
 and the Beat This! model, which runs locally) and puts markers
@@ -137,29 +133,17 @@ to the beat takes minutes.
   detectors' results with one click.
 - **Copy and paste markers** from one clip to another, or move them.
 
-</td>
-</tr>
-</table>
-
-<table>
-<tr>
-<td valign="top">
-
 ### Key
+
+<p align="center">
+  <img src="docs/images/key.png" alt="The Key tab: Camelot wheel, detected key 8A, pitch shift of -5 semitones" width="420">
+</p>
+
 
 Musical key in Camelot and note names from three opinions (sound effects get
 a key only when they have a clear pitch). A pitch shift
 calculator, and "Pitch the clip" retimes the clip itself to another key. Your
 audio is never rewritten.
-
-</td>
-<td width="42%" valign="top">
-
-<img src="docs/images/key.png" alt="The Key tab: Camelot wheel, detected key 8A, pitch shift of -5 semitones" width="100%">
-
-</td>
-</tr>
-</table>
 
 ### Library
 
@@ -167,20 +151,10 @@ Your own music and sound effects, with the key of every file written right
 next to it. Pick the song you are cutting, press **Match clip**, and the list
 shrinks to the sounds that fit it.
 
-<table>
-<tr>
-<td width="50%" valign="top">
-
-<img src="docs/images/library-match.png" alt="The Library with Match clip on: only sounds in the song's key or a neighbouring one" width="100%">
-
-</td>
-<td width="50%" valign="top">
-
-<img src="docs/images/library-preview.png" alt="The Library preview: pitch a sound into the song's key, trim it, add fades" width="100%">
-
-</td>
-</tr>
-</table>
+<p align="center">
+  <img src="docs/images/library-match.png" alt="The Library with Match clip on: only sounds in the song's key or a neighbouring one" width="360">
+  <img src="docs/images/library-preview.png" alt="The Library preview: pitch a sound into the song's key, trim it, add fades" width="360">
+</p>
 
 - **Key and tempo on every file**, like `8A · A minor` or `124 BPM`, found
   when you scan your folders.
