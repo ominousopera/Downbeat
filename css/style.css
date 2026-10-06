@@ -1,0 +1,2378 @@
+/* Downbeat panel styles. Part 1 (up to the THEME marker) holds the base
+   rules and color tokens; the THEME block overrides them with the monospace,
+   hairline, numbered-section look. A rule in part 1 may be overridden by the THEME block. */
+
+:root {
+  --bg: #161617;
+  --bg-panel: #1d1d1f;
+  --bg-raised: #232326;
+  --bg-well: #101113;
+  --border: #2e2e32;
+  --border-bright: #3c3c41;
+  --text: #eae7e1;
+  --text-dim: #98979c;
+  --text-faint: #616166;
+  --accent: #e0a339;
+  --accent-bright: #f2ac5f;
+  --accent-dim: rgba(224, 163, 57, 0.12);
+  --danger: #e2634f;
+  --danger-bright: #ef7a63;
+  --success: #6cbf9a;
+  --font-mono: "SF Mono", "Cascadia Code", Consolas, "Roboto Mono", monospace;
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  line-height: 1.5;
+  margin: 0;
+  padding: 14px 14px 24px;
+  /* Faint horizontal scale lines every 24px over the background color. */
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.012) 0px, rgba(255, 255, 255, 0.012) 1px, transparent 1px, transparent 24px),
+    var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- Header ---------- */
+
+.app-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  row-gap: 6px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+}
+
+.header-title {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Header logo, colored via currentColor so it matches the header's accent. */
+.app-logo {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.header-right .icon-btn {
+  padding: 3px 8px;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.app-header h1 {
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.25;
+  margin: 0;
+  color: var(--text);
+}
+
+/* Kept in the DOM because js/main.js writes to it; not displayed. */
+#status {
+  display: none;
+}
+
+/* ---------- Tabs ---------- */
+
+/* Sticky, so the tab bar stays reachable while a long tab scrolls. */
+.tab-bar {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 10px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--bg);
+  padding-bottom: 4px;
+}
+.tab-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  font-family: var(--font-ui);
+  font-size: 10px;
+  padding: 8px 4px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-bottom: 2px solid transparent;
+  border-radius: 4px 4px 0 0;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: border-color 0.12s ease, color 0.12s ease, background 0.12s ease;
+}
+.tab-btn:hover {
+  color: var(--text);
+  border-color: var(--border-bright);
+}
+.tab-btn.is-active {
+  background: var(--bg-raised);
+  border-color: var(--border-bright);
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.tab-content {
+  display: none;
+}
+.tab-content.is-active {
+  display: block;
+}
+
+/* ---------- Panel sections ---------- */
+
+/* Flowing sections: no card border or background. A bottom border and
+   generous spacing separate sections, so the panel reads as one continuous
+   scroll rather than a stack of boxes. */
+.panel {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+}
+.panel:last-child {
+  border-bottom: none;
+}
+
+.panel-title {
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 9px;
+}
+
+/* Settings popover backdrop. [hidden] (not just display:none in a class) is
+   used so a stale class cannot leave it visible. It is closed only by a
+   backdrop click, the close button or Escape (the self-test clicks buttons
+   inside it while it is open). */
+.settings-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 8, 10, 0.5);
+  z-index: 490;
+}
+.settings-panel {
+  position: fixed;
+  top: 44px;
+  right: 14px;
+  z-index: 500;
+  width: min(300px, calc(100vw - 24px));
+  max-height: calc(100vh - 60px);
+  overflow-y: auto;
+  margin: 0;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-bright);
+  border-radius: 8px;
+  padding: 12px 14px 14px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+.settings-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 9px;
+}
+.settings-panel-head .icon-btn {
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
+.settings-panel hr {
+  margin: 12px 0;
+}
+.settings-full-btn {
+  width: 100%;
+}
+.settings-section-label {
+  justify-content: center;
+}
+/* Scoped to .settings-panel only: .panel-title is shared with the main tabs,
+   whose section headers stay left-aligned. */
+.settings-panel .panel-title {
+  text-align: center;
+}
+
+#selectionStatusRow {
+  margin-bottom: 10px;
+}
+.selection-status {
+  display: block;
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  background: var(--bg-well);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 9px;
+}
+.selection-status.has-clip {
+  color: var(--text);
+  border-color: var(--border-bright);
+}
+.selection-status.has-cache {
+  color: var(--accent-bright);
+  border-color: var(--accent);
+}
+/* Reuses this status line (visible on every tab) instead of a separate
+   banner per button. */
+.selection-status.is-error {
+  color: var(--danger-bright);
+  border-color: var(--danger);
+}
+
+/* ---------- Rows / fields ---------- */
+
+.row {
+  margin-bottom: 7px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.row:last-child { margin-bottom: 0; }
+
+.hint {
+  color: var(--text-faint);
+  font-size: 10px;
+}
+.hint.is-error {
+  color: var(--danger-bright);
+}
+
+label {
+  cursor: pointer;
+  color: var(--text-dim);
+}
+label input[type="checkbox"], label input[type="radio"] {
+  margin-right: 4px;
+  accent-color: var(--accent);
+}
+
+input[type="range"] {
+  accent-color: var(--accent);
+}
+
+/* ---------- Buttons ---------- */
+
+button {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 7px 12px;
+  background: var(--bg-raised);
+  color: var(--text);
+  border: 1px solid var(--border-bright);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease, transform 0.05s ease;
+}
+button:hover { border-color: var(--accent); background: #282a2f; }
+button:active { transform: scale(0.98); }
+button:disabled { opacity: 0.4; cursor: default; transform: none; }
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #1a1408;
+  font-weight: 600;
+}
+button.primary:hover { background: var(--accent-bright); border-color: var(--accent-bright); }
+
+button.ghost {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-dim);
+  font-size: 10px;
+  padding: 5px 9px;
+}
+/* Clear is larger than other .ghost buttons so it matches Place markers
+   next to it; other .ghost buttons are smaller and secondary on purpose. */
+#clearMarkersBtn {
+  font-size: 11px;
+  padding: 7px 12px;
+}
+button.icon-btn {
+  font-family: var(--font-mono);
+  padding: 5px 10px;
+  min-width: 30px;
+}
+
+/* ---------- Inputs ---------- */
+
+input[type="text"], input[type="number"], input[type="password"], select, textarea {
+  font-family: var(--font-mono);
+  background: var(--bg-well);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 5px 7px;
+  font-size: 10.5px;
+}
+input[type="text"]:focus, input[type="number"]:focus, input[type="password"]:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+select { max-width: 100%; }
+
+/* Drawn dropdowns over native <select>. The native element stays, hidden, as
+   the value holder. */
+.db-select-native { display: none !important; }
+.db-select {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  min-width: 0;
+}
+.db-select-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  text-align: left;
+  background: var(--bg-well);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 5px 7px;
+  cursor: pointer;
+}
+.db-select.is-open .db-select-btn,
+.db-select-btn:hover { border-color: var(--accent); }
+.db-select-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.db-select-arrow { color: var(--text-dim); font-size: 10px; }
+.db-select-list {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  min-width: 100%;
+  max-height: 260px;
+  overflow-y: auto;
+  z-index: 800;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-bright);
+  border-radius: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  padding: 3px 0;
+}
+.db-select-list[hidden] { display: none !important; }
+.db-select-item {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text);
+  padding: 5px 10px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.db-select-item:hover { background: var(--accent-dim); }
+.db-select-item.is-selected { color: var(--accent-bright); font-weight: 600; }
+textarea {
+  resize: vertical;
+  font-family: var(--font-ui);
+  line-height: 1.4;
+}
+/* ---------- Mini audio player transport ---------- */
+/* Used by Analyze's beat-click preview player below. Built from icon-btn for
+   the toggle, a plain <input type="range"> for seeking (accent-colored by the
+   input[type="range"] rule above) and font-mono for the time readout. The
+   real <audio> element stays in the DOM but hidden; this row is its only UI. */
+.mini-player-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.mini-player-row audio {
+  display: none;
+}
+.mini-player-toggle {
+  flex-shrink: 0;
+  text-align: center;
+}
+.mini-player-seek {
+  flex: 1;
+  min-width: 0;
+}
+.mini-player-time {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  min-width: 5.5em;
+  text-align: right;
+}
+
+/* Analyze's beat-click preview waveform. The internal pixel buffer is sized
+   in JS (devicePixelRatio-aware, see _drawBeatClickWaveform()); CSS only
+   controls the layout box. The grab/grabbing cursor signals an interactive
+   scrub target. */
+.beat-click-waveform {
+  width: 100%;
+  height: 96px;
+  display: block;
+  border-radius: 4px;
+  background: var(--bg-well);
+  border: 1px solid var(--border);
+  cursor: grab;
+}
+.beat-click-waveform:active {
+  cursor: grabbing;
+}
+
+/* Zoom controls: a floating corner overlay on the waveform, a small
+   semi-transparent pill that reads as part of the waveform's own chrome. */
+.beat-click-waveform-wrap {
+  position: relative;
+  width: 100%;
+}
+.beat-click-zoom-overlay {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(16, 17, 19, 0.78);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 5px;
+}
+.beat-click-zoom-overlay button {
+  font-size: 9.5px;
+  padding: 2px 6px;
+  min-width: 20px;
+}
+.beat-click-zoom-overlay .hint {
+  font-size: 9px;
+  margin-left: 1px;
+}
+
+.readout {
+  flex: 1;
+  background: var(--bg-well);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 9px;
+  min-width: 0;
+}
+/* ---------- Camelot wheel ---------- */
+
+.wheel-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 6px 0 2px;
+}
+#camelotWheel {
+  width: 168px;
+  height: 168px;
+  filter: drop-shadow(0 0 14px rgba(217, 140, 63, 0.12));
+}
+.wheel-label {
+  font-family: var(--font-mono);
+  font-size: 6.6px;
+  font-weight: 600;
+  fill: #17181b;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  pointer-events: none;
+}
+.wheel-center {
+  fill: var(--bg-well);
+  stroke: var(--border-bright);
+  stroke-width: 1;
+}
+.wheel-center-label {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+  fill: var(--accent-bright);
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+/* ---------- Key / library displays ---------- */
+
+#keyResultDisplay, #bpmDisplay, #beatCountDisplay {
+  font-family: var(--font-mono);
+  color: var(--accent-bright);
+  font-weight: 600;
+}
+
+#log {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--bg-well);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 9px 10px;
+  overflow-y: auto;
+  color: var(--text);
+  min-height: 160px;
+  max-height: 280px;
+}
+
+/* Library tab: filters and a list of rows (play button, name
+   + meta line, Insert button). Built as DOM nodes by renderLibrary() in
+   js/library-tab.js. */
+#libraryDisplay {
+  background: var(--bg-well);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px;
+  max-height: 360px;
+  overflow-y: auto;
+  color: var(--text-dim);
+  font-size: 10.5px;
+}
+#libraryDisplay.is-empty {
+  padding: 9px 10px;
+}
+.lib-folders-toggle {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  text-align: left;
+  font-size: 10.5px;
+}
+.lib-folders {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 4px 0 2px;
+  max-height: 180px; /* a long list scrolls instead of pushing the search off screen */
+  overflow-y: auto;
+}
+.lib-folder {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-well);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0 1px 0 8px;
+  min-width: 0;
+}
+.lib-folder-remove {
+  padding: 1px 6px;
+  font-size: 11px;
+  line-height: 1;
+  border-color: transparent;
+}
+.lib-filter-row {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.lib-search {
+  flex: 1;
+  min-width: 0;
+}
+.lib-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  border-radius: 3px;
+  cursor: default;
+  user-select: none;
+}
+.lib-row + .lib-row {
+  border-top: 1px solid var(--border);
+}
+.lib-row:hover {
+  background: var(--bg-raised);
+}
+.lib-row.is-playing {
+  background: var(--accent-dim);
+}
+/* The keyboard / click selection: ↑↓ move it, Space and Enter act on it. */
+.lib-row.is-selected {
+  box-shadow: inset 2px 0 0 var(--accent-bright);
+  background: var(--bg-raised);
+}
+.lib-row.is-selected.is-playing {
+  background: var(--accent-dim);
+}
+/* The favorite star is drawn, not typed: the ☆ / ★ characters come from a
+   fallback symbol font whose own spacing puts the star off-center in the
+   button and differs between macOS and Windows. The button's text color
+   paints the star through a mask. */
+.lib-fav {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  align-self: stretch;
+  padding: 0;
+  color: var(--text-dim);
+}
+.lib-fav::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  background-color: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2.8l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.31l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92z' fill='none' stroke='black' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2.8l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.31l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92z' fill='none' stroke='black' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.lib-fav.is-on {
+  color: #f0b429;
+}
+.lib-fav.is-on::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2.8l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.31l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92z' fill='black' stroke='black' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2.8l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.31l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92z' fill='black' stroke='black' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+.lib-show-more {
+  width: 100%;
+  margin-top: 6px;
+}
+/* The type-to-filter box at the top of a long drawn dropdown
+   (js/ui-select.js, data-searchable). Its header is sticky and opaque edge to
+   edge, and the list has no top padding, so rows scrolling up are hidden
+   behind it instead of showing above and around the box. */
+.db-select-list.is-searchable { padding-top: 0; }
+.db-select-search-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 4px;
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border);
+}
+.db-select-search {
+  display: block;
+  width: 100%;
+  margin: 0;
+  box-sizing: border-box;
+}
+.lib-play {
+  flex: 0 0 auto;
+  width: 24px;
+  padding: 3px 0;
+  font-size: 10px;
+  text-align: center;
+}
+.lib-row-main {
+  flex: 1;
+  min-width: 0;
+}
+.lib-row-name {
+  color: var(--text);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lib-row-meta {
+  font-family: var(--font-mono);
+  color: var(--accent-bright);
+  font-size: 10px;
+  margin-top: 1px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.lib-row-meta.is-error {
+  color: var(--danger-bright);
+}
+.lib-insert {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  font-size: 10px;
+}
+
+/* ---------- Divider ---------- */
+
+hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 10px 0;
+}
+
+/* ---------- Language switch (settings panel + first-run picker) ---------- */
+
+.lang-switch {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+/* Language / material switch buttons: unchosen ones are dim; the chosen one
+   is highlighted below. */
+.lang-btn, .key-material-btn {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  padding: 5px 10px;
+  color: var(--text-dim);
+}
+
+.lang-btn.is-active, .key-material-btn.is-active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+/* All options fit one row (flex-wrap: nowrap + flex: 1), sharing the row
+   evenly and shrinking together down to the manifest's 280px MinSize. Used
+   for the Settings popover's switches as well as the first-run language
+   picker. */
+.lang-switch-big {
+  flex-wrap: nowrap;
+}
+.lang-switch-big .lang-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  font-size: 11px;
+  padding: 9px 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- Busy overlay: shown for the duration of any operation that
+   talks to Premiere or essentia, so a working panel cannot be mistaken for a
+   frozen one. Covers the whole viewport. ---------- */
+
+.busy-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 10, 12, 0.74);
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* Explicit `[hidden]` override with `!important` and higher specificity than
+   the bare class rule above, so `hidden` always wins over the class's
+   display. */
+.busy-overlay[hidden] {
+  display: none !important;
+}
+.busy-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 22px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-bright);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+.busy-spinner {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2.5px solid var(--border-bright);
+  border-top-color: var(--accent-bright);
+  animation: busy-spin 0.8s linear infinite;
+}
+@keyframes busy-spin {
+  to { transform: rotate(360deg); }
+}
+.busy-text {
+  font-size: 11px;
+  color: var(--text);
+}
+
+/* Safety valve for a hung operation: hidden until js/main.js's stuck-timer
+   adds .is-stuck (after 15 s), so a quick operation never shows it. */
+.busy-stuck-hint, .busy-dismiss-btn {
+  display: none;
+}
+.busy-overlay.is-stuck .busy-stuck-hint {
+  display: block;
+  font-size: 10px;
+  color: var(--text-faint);
+  max-width: 200px;
+  text-align: center;
+}
+.busy-overlay.is-stuck .busy-dismiss-btn {
+  display: inline-block;
+}
+
+/* Library scan overlay - above everything, Settings included, since a scan
+   can start from there too. */
+.lib-scan-overlay {
+  z-index: 1100;
+}
+.lib-scan-card {
+  width: min(280px, calc(100vw - 32px));
+  align-items: stretch;
+  text-align: center;
+}
+.lib-scan-bar {
+  height: 6px;
+  background: var(--bg-well);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.lib-scan-bar-fill {
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+.lib-scan-percent {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--accent-bright);
+  font-variant-numeric: tabular-nums;
+}
+.lib-scan-detail {
+  font-size: 10.5px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+.lib-scan-note {
+  font-size: 10px;
+  color: var(--text-faint);
+  line-height: 1.4;
+}
+
+/* ---------- Onboarding tour ---------- */
+
+/* Only the callout itself (Next/Back/Skip) re-enables pointer-events, since
+   those controls must stay clickable. */
+.tour-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+/* The language picker is a mandatory first-run modal (pick a language before
+   continuing), unlike the tour above, which is click-through so the
+   highlighted control can be tried. It needs its own full backdrop dim and
+   blocks interaction with what is behind it. ID selector so it reliably
+   overrides the shared class regardless of cascade order. */
+#langPickOverlay {
+  background: rgba(8, 8, 10, 0.75);
+  pointer-events: auto;
+}
+
+/* The "spotlight": a box sized/positioned via inline style (js/tour.js) to
+   match the current step's target element exactly, with a huge box-shadow
+   standing in for the rest of the page's dimming - the shadow covers
+   everywhere EXCEPT this box's own area, which is what creates the
+   cutout/highlight effect without a canvas or SVG mask. When a step has no
+   specific target (welcome/finish screens), tour.js collapses this to a
+   zero-size box centered on screen, so the shadow just dims everything. */
+.tour-spotlight {
+  position: fixed;
+  border-radius: 6px;
+  border: 2px solid var(--accent-bright);
+  box-shadow: 0 0 0 9999px rgba(8, 8, 10, 0.8);
+  pointer-events: none;
+  z-index: 1001;
+  transition: top 0.2s ease, left 0.2s ease, width 0.2s ease, height 0.2s ease;
+}
+
+.tour-callout {
+  position: fixed;
+  z-index: 1002;
+  pointer-events: auto;
+  background: var(--bg-raised);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 12px 14px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+}
+.tour-callout-step {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin: 0 0 4px;
+}
+.tour-callout-title {
+  font-family: var(--font-ui);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--accent-bright);
+  margin: 0 0 6px;
+}
+.tour-callout-body {
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--text);
+  margin: 0 0 10px;
+}
+.tour-callout-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.tour-callout-nav {
+  display: flex;
+  gap: 6px;
+}
+
+/* .ghost's default border and text (--border / --text-dim) are tuned for the
+   lighter --bg-panel; against the callout's darker --bg-raised they are hard
+   to read. Brighter border and full-strength text, scoped to the tour's
+   Skip/Back buttons. */
+.tour-callout-actions button.ghost {
+  border-color: var(--border-bright);
+  color: var(--text);
+}
+.tour-callout-actions button.ghost:hover {
+  border-color: var(--accent);
+  background: var(--bg-well);
+}
+
+/* Language-pick card (first-run screen). Unlike the tour callout it stays
+   modal: pick a language before continuing. pointer-events:auto re-enables
+   clicks because .tour-overlay itself ignores them. */
+.tour-card {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1002;
+  pointer-events: auto;
+  width: min(300px, calc(100vw - 24px));
+  background: var(--bg-raised);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  padding: 20px 18px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+  text-align: center;
+}
+.tour-card-title {
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--accent-bright);
+  margin: 0 0 12px;
+}
+.tour-card-body {
+  font-size: 10.5px;
+  color: var(--text-dim);
+  margin: 12px 0 0;
+}
+
+/* Own dimmed/blocking backdrop, same pattern as #langPickOverlay's ID-scoped
+   override of the shared .tour-overlay base. */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(8, 8, 10, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+/* Same approach as .busy-overlay[hidden]: explicit `[hidden]` override with
+   `!important`. */
+.modal-overlay[hidden] {
+  display: none !important;
+}
+.modal-card {
+  background: var(--bg-raised);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+  width: 100%;
+  max-width: 340px;
+  max-height: calc(100vh - 40px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.modal-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.modal-card-title {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-bright);
+  margin: 0;
+}
+.modal-card-body {
+  padding: 12px 14px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  font-size: 10.5px;
+  line-height: 1.55;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--font-mono);
+}
+.modal-card-message {
+  padding: 12px 14px 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text);
+  white-space: pre-line; /* the delete-data dialog lists one file per line */
+  word-break: break-word;
+}
+.modal-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 14px;
+  flex-shrink: 0;
+}
+
+/* scrollbars - keep them unobtrusive, matching the dark chrome */
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent-dim); }
+
+/* ---------- Text viewer: rendered GUIDE.md / NOTICE.md ---------- */
+.modal-card-body.is-doc { white-space: normal; font-family: var(--font-ui); font-size: 11px; }
+.modal-card-body.is-doc h3 { font-size: 14px; margin: 4px 0 10px; color: var(--text); }
+.modal-card-body.is-doc h4 { font-size: 12px; margin: 16px 0 6px; color: var(--accent-bright); }
+.modal-card-body.is-doc h5 { font-size: 11px; margin: 12px 0 4px; color: var(--text); }
+.modal-card-body.is-doc p { margin: 0 0 8px; }
+.modal-card-body.is-doc ul, .modal-card-body.is-doc ol { margin: 0 0 8px; padding-left: 18px; }
+.modal-card-body.is-doc li { margin-bottom: 3px; }
+.modal-card-body.is-doc strong { color: var(--text); font-weight: 600; }
+.modal-card-body.is-doc code { font-family: var(--font-mono); font-size: 10px; background: var(--bg-well); padding: 0 3px; border-radius: 3px; }
+.modal-card-body.is-doc table { border-collapse: collapse; margin: 0 0 10px; width: 100%; }
+.modal-card-body.is-doc th, .modal-card-body.is-doc td { border: 1px solid var(--border); padding: 3px 6px; text-align: left; vertical-align: top; }
+.modal-card-body.is-doc th { color: var(--text-dim); font-weight: 600; }
+.modal-card-body.is-doc pre { font-family: var(--font-mono); font-size: 9.5px; white-space: pre-wrap; word-break: break-all; background: var(--bg-well); padding: 6px 8px; border-radius: 4px; margin: 0 0 8px; }
+
+.pitch-label { min-width: 3.2em; }
+.pitch-select { flex: 1 1 auto; min-width: 0; }
+.pitch-readout {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin: 8px 0 4px;
+}
+.pitch-main {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--accent-bright);
+  font-variant-numeric: tabular-nums;
+}
+.pitch-units {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+.pitch-alt { margin: 5px 0 0; font-size: 10px; line-height: 1.45; color: var(--text-faint); }
+.pitch-note { margin: 6px 0 0; font-size: 10px; line-height: 1.45; color: var(--text-dim); }
+.pitch-note:empty, .pitch-alt:empty { display: none; }
+.pitch-note.is-caveat {
+  color: var(--accent);
+  background: var(--accent-dim);
+  border-left: 2px solid var(--accent);
+  border-radius: 0 3px 3px 0;
+  padding: 6px 8px;
+}
+
+/* Global guarantee that the hidden attribute hides, whatever display value a
+   class gives the element. */
+[hidden] {
+  display: none !important;
+}
+
+/* ==========================================================================
+   THEME (the g- classes). Overrides the base rules above: monospace text,
+   hairline rules, numbered sections ("01 / CLIP"), text toggles instead of
+   pill buttons, square corners, one orange accent. The Analyze tab markup is
+   arranged for it (see the layout comment in index.html).
+   ========================================================================== */
+
+:root {
+  --bg: #0e0e0e;
+  --bg-panel: #141414;
+  --bg-raised: #161616;
+  --bg-well: #0b0b0b;
+  --border: #2a2a2a;
+  --border-bright: #5c5c5c;
+  /* Section rules (dark grey). --text-dim, --text-faint and --border-bright
+     get their final values in TEXT LEVELS below. */
+  --rule: #3a3a3a;
+  --text: #e8e6e1;
+  --text-dim: #8a8a8a;
+  --text-faint: #5c5c5c;
+  --accent: #ff9f2e;
+  --accent-bright: #ffb85c;
+  --accent-dim: rgba(255, 159, 46, 0.12);
+  --danger: #ff6a4d;
+  --danger-bright: #ff8a70;
+  --font-ui: "SF Mono", "Cascadia Code", Consolas, "Roboto Mono", monospace;
+  --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif;
+}
+
+body {
+  background: var(--bg);
+  font-size: 11px;
+  padding: 14px 16px 24px;
+}
+
+/* ---------- Theme: header, tabs, current clip ---------- */
+/* One row: name, tabs, settings. The whole header stays on top while the tab
+   scrolls, edge to edge; in a narrow panel the tabs wrap onto a second row
+   under the name. */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--bg);
+  margin: -14px -16px 12px;
+  padding: 12px 16px 0;
+  border-bottom: 1px solid var(--border);
+  align-items: flex-end;
+  justify-content: flex-start;
+  column-gap: 18px;
+  row-gap: 0;
+}
+.header-title { flex: 0 0 auto; padding-bottom: 7px; }
+.header-right { margin-left: auto; padding-bottom: 5px; }
+.app-header .tab-bar {
+  position: static;
+  flex: 0 1 auto;
+  border-bottom: none;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+}
+@media (max-width: 420px) {
+  .app-header .tab-bar { order: 3; flex-basis: 100%; }
+}
+.app-logo { display: block; width: 14px; height: 14px; color: var(--text); flex-shrink: 0; }
+.header-title { gap: 7px; }
+.app-header h1 {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+.header-right .icon-btn {
+  border: none;
+  padding: 2px 0 2px 6px;
+  min-width: 0;
+  color: var(--text-dim);
+}
+.tab-bar { gap: 16px; }
+.tab-btn {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  margin-bottom: -1px;
+  padding: 8px 0 7px;
+  font-size: 9.5px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.tab-btn:hover { background: transparent; color: var(--text-dim); }
+.tab-btn.is-active {
+  background: transparent;
+  border-color: transparent;
+  border-bottom-color: var(--accent);
+  color: var(--text);
+  font-weight: 400;
+}
+#selectionStatusRow { margin-bottom: 12px; }
+.selection-status,
+.selection-status.has-clip,
+.selection-status.has-cache,
+.selection-status.is-error {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  font-size: 9.5px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+/* ---------- Theme: numbered sections ---------- */
+.tab-content,
+.settings-panel { counter-reset: gsec; }
+.panel {
+  border-bottom: none;
+  margin-bottom: 18px;
+  padding-bottom: 0;
+}
+.g-sec { margin-bottom: 18px; }
+.panel-title,
+.settings-panel .panel-title,
+.g-sec-head {
+  display: block;
+  border-top: 1px solid var(--rule);
+  padding-top: 6px;
+  margin: 0 0 9px;
+  font-family: var(--font-ui);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--text-dim);
+}
+.panel-title::before,
+.g-sec-title::before {
+  counter-increment: gsec;
+  content: counter(gsec, decimal-leading-zero) " / ";
+}
+.g-sec-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.g-sec-meta {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hint {
+  font-size: 9.5px;
+  letter-spacing: 0.2px;
+  color: var(--text-faint);
+}
+.hint.is-error { color: var(--danger); }
+.row { gap: 8px; }
+hr { border-top-color: var(--border); }
+label { color: var(--text-dim); }
+input[type="checkbox"], input[type="radio"], input[type="range"] { accent-color: var(--accent); }
+
+/* ---------- Theme: buttons and fields ---------- */
+button {
+  font-family: var(--font-ui);
+  font-size: 9.5px;
+  font-weight: 400;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  background: transparent;
+  border: 1px solid var(--border-bright);
+  border-radius: 0;
+  color: var(--text);
+  padding: 6px 10px;
+  transition: none;
+}
+button:hover { background: transparent; border-color: var(--text-dim); }
+button:active { transform: none; }
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #0e0e0e;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+button.primary:hover { background: var(--accent-bright); border-color: var(--accent-bright); }
+button.ghost {
+  background: transparent;
+  border-color: var(--border-bright);
+  color: var(--text);
+  font-size: 9.5px;
+  padding: 6px 10px;
+}
+button.icon-btn {
+  border: none;
+  background: transparent;
+  padding: 2px 4px;
+  min-width: 0;
+  color: var(--text-dim);
+}
+button.icon-btn:hover { color: var(--text); }
+button.g-link {
+  border: none;
+  border-bottom: 1px solid var(--border-bright);
+  padding: 0 0 1px;
+  letter-spacing: 1px;
+  color: var(--text);
+}
+button.g-link:hover { border-bottom-color: var(--text-dim); }
+.g-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  font-size: 11px;
+}
+.g-main::after { content: "\2192"; }
+input[type="text"], input[type="number"], input[type="password"], select, textarea {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-bright);
+  border-radius: 0;
+  padding: 3px 2px;
+  font-size: 10.5px;
+}
+input[type="text"]:focus, input[type="number"]:focus, input[type="password"]:focus, select:focus, textarea:focus {
+  border-color: var(--accent);
+}
+.db-select-btn {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-bright);
+  border-radius: 0;
+  padding: 3px 2px;
+  font-size: 10px;
+}
+.db-select.is-open .db-select-btn,
+.db-select-btn:hover { border-color: var(--accent); }
+.db-select-list {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-bright);
+  border-radius: 0;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+}
+.db-select-item { font-size: 10px; }
+.db-select-item.is-selected { color: var(--accent); font-weight: 400; }
+.db-select-search-head { background: var(--bg-panel); border-bottom-color: var(--border); }
+
+/* Text toggles: the language, Music / SFX and key material switches. */
+.lang-switch { gap: 14px; }
+.lang-btn, .key-material-btn,
+.lang-switch-big .lang-btn {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  padding: 0 0 1px;
+  font-size: 10.5px;
+  letter-spacing: 1.5px;
+  color: var(--text-faint);
+}
+.lang-btn.is-active, .key-material-btn.is-active {
+  background: transparent;
+  border-color: transparent;
+  border-bottom-color: var(--accent);
+  color: var(--text);
+  font-weight: 400;
+}
+
+/* ---------- Theme: Analyze tab ---------- */
+.g-analyze { width: 100%; margin-bottom: 10px; }
+#tabContentAnalyze.has-analysis .g-analyze {
+  width: auto;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0 0 8px;
+  font-size: 9.5px;
+  font-weight: 400;
+  letter-spacing: 1.5px;
+  color: var(--text-dim);
+}
+#tabContentAnalyze.has-analysis .g-analyze::after { content: none; }
+#tabContentAnalyze.has-analysis .g-analyze::before { content: "\21BB  "; }
+#tabContentAnalyze.has-analysis .g-analyze:hover { color: var(--text); }
+.g-wave-empty {
+  position: relative;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+  font-size: 9.5px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.g-wave-empty::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 1px dashed var(--border);
+}
+.g-wave-empty span { position: relative; background: var(--bg); padding: 0 10px; }
+#tabContentAnalyze.has-analysis .g-wave-empty { display: none; }
+#tabContentAnalyze:not(.has-analysis) #beatClickTime { visibility: hidden; }
+#tabContentAnalyze:not(.has-analysis) #placeMarkersBtn { opacity: 0.35; }
+.beat-click-waveform {
+  height: 80px;
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+}
+.beat-click-zoom-overlay {
+  background: var(--bg);
+  border: none;
+  border-radius: 0;
+  padding: 1px 4px;
+  gap: 6px;
+}
+.beat-click-zoom-overlay button,
+.beat-click-zoom-overlay button.ghost {
+  border: none;
+  padding: 0 2px;
+  min-width: 0;
+  font-size: 9.5px;
+  color: var(--text-dim);
+}
+.g-transport { gap: 14px; margin-top: 4px; }
+/* Play: a real button, not a small glyph. */
+#beatClickToggleBtn {
+  width: 34px;
+  height: 26px;
+  min-width: 34px;
+  padding: 0;
+  border: 1px solid var(--border-bright);
+  font-size: 12px;
+  line-height: 1;
+  color: var(--text);
+}
+#beatClickToggleBtn:hover { background: var(--text); color: var(--bg); }
+.g-click-toggle label,
+.g-click-toggle span {
+  font-size: 9.5px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.g-volumes input[type="range"] { flex: 1; min-width: 0; }
+.g-volumes .hint { text-transform: uppercase; letter-spacing: 1px; }
+.g-tempo {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+#bpmDisplay.g-bpm {
+  font-family: var(--font-display);
+  font-size: 52px;
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -2px;
+  color: var(--text);
+}
+.g-phase button.g-link {
+  border: none;
+  padding: 0 3px;
+  font-size: 12px;
+}
+.g-phase #phaseDisplay { color: var(--accent); font-family: var(--font-ui); }
+.g-phase #phaseDisplay { display: inline-block; min-width: 2ch; text-align: center; }
+.g-sec-meta #beatCountDisplay { color: var(--text-dim); font-weight: 400; }
+.g-retempo, .g-warn, .g-manual { margin-bottom: 6px; }
+.g-manual #manualBpmInput { width: 64px; font-size: 12px; }
+/* The long "already know the BPM?" intro is hidden (the label says it).
+   After the tempo is applied the same element shows the "even grid placed -
+   revert?" note. */
+#manualBpmIntroText[data-i18n="analyze.manualBpmIntro"] { display: none; }
+#manualBpmIntroText { flex-basis: 100%; }
+.g-grid {
+  display: grid;
+  grid-template-columns: minmax(64px, auto) 1fr;
+  column-gap: 12px;
+  row-gap: 7px;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+.g-key {
+  font-size: 9.5px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.g-opts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+}
+.g-sep { color: var(--text-faint); font-size: 10px; }
+.g-opt { position: relative; display: inline-flex; cursor: pointer; }
+.g-opt input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  pointer-events: none;
+}
+.g-opt span {
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  border-bottom: 1px solid transparent;
+  padding-bottom: 1px;
+}
+.g-opt:hover span { color: var(--text-dim); }
+.g-opt input:checked + span { color: var(--text); border-bottom-color: var(--accent); }
+.g-opt input:focus-visible + span { outline: 1px dotted var(--accent); outline-offset: 2px; }
+.g-actions {
+  display: flex;
+  border: 1px solid var(--border-bright);
+  margin: 2px 0 16px;
+}
+.g-actions button { border: none; border-radius: 0; }
+/* The main button takes the room left and wraps its own text when a language
+   makes the three labels wider than the panel (Russian). */
+.g-actions .g-main { flex: 1; min-width: 0; text-align: left; letter-spacing: 1.5px; }
+.g-actions button.ghost,
+.g-actions #clearMarkersBtn {
+  flex: 0 0 auto;
+  border-left: 1px solid var(--border-bright);
+  padding: 0 10px;
+  font-size: 9.5px;
+  color: var(--text);
+}
+#markerToolsToggleBtn::after { content: " +"; }
+#markerToolsToggleBtn[aria-expanded="true"] { background: var(--text); color: var(--bg); }
+#markerToolsToggleBtn[aria-expanded="true"]::after { content: " \2212"; }
+.g-copy { gap: 8px; }
+
+/* ---------- Theme: Key tab ---------- */
+#camelotWheel { filter: none; }
+#tabContentKey #keyResultDisplay {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 300;
+  letter-spacing: -0.5px;
+  color: var(--text);
+}
+.pitch-main {
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 300;
+  letter-spacing: -1px;
+  color: var(--accent);
+}
+.pitch-units { letter-spacing: 1px; text-transform: uppercase; }
+
+/* ---------- Theme: Library tab ---------- */
+.lib-folders-toggle { border: none; padding: 0; text-align: left; color: var(--text-dim); }
+.lib-folder {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  padding: 0;
+}
+button.lib-folder-remove { border: none; }
+.lib-search { font-size: 13px; }
+.lib-row { border-radius: 0; padding: 6px 2px; }
+.lib-row + .lib-row { border-top-color: var(--border); }
+.lib-row:hover { background: var(--bg-panel); }
+.lib-row.is-selected { background: var(--bg-raised); box-shadow: none; }
+.lib-row.is-playing,
+.lib-row.is-selected.is-playing { background: var(--accent-dim); }
+button.lib-play { border: none; padding: 0; width: 18px; min-width: 0; font-size: 10px; }
+/* The star button keeps its own size; the shared button padding would
+   squeeze it to a dot. */
+button.lib-fav {
+  flex: 0 0 auto;
+  width: 26px;
+  min-width: 26px;
+  padding: 0;
+  border-color: transparent;
+}
+button.lib-fav::before { width: 14px; height: 14px; }
+button.lib-fav.is-on { color: var(--accent); }
+/* Invisible but focusable: it holds the keyboard focus for the list. */
+.lib-key-catcher {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+/* Library filters: uppercase labels, text toggles, text links. */
+.lib-filter-row > .hint {
+  font-size: 9.5px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+input.lib-search { font-size: 13px; padding-bottom: 4px; }
+.lib-filter-row label { position: relative; display: inline-flex; align-items: baseline; }
+.lib-filter-row label input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+}
+.lib-filter-row label input[type="checkbox"] + span {
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  border-bottom: 1px solid transparent;
+  padding-bottom: 1px;
+}
+.lib-filter-row label:hover input[type="checkbox"] + span { color: var(--text-dim); }
+.lib-filter-row label input[type="checkbox"]:checked + span { color: var(--text); border-bottom-color: var(--accent); }
+.lib-filter-row label input[type="checkbox"]:focus-visible + span { outline: 1px dotted var(--accent); outline-offset: 2px; }
+#libAddFolderBtn, #libRescanBtn, #libMatchClipBtn, #libResetFiltersBtn {
+  border: none;
+  border-bottom: 1px solid var(--border-bright);
+  padding: 0 0 1px;
+  letter-spacing: 1px;
+}
+#libRescanBtn { color: var(--text-dim); }
+/* Files waiting: js/library-tab.js adds .primary; here that is an orange link, not a
+   filled button (orange on orange would hide the text). */
+#libRescanBtn.primary {
+  background: transparent;
+  border-color: transparent;
+  border-bottom: 1px solid var(--accent);
+  color: var(--accent);
+  font-weight: 700;
+}
+#libRescanBtn.primary::after { content: " \2192"; }
+#libAddFolderBtn:hover, #libMatchClipBtn:hover, #libResetFiltersBtn:hover { border-bottom-color: var(--text-dim); }
+
+/* Library layout: a head line, Find, one filter line, a numbered list, the
+   keys at the foot. */
+.g-lib-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px 12px;
+  border-top: 1px solid var(--rule);
+  padding-top: 6px;
+  margin-bottom: 6px;
+}
+.g-lib-head #libSectionSwitch { gap: 6px; align-items: baseline; }
+.g-lib-head-right {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: baseline;
+  gap: 10px;
+}
+.g-lib-head button.lib-folders-toggle {
+  display: inline;
+  width: auto;
+  margin: 0;
+  padding: 0;
+  font-size: 9.5px;
+  letter-spacing: 1px;
+}
+.g-find-row {
+  flex-wrap: nowrap;
+  align-items: baseline;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 2px;
+  margin-bottom: 7px;
+}
+.g-find-row input.lib-search {
+  flex: 1;
+  min-width: 0;
+  border-bottom: none;
+  padding: 2px 0;
+  font-size: 15px;
+}
+#libSearchExpand {
+  flex: 0 1 auto;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.g-lib-count { border-top: 1px solid var(--rule); padding-top: 4px; margin: 6px 0 0; }
+#libResultCount { font-size: 9px; }
+#libraryDisplay { counter-reset: librow; }
+.lib-row::before {
+  counter-increment: librow;
+  content: counter(librow, decimal-leading-zero);
+  flex: 0 0 auto;
+  min-width: 18px;
+  font-size: 9px;
+  color: var(--text-faint);
+}
+.lib-row-meta { color: var(--text-dim); }
+.lib-row-key { color: var(--accent); }
+.g-lib-keys { border-top: 1px solid var(--rule); padding-top: 4px; margin-top: 2px; }
+.g-lib-keys .hint { font-size: 8.5px; letter-spacing: 1.2px; text-transform: uppercase; }
+button.lib-insert { padding: 3px 8px; font-size: 9px; }
+.lib-row-name { font-size: 10.5px; font-weight: 400; }
+.lib-row-meta { font-size: 9px; letter-spacing: 0.5px; }
+.lib-scan-bar-fill { background: var(--accent); }
+
+/* ---------- Theme: Settings, overlays, tour ---------- */
+.settings-backdrop { background: rgba(0, 0, 0, 0.6); }
+.settings-panel {
+  background: var(--bg);
+  border: 1px solid var(--border-bright);
+  border-radius: 0;
+  padding: 14px 16px 16px;
+}
+.settings-panel hr { display: none; }
+.settings-panel .panel-title { margin-top: 14px; }
+.settings-panel-head .panel-title {
+  border-top: none;
+  padding-top: 0;
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--text);
+}
+.settings-panel-head .panel-title::before { content: none; counter-increment: none; }
+button.settings-full-btn {
+  display: flex;
+  justify-content: space-between;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  padding: 7px 0;
+  text-align: left;
+  font-size: 10px;
+}
+button.settings-full-btn::after { content: "\2192"; color: var(--text-dim); }
+.modal-card, .tour-callout, .tour-card, .busy-card {
+  background: var(--bg);
+  border: 1px solid var(--border-bright);
+  border-radius: 0;
+}
+.modal-card-title, .tour-callout-title, .tour-card-title {
+  font-family: var(--font-ui);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+.tour-spotlight { border-radius: 0; border-color: var(--accent); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 0; }
+
+.row { margin-bottom: 5px; }
+.panel, .g-sec { margin-bottom: 12px; }
+.panel-title, .settings-panel .panel-title, .g-sec-head { margin-bottom: 7px; }
+.settings-panel .panel-title { margin-top: 10px; }
+.settings-panel { padding: 12px 14px 12px; }
+button.settings-full-btn { padding: 5px 0; }
+.g-analyze { margin-bottom: 6px; }
+.g-main { padding: 8px 10px; font-size: 10.5px; }
+.g-wave-empty { height: 36px; }
+.beat-click-waveform { height: 72px; }
+#bpmDisplay.g-bpm { font-size: 42px; }
+.g-tempo { margin-bottom: 4px; }
+.g-grid { row-gap: 5px; margin-bottom: 6px; }
+.g-actions { margin: 0 0 12px; }
+.lib-row { padding: 4px 2px; }
+
+/* Sliders: a hairline track and a small flat handle, like the rest of the
+   theme. The pan slider's handle is wider because it scrolls the view. */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 14px;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"]:focus { outline: none; }
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 1px;
+  background: var(--border-bright);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 8px;
+  height: 10px;
+  margin-top: -5px;
+  border: none;
+  border-radius: 0;
+  background: var(--text);
+}
+input[type="range"]:hover::-webkit-slider-thumb,
+input[type="range"]:focus-visible::-webkit-slider-thumb { background: var(--accent); }
+#beatClickPanInput::-webkit-slider-thumb { width: 28px; height: 6px; margin-top: -3px; }
+#beatClickPanRow { margin-bottom: 2px; }
+#beatClickPanInput { width: 100%; }
+
+/* The clip line in a heading's right side: one dim line, cut with "..." (the
+   whole text is its tooltip). */
+.g-sec-head .g-sec-title { flex: 0 0 auto; }
+.g-clip-slot { flex: 1 1 auto; text-align: right; }
+.g-clip-slot .selection-status,
+.g-clip-slot .selection-status.has-clip,
+.g-clip-slot .selection-status.has-cache {
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
+  width: auto;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--text-dim);
+}
+.g-clip-slot .selection-status.is-error { color: var(--danger); }
+#selectionStatusRow { display: none; }
+.g-transport .mini-player-time { min-width: 0; text-align: left; font-size: 9.5px; letter-spacing: 1px; }
+.g-clip-slot .sel-name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.g-clip-slot .sel-info { flex: 0 0 auto; }
+
+/* The Library's on / off filters (★, Pitched, ½× and 2×) read as switches: a
+   small square before the label, filled orange when on. */
+.lib-filter-row label input[type="checkbox"] + span::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 6px;
+  border: 1px solid var(--text-dim);
+  vertical-align: 1px;
+}
+.lib-filter-row label input[type="checkbox"]:checked + span::before {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.lib-filter-row label input[type="checkbox"] + span { color: var(--text-dim); }
+
+.lib-filter-row label { align-items: center; }
+.lib-filter-row label input[type="checkbox"] + span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+.lib-filter-row label input[type="checkbox"]:checked + span { border-bottom: none; }
+.lib-filter-row label input[type="checkbox"] + span::before {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  width: 8px;
+  height: 8px;
+  margin: 0;
+  vertical-align: middle;
+}
+
+/* A chosen row: its number turns orange on a lighter background (a bar at
+   the left edge would cover the number). */
+.lib-row.is-selected { box-shadow: none; background: var(--bg-raised); }
+.lib-row.is-selected::before { color: var(--accent); }
+.lib-row.is-selected.is-playing { background: var(--accent-dim); }
+
+/* The clip line in a heading: normal case, smaller and dimmer than the
+   heading itself, with room after it, so it does not run into the heading
+   ("01 / KEY & CAMELOT") as one long capitalized line. */
+.g-clip-slot { margin-left: 16px; max-width: 62%; }
+.g-clip-slot .selection-status,
+.g-clip-slot .selection-status.has-clip,
+.g-clip-slot .selection-status.has-cache {
+  text-transform: none;
+  letter-spacing: 0.3px;
+  font-size: 9.5px;
+  color: var(--text-faint);
+}
+.g-clip-slot .sel-info { margin-left: 0.5ch; }
+
+/* The settings gear: a centered square, so the tour's spotlight frame sits
+   on it exactly. */
+.header-right #settingsGearBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  line-height: 1;
+}
+
+/* The pitch-shift result in the text color, like the other big numbers (BPM,
+   the key) - orange stays for marks and the main action. */
+.pitch-main { color: var(--text); }
+
+/* The filter line keeps its shape when a value changes: Match clip fills in
+   the key ("8A - A minor"), and a wider dropdown would push Match clip /
+   Reset onto another line. */
+.g-filters .db-select .db-select-btn { width: 100%; }
+/* Match clip while on: orange, like the other active filters. */
+#libMatchClipBtn.is-active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* "BPM" right after the number, on its baseline. */
+.g-bpm-wrap { display: inline-flex; align-items: baseline; gap: 6px; }
+.g-bpm-wrap .g-unit { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-dim); }
+
+/* Beat picker for the bar's first beat: four small square buttons; the
+   chosen one is orange. */
+.g-phase { display: inline-flex; align-items: center; gap: 4px; }
+.g-phase > span:first-child { margin-right: 4px; }
+button.g-cell {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  padding: 0;
+  border: 1px solid var(--border-bright);
+  font-size: 10px;
+  letter-spacing: 0;
+  line-height: 1;
+  color: var(--text-dim);
+}
+button.g-cell:hover { border-color: var(--text-dim); color: var(--text); }
+button.g-cell.is-active { background: var(--accent); border-color: var(--accent); color: #0e0e0e; font-weight: 700; }
+button.g-cell:disabled { opacity: 0.35; }
+
+/* Every checkbox in a themed section reads like the Library's: a small square
+   centered on its label, orange when on. */
+#markerToolsSection label,
+.g-click-toggle label { position: relative; display: inline-flex; align-items: center; cursor: pointer; }
+#markerToolsSection label input[type="checkbox"],
+.g-click-toggle label input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+}
+#markerToolsSection label input[type="checkbox"] + span,
+.g-click-toggle label input[type="checkbox"] + span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1.3;
+}
+#markerToolsSection label input[type="checkbox"] + span::before,
+.g-click-toggle label input[type="checkbox"] + span::before {
+  content: "";
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--text-dim);
+}
+#markerToolsSection label input[type="checkbox"]:checked + span::before,
+.g-click-toggle label input[type="checkbox"]:checked + span::before { background: var(--accent); border-color: var(--accent); }
+#markerToolsSection label input[type="checkbox"]:focus-visible + span,
+.g-click-toggle label input[type="checkbox"]:focus-visible + span { outline: 1px dotted var(--accent); outline-offset: 2px; }
+
+/* "BPM" as big as the number. */
+.g-bpm-wrap { gap: 10px; }
+.g-bpm-wrap .g-unit {
+  font-family: var(--font-display);
+  font-size: 42px;
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -1px;
+  color: var(--text-dim);
+  text-transform: none;
+}
+/* The "1" row under the tempo check, left-aligned, with its line of help. */
+.g-phase-row { margin-top: 2px; margin-bottom: 2px; }
+.g-phase-row .g-phase > span:first-child {
+  font-size: 9.5px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.g-phase-hint { margin-bottom: 8px; }
+
+/* ==========================================================================
+   TEXT LEVELS. Four levels: 1. values (BPM, key) - large, --text; 2. main
+   text (names, buttons, the chosen option) - --text; 3. labels (section
+   headings, field labels, unchosen options) - small capitals, --text-dim
+   (7:1 contrast, computed by main.js for the background); 4. hints and meta
+   lines - smallest, --text-faint (4.5:1). Defaults below are for the theme's
+   near-black (#0e0e0e); main.js (applyHostBackground) recomputes them for
+   the host's gray.
+   ========================================================================== */
+:root {
+  --text-dim: #9c9c9c;
+  --text-faint: #7a7a7a;
+  --border-bright: #626262;
+}
+/* level 4: hints and meta */
+.hint,
+.g-wave-empty,
+#libResultCount,
+#libSearchExpand,
+.g-lib-keys .hint,
+.g-clip-slot .selection-status,
+.g-clip-slot .selection-status.has-clip,
+.g-clip-slot .selection-status.has-cache {
+  font-size: 10.5px;
+  letter-spacing: 0.2px;
+  color: var(--text-faint);
+}
+#libSearchExpand,
+.g-lib-keys .hint,
+.g-wave-empty { font-size: 10px; letter-spacing: 0.8px; }
+.hint.is-error, .g-warn .hint.is-error { color: var(--danger); }
+/* level 3: labels and unchosen options */
+.panel-title,
+.settings-panel .panel-title,
+.g-sec-head {
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  color: var(--text-dim);
+}
+.g-key,
+.lib-filter-row > .hint,
+.g-phase-row .g-phase > span:first-child,
+.g-volumes .hint,
+.g-click-toggle label,
+.g-click-toggle span {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+}
+.tab-btn { font-size: 10px; letter-spacing: 1.2px; color: var(--text-dim); }
+.tab-btn.is-active { color: var(--text); }
+.g-opt span,
+.g-sep,
+.lang-btn, .key-material-btn,
+.lang-switch-big .lang-btn,
+.lib-filter-row label input[type="checkbox"] + span,
+#markerToolsSection label input[type="checkbox"] + span {
+  font-size: 10.5px;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+}
+.g-opt:hover span { color: var(--text); }
+.g-opt input:checked + span,
+.lang-btn.is-active, .key-material-btn.is-active,
+.lib-filter-row label input[type="checkbox"]:checked + span,
+#markerToolsSection label input[type="checkbox"]:checked + span { color: var(--text); }
+button.g-cell { color: var(--text-dim); }
+.lib-row-meta { font-size: 10px; letter-spacing: 0.3px; color: var(--text-dim); }
+.lib-row::before { color: var(--text-faint); font-size: 10px; }
+/* level 2: main text and controls */
+button,
+button.ghost,
+.g-actions button.ghost,
+.g-actions #clearMarkersBtn,
+button.settings-full-btn { font-size: 10.5px; letter-spacing: 1.2px; }
+.lib-row-name { font-size: 11px; }
+.db-select-btn { font-size: 10.5px; }
+.g-main { font-size: 11px; }
+
+/* The filters on ONE line: narrower dropdowns with tighter letters, smaller
+   gaps; Match clip / Reset at the right end. */
+.g-filters .db-select .db-select-btn { letter-spacing: 0.4px; padding-right: 0; }
+
+/* Status lines ("Copied", "Copy saved") take no room until they say
+   something; an empty row would make Diagnostics' spacing larger than the
+   other sections'. */
+.row.g-status-row { margin: 0; }
+.g-status-row > span:not(:empty) { display: block; margin: 4px 0 6px; }
+
+/* TEMPO in one label column. Each line is a label and its controls; the label
+   column is as wide as the Markers grid's, so the values of both sections
+   line up (108 + 4 + 8 = 108 + 12). A line's hint wraps under it, full width. */
+.g-kv { column-gap: 8px; row-gap: 4px; margin-bottom: 7px; }
+.g-kv > .g-key { flex: 0 0 auto; min-width: 108px; margin-right: 4px; }
+.g-grid { grid-template-columns: minmax(108px, auto) 1fr; }
+.g-kv > .hint { flex-basis: 100%; }
+.g-phase-row { margin-top: 0; margin-bottom: 4px; }
+.g-phase-hint { margin-bottom: 8px; }
+#retempoHint:empty { display: none; }
+/* Beat grid: Refined / Basic, two words like the Markers options - the chosen
+   one white and underlined in orange. */
+button.g-opt-btn {
+  border: none;
+  border-bottom: 1px solid transparent;
+  background: none;
+  padding: 0 0 1px;
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+button.g-opt-btn:hover { color: var(--text); }
+button.g-opt-btn.is-active { color: var(--text); border-bottom-color: var(--accent); cursor: default; }
+button.g-opt-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* Settings: the last item of a list section has no underline of its own -
+   with the next section's rule under it, the two lines read as an empty row. */
+button.settings-full-btn.g-last { border-bottom-color: transparent; }
+
+/* The filters stay on one line unless the panel is narrower than about
+   620 px; then the end wraps under. */
+.g-filters label input[type="checkbox"] + span,
+.g-filters .g-lib-links button { letter-spacing: 0.6px; }
+/* The key box is the widest but usually shows the short "Any key": its width
+   rules are further down. */
+
+/* Match clip as a checkbox, like Favorites and Pitched: it is an on / off
+   filter. Still the same button (js/library-tab.js toggles .is-active); a square before
+   it, filled orange when on, the label white when on - no underline. Reset
+   stays a link. */
+#libMatchClipBtn,
+#libMatchClipBtn:hover,
+#libMatchClipBtn.is-active {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  padding: 0;
+  background: transparent;
+  font-size: 10.5px;
+  letter-spacing: 0.6px;
+  line-height: 1.3;
+  color: var(--text-dim);
+}
+#libMatchClipBtn::before {
+  content: "";
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--text-dim);
+}
+#libMatchClipBtn:hover { color: var(--text); }
+#libMatchClipBtn.is-active { color: var(--text); }
+#libMatchClipBtn.is-active::before { background: var(--accent); border-color: var(--accent); }
+
+/* Settings: less room above each section's rule, so the blank band under a
+   section's last item matches the one under its heading. */
+.settings-panel .panel-title { margin-top: 4px; }
+
+/* Copy log answers on the button itself: for two seconds it reads "Copied"
+   with a check in place of the arrow, or "Copy failed" in red. */
+button.settings-full-btn.is-done::after { content: "\2713"; color: var(--accent); }
+button.settings-full-btn.is-failed { color: var(--danger); }
+
+/* Shift control (Timing: Exact). Its hint sits under the Markers grid. */
+.g-nudge { align-items: center; gap: 6px; }
+.g-nudge-value { min-width: 46px; text-align: center; font-size: 10.5px; letter-spacing: 0.5px; color: var(--text-dim); }
+.g-nudge-value.is-set { color: var(--text); }
+.g-nudge-hint { margin-top: -2px; margin-bottom: 6px; }
+
+/* LIBRARY FILTER LINE, in one place. Two groups: the dropdowns
+   (.g-filter-picks) and the on / off filters with Match clip / Reset
+   (.g-filter-checks). - Wide panel: both on one line. */
+.g-filters { flex-wrap: wrap; align-items: center; column-gap: 14px; row-gap: 8px; }
+.g-filter-picks,
+.g-filter-checks { display: flex; align-items: center; min-width: 0; }
+.g-filter-picks { flex: 1 1 330px; max-width: max-content; gap: 6px; }
+.g-filter-picks > .hint { flex: 0 0 auto; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-dim); }
+.g-filter-picks > .hint:not(:first-child) { margin-left: 4px; }
+.g-filter-picks .db-select { flex: 0 1 auto; min-width: 60px; }
+.g-filter-picks .db-select.lib-sort-select { width: 104px; }
+.g-filter-picks .db-select.lib-key-select { width: 116px; flex-shrink: 2; }
+.g-filter-picks .db-select.lib-mode-select { width: 104px; }
+.g-filter-checks { flex: 0 0 auto; flex-wrap: wrap; column-gap: 12px; row-gap: 6px; }
+.g-filter-checks label { margin: 0; }
+.g-filter-checks label input[type="checkbox"] + span,
+.g-filter-checks .g-lib-links button { letter-spacing: 0.6px; }
+.g-filter-checks .g-lib-links { display: inline-flex; align-items: center; gap: 6px; margin: 0; padding: 0; }
+
+/* The scan overlay: files on one line, the time left under it. */
+.lib-scan-eta { margin-top: 2px; color: var(--text-faint); }
+
+/* LIBRARY PREVIEW PANE: sticks to the bottom of the tab while the list
+   scrolls, edge to edge like the header; the selected file's name and time,
+   its waveform (click to jump), then two lines of controls. Add is the pane's
+   main action, orange. */
+.g-lib-pane {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  background: var(--bg);
+  border-top: 1px solid var(--rule);
+  margin: 8px -16px -24px;
+  padding: 8px 16px 10px;
+}
+.g-lib-pane-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 5px; }
+.g-lib-pane-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--text); }
+.g-lib-pane-time { flex: 0 0 auto; font-size: 10px; letter-spacing: 0.5px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.g-lib-pane-wave {
+  display: block;
+  width: 100%;
+  height: 44px;
+  cursor: pointer;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.g-lib-pane-note { margin: 5px 0 0; }
+.g-lib-pane-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-top: 8px; }
+button.g-pane-play {
+  width: 34px;
+  height: 24px;
+  min-width: 34px;
+  padding: 0;
+  font-size: 11px;
+  line-height: 1;
+  border: 1px solid var(--border-bright);
+  color: var(--text);
+}
+button.g-pane-play:hover { background: var(--text); color: var(--bg); }
+.g-pane-check { position: relative; display: inline-flex; align-items: center; cursor: pointer; }
+.g-pane-check input[type="checkbox"] { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+.g-pane-check input[type="checkbox"] + span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.g-pane-check input[type="checkbox"] + span::before {
+  content: "";
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--text-dim);
+}
+.g-pane-check input[type="checkbox"]:checked + span { color: var(--text); }
+.g-pane-check input[type="checkbox"]:checked + span::before { background: var(--accent); border-color: var(--accent); }
+.g-pane-check input[type="checkbox"]:focus-visible + span { outline: 1px dotted var(--accent); outline-offset: 2px; }
+.g-pane-key { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-dim); }
+.g-pane-vol { display: inline-flex; align-items: center; gap: 8px; flex: 1 1 120px; min-width: 110px; }
+.g-pane-vol input[type="range"] { flex: 1; min-width: 60px; }
+.g-pane-pitch { min-width: 24px; text-align: center; font-size: 11px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.g-pane-pitch.is-set { color: var(--text); }
+button.g-pane-add {
+  margin-left: auto;
+  padding: 5px 12px;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #0e0e0e;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+}
+button.g-pane-add::after { content: " \2192"; }
+button.g-pane-add:hover { background: var(--accent-bright); border-color: var(--accent-bright); }
+button.g-pane-add:disabled { opacity: 0.4; cursor: default; }
+.g-pane-keyline { margin-top: 6px; color: var(--text-dim); }
+/* The selected part and fades line, under the waveform. */
+.g-pane-sel { display: flex; align-items: baseline; gap: 10px; margin-top: 5px; }
+.g-pane-sel .hint { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.g-lib-pane-wave { cursor: crosshair; }
+
+/* THE LIBRARY FILLS THE PANEL. While the Library tab is shown the page is a
+   column as tall as the panel: head, Find and filters keep their size, the
+   list takes the rest and scrolls inside, the preview pane sits at the
+   bottom. From 900 px wide the pane moves to the right of the list, with a
+   taller waveform. */
+body.on-library { height: 100vh; display: flex; flex-direction: column; overflow-y: auto; }
+body.on-library > * { flex-shrink: 0; }
+body.on-library #tabContentLibrary { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+body.on-library #tabContentLibrary > .panel { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; margin-bottom: 0; }
+body.on-library #tabContentLibrary > .panel > * { flex-shrink: 0; }
+/* (#tabContentLibrary in the selector: the "> .panel > *" rule above must
+   not win and keep this from shrinking.) */
+body.on-library #tabContentLibrary .g-lib-body { flex: 1 1 auto; min-height: 220px; display: flex; flex-direction: column; }
+body.on-library .g-lib-listcol { flex: 1 1 auto; min-height: 140px; display: flex; flex-direction: column; }
+body.on-library .g-lib-listcol > * { flex-shrink: 0; }
+body.on-library #libraryDisplay { flex: 1 1 auto; min-height: 110px; max-height: none; }
+body.on-library .g-lib-pane { position: static; }
+@media (min-width: 900px) {
+  body.on-library #tabContentLibrary .g-lib-body { flex-direction: row; align-items: stretch; gap: 0; }
+  body.on-library .g-lib-listcol { min-width: 0; }
+  body.on-library .g-lib-pane {
+    flex: 0 0 38%;
+    min-width: 320px;
+    max-width: 520px;
+    margin: 0 0 0 16px;
+    padding: 0 0 0 16px;
+    border-top: none;
+    border-left: 1px solid var(--rule);
+    align-self: stretch;
+  }
+  body.on-library .g-lib-pane-wave { height: 96px; }
+}
+
+/* After Effects note under the header. */
+.g-ae-note { align-items: baseline; gap: 10px; margin: -4px 0 10px; }
+.g-ae-note .hint { flex: 1 1 auto; min-width: 0; }
+/* Synonyms on/off toggle next to the Find box. */
+.g-find-row .g-syn-toggle { flex: 0 0 auto; border-bottom-color: transparent; padding: 0 2px; color: var(--text-dim); font-size: 10px; }
+.g-find-row .g-syn-toggle:hover { color: var(--text); }
+.g-find-row .g-syn-toggle.is-off { border-bottom-color: var(--border-bright); text-transform: uppercase; letter-spacing: 0.8px; }
+
+/* FOLDER BROWSER: a tree; the square at a row's left puts the folder in the
+   search scope (orange when on), ▸ / ▾ opens its subfolders, the count is its
+   files. A narrow panel shows it above the list (opened from the head's
+   Folders line); from 900 px it is a column on the list's left, as tall as
+   the list. */
+#libFolderList { gap: 0; }
+.lib-tree-row { display: flex; align-items: center; gap: 6px; padding: 3px 4px; border-bottom: 1px solid var(--border); font-size: 10.5px; }
+.lib-tree-row:hover { background: var(--bg-panel); }
+button.lib-tree-scope { position: relative; flex: 0 0 auto; width: 14px; height: 14px; min-width: 14px; padding: 0; border: none; background: transparent; }
+button.lib-tree-scope::before { content: ""; position: absolute; left: 3px; top: 3px; width: 8px; height: 8px; box-sizing: border-box; border: 1px solid var(--text-dim); }
+button.lib-tree-scope.is-on::before { background: var(--accent); border-color: var(--accent); }
+.lib-tree-row.is-inside button.lib-tree-scope::before { border-color: var(--accent); }
+button.lib-tree-chev { flex: 0 0 auto; width: 12px; min-width: 12px; padding: 0; border: none; background: transparent; color: var(--text-dim); font-size: 9px; }
+button.lib-tree-chev:disabled { opacity: 1; }
+.lib-tree-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; color: var(--text-dim); }
+.lib-tree-row.is-scoped .lib-tree-name, .lib-tree-row.is-inside .lib-tree-name { color: var(--text); }
+.lib-tree-count { flex: 0 0 auto; font-size: 10px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.lib-tree-row.is-all .lib-tree-name { text-transform: uppercase; letter-spacing: 1px; font-size: 10px; }
+.lib-tree-row.is-all.is-scoped .lib-tree-name { color: var(--text); border-bottom: 1px solid var(--accent); flex: 0 1 auto; }
+.lib-tree-row button.lib-folder-remove { flex: 0 0 auto; border: none; padding: 0 2px; min-width: 0; color: var(--text-faint); }
+.lib-tree-row button.lib-folder-remove:hover { color: var(--text); }
+body.on-library #tabContentLibrary .g-lib-body > #libFolderList { flex-shrink: 0; max-height: 200px; margin: 0 0 6px; overflow-y: auto; }
+@media (min-width: 900px) {
+  body.on-library #tabContentLibrary .g-lib-body > #libFolderList {
+    flex: 0 0 220px;
+    max-height: none;
+    margin: 0 12px 0 0;
+    padding-right: 8px;
+    border-right: 1px solid var(--rule);
+  }
+}
+/* A folded folder list is empty: no blank column beside the list. */
+body.on-library #tabContentLibrary .g-lib-body > #libFolderList:empty { display: none; }
+
+/* In key: lit in the accent while on, like the other switches. */
+#libPaneInKeyBtn.is-active { color: var(--accent); border-bottom-color: var(--accent); }
+/* A file or an added folder that is not there now: dimmed, its row says "file
+   not found", play and Insert are off. */
+.lib-row.is-missing .lib-row-name,
+.lib-tree-row.is-missing .lib-tree-name { opacity: 0.5; text-decoration: line-through; }

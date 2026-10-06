@@ -1,0 +1,7 @@
+# Rebuilt by scripts/fetch-node-runtime.sh and scripts/fetch-beatthis-runtime.sh.
+runtime/
+scripts/beatthis-runtime-src/node_modules/
+# Machine-specific build settings and build output.
+scripts/build.local.sh
+scripts/test-tracks.local.json
+.DS_Store

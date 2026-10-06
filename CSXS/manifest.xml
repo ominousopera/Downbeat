@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ExtensionManifest Version="11.0" ExtensionBundleId="com.downbeat.pro" ExtensionBundleVersion="1.0.0" ExtensionBundleName="Downbeat">
+  <ExtensionList>
+    <Extension Id="com.downbeat.pro.panel" Version="1.0.0" />
+  </ExtensionList>
+  <ExecutionEnvironment>
+    <HostList>
+      <Host Name="PPRO" Version="[13.0,99.9]" />
+      <!-- 18.0 = After Effects 2021, the first with CEP 11 (the CSXS 11.0
+           runtime required below). -->
+      <Host Name="AEFT" Version="[18.0,99.9]" />
+    </HostList>
+    <LocaleList>
+      <Locale Code="All" />
+    </LocaleList>
+    <RequiredRuntimeList>
+      <RequiredRuntime Name="CSXS" Version="11.0" />
+    </RequiredRuntimeList>
+  </ExecutionEnvironment>
+  <DispatchInfoList>
+    <Extension Id="com.downbeat.pro.panel">
+      <DispatchInfo>
+        <Resources>
+          <MainPath>./index.html</MainPath>
+          <ScriptPath>./jsx/host.jsx</ScriptPath>
+          <CEFCommandLine>
+            <!-- Node enabled, deliberately without the mixed context CEF
+                 flag: keeps Node in its own context (window.cep_node) instead
+                 of merging it into the page's JS context. -->
+            <Parameter>--enable-nodejs</Parameter>
+          </CEFCommandLine>
+        </Resources>
+        <Lifecycle>
+          <AutoVisible>true</AutoVisible>
+        </Lifecycle>
+        <UI>
+          <Type>Panel</Type>
+          <Menu>Downbeat</Menu>
+          <Geometry>
+            <Size>
+              <Height>700</Height>
+              <Width>360</Width>
+            </Size>
+            <MinSize>
+              <Height>300</Height>
+              <Width>280</Width>
+            </MinSize>
+          </Geometry>
+          <Icons>
+            <Icon Type="Normal">./assets/dark-icon.png</Icon>
+            <Icon Type="DarkNormal">./assets/light-icon.png</Icon>
+            <Icon Type="RollOver">./assets/dark-icon.png</Icon>
+            <Icon Type="DarkRollOver">./assets/light-icon.png</Icon>
+          </Icons>
+        </UI>
+      </DispatchInfo>
+    </Extension>
+  </DispatchInfoList>
+</ExtensionManifest>

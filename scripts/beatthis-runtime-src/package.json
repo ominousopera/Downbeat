@@ -1,0 +1,8 @@
+{
+  "name": "downbeat-beatthis-runtime-src",
+  "private": true,
+  "description": "Pins onnxruntime-web's exact version + transitive dependency tree for scripts/fetch-beatthis-runtime.sh to vendor into runtime/onnxruntime-web/. Not part of the shipped product itself - see that script's header comment.",
+  "dependencies": {
+    "onnxruntime-web": "1.27.0"
+  }
+}

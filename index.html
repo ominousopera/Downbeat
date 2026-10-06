@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Downbeat</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <div class="app-header">
+    <div class="header-title">
+      <svg class="app-logo" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+        <circle cx="12" cy="14" r="6" fill="currentColor" opacity="0.85"/>
+        <path d="M4 13C4 7.477 7.477 4 12 4c4.523 0 8 3.477 8 9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <rect x="2.5" y="12" width="4" height="7" rx="2" fill="currentColor"/>
+        <rect x="17.5" y="12" width="4" height="7" rx="2" fill="currentColor"/>
+      </svg>
+      <h1>Downbeat</h1>
+    </div>
+
+    <div id="tabBar" class="tab-bar">
+      <button type="button" class="tab-btn" data-tab="analyze" data-i18n="tabs.analyze">Analyze</button>
+      <button type="button" class="tab-btn" data-tab="key" data-i18n="tabs.key">Key</button>
+      <button type="button" class="tab-btn" data-tab="library" data-i18n="tabs.library">Library</button>
+    </div>
+    <div class="header-right">
+      <div id="status" data-i18n="status.loading">loading…</div>
+      <button id="settingsGearBtn" type="button" class="icon-btn" data-i18n-title="settings.title" aria-label="Settings">⚙</button>
+    </div>
+  </div>
+
+  <!-- SETTINGS / DIAGNOSTICS (popover, hidden until the gear button is
+       clicked) -->
+  <div id="settingsBackdrop" class="settings-backdrop" hidden></div>
+  <div id="settingsPanel" class="settings-panel" hidden>
+    <div class="settings-panel-head">
+      <p class="panel-title" style="margin:0" data-i18n="settings.title">Settings &amp; diagnostics</p>
+      <button id="settingsCloseBtn" type="button" class="icon-btn" aria-label="Close settings">✕</button>
+    </div>
+
+    <div class="row">
+      <button id="guideBtn" type="button" class="ghost settings-full-btn" data-i18n="settings.guide">Guide / FAQ</button>
+    </div>
+
+    <div class="row">
+      <button id="replayTourBtn" type="button" class="ghost settings-full-btn g-last" data-i18n="settings.replayTour">Replay the tour</button>
+    </div>
+
+    <hr>
+
+    <p class="panel-title" data-i18n="settings.language">Language</p>
+    <div id="languageSwitch" class="lang-switch lang-switch-big">
+      <button type="button" class="lang-btn" data-lang="en">EN</button>
+      <button type="button" class="lang-btn" data-lang="ru">RU</button>
+      <button type="button" class="lang-btn" data-lang="es">ES</button>
+    </div>
+
+    <hr>
+
+    <!-- Library housekeeping. Handlers: the LIBRARY TAB section of js/library-tab.js. -->
+    <p class="panel-title" data-i18n="settings.libraryTitle">Library</p>
+    <div class="row">
+      <button id="saveLibraryBackupBtn" type="button" class="ghost settings-full-btn" data-i18n="library.backupSave">Save a copy…</button>
+    </div>
+    <div class="row">
+      <button id="loadLibraryBackupBtn" type="button" class="ghost settings-full-btn" data-i18n="library.backupLoad">Load a copy…</button>
+    </div>
+    <div class="row">
+      <button id="clearLibraryBtn" type="button" class="ghost settings-full-btn" data-i18n="library.clear">Clear</button>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <span class="hint" data-i18n="settings.libraryHint">Kept in Documents/Downbeat. Clear forgets the results; your folders stay.</span>
+    </div>
+    <div class="row g-status-row">
+      <span id="libraryAdminStatus" class="hint"></span>
+    </div>
+
+    <hr>
+
+    <div class="row">
+      <button id="deleteDataBtn" type="button" class="ghost settings-full-btn" data-i18n="settings.deleteData">Delete my data</button>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <span class="hint" data-i18n="settings.deleteDataHint">Removes only the files Downbeat saved itself in Documents/Downbeat: settings, the track library, the Music / SFX library, leftover temp files. Nothing else in that folder is ever touched.</span>
+    </div>
+
+    <hr>
+
+    <p class="panel-title" data-i18n="settings.diagnostics">Diagnostics</p>
+    <!-- Kept in the DOM, hidden: scripts/test-self-test.js and developers
+         click it by id. -->
+    <div id="selfTestBlock" hidden>
+      <div class="row">
+        <button id="runSelfTestBtn" type="button" class="ghost settings-full-btn" data-i18n="settings.selfTest">Run full self-test</button>
+      </div>
+      <div class="row">
+        <span class="hint" data-i18n="settings.selfTestHint">Runs every feature on the selected clip, including real test cuts. Use disposable material.</span>
+      </div>
+    </div>
+    <div class="row">
+      <button id="copyLogBtn" type="button" class="ghost settings-full-btn g-last" data-i18n="settings.copyLog">Copy log</button>
+    </div>
+    <pre id="log" hidden></pre>
+    <!-- The individual diagnostic buttons below are hidden from the visible
+         UI; each one already runs as a step inside "Run full self-test"
+         above. They stay in the DOM because the self-test clicks these
+         elements by id. -->
+    <div id="individualDiagnostics" hidden>
+      <div class="row" style="margin-top:6px">
+        <button id="testEssentiaBtn" type="button" class="ghost" data-i18n="settings.testEssentia">Test the analysis engine</button>
+        <span class="hint" data-i18n="settings.testEssentiaHint">no file needed</span>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button id="getInfoBtn" type="button" class="ghost" data-i18n="settings.getInfo">Get selected audio info</button>
+      </div>
+      <div class="row">
+        <button id="placeTestBtn" type="button" class="ghost" data-i18n="settings.placeTest">Place test markers</button>
+        <span class="hint" data-i18n="settings.placeTestHint">diagnostic</span>
+      </div>
+      <div class="row">
+        <button id="razorTestBtn" type="button" class="ghost" data-i18n="settings.razorTest">Test cut</button>
+        <span class="hint" data-i18n="settings.razorTestHint1">cut at clip start +</span>
+        <input id="razorOffsetSeconds" type="number" value="2" step="0.5" style="width:3.5em">
+        <span class="hint" data-i18n="settings.razorTestHint2">sec</span>
+      </div>
+    </div>
+
+    <hr>
+
+    <p class="panel-title" data-i18n="settings.about">About</p>
+    <div class="row">
+      <button id="feedbackBtn" type="button" class="ghost settings-full-btn" data-i18n="settings.feedback">Give Feedback</button>
+    </div>
+
+    <hr>
+
+    <div class="row">
+      <button id="licenseBtn" type="button" class="ghost settings-full-btn" data-i18n="settings.license">License</button>
+    </div>
+
+    <hr>
+
+    <div class="row">
+      <button id="thirdPartyNoticesBtn" type="button" class="ghost settings-full-btn g-last" data-i18n="settings.thirdPartyNotices">Third-party licenses</button>
+    </div>
+
+    <hr>
+
+    <div class="row settings-section-label">
+      <span id="settingsFooterText" class="hint"></span>
+    </div>
+  </div>
+
+  <!-- TEXT VIEWER (Guide/FAQ, License, Third-party notices - one shared
+       modal, content swapped in per button, see js/settings-panel.js) -->
+  <div id="textViewerOverlay" class="modal-overlay" hidden>
+    <div class="modal-card">
+      <div class="modal-card-head">
+        <p class="modal-card-title" id="textViewerTitle"></p>
+        <button id="textViewerCloseBtn" type="button" class="icon-btn" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-card-body" id="textViewerBody"></div>
+    </div>
+  </div>
+
+  <div id="externalLinkOverlay" class="modal-overlay" hidden>
+    <div class="modal-card">
+      <div class="modal-card-head">
+        <p class="modal-card-title" data-i18n="settings.externalLinkTitle">Open link in your browser?</p>
+      </div>
+      <p class="modal-card-message" id="externalLinkMessage"></p>
+      <div class="row" style="padding:10px 14px 0">
+        <label><input type="checkbox" id="externalLinkRememberCheckbox"> <span data-i18n="settings.externalLinkRemember">Remember my choice</span></label>
+      </div>
+      <div class="modal-card-actions">
+        <button id="externalLinkCancelBtn" type="button" class="ghost" data-i18n="settings.externalLinkCancel">Cancel</button>
+        <button id="externalLinkOpenBtn" type="button" class="primary" data-i18n="settings.externalLinkOpen">Open</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="deleteDataOverlay" class="modal-overlay" hidden>
+    <div class="modal-card">
+      <div class="modal-card-head">
+        <p class="modal-card-title" data-i18n="settings.deleteDataTitle">Delete Downbeat's saved data?</p>
+      </div>
+      <p class="modal-card-message" id="deleteDataMessage"></p>
+      <div class="modal-card-actions">
+        <button id="deleteDataCancelBtn" type="button" class="ghost" data-i18n="settings.deleteDataCancel">Cancel</button>
+        <button id="deleteDataConfirmBtn" type="button" class="primary" data-i18n="settings.deleteDataConfirm">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CURRENT SELECTION -->
+  <!-- After Effects only: what is limited there, and that sound work is
+       easier in Premiere Pro. "Got it" hides it for good
+       (settings.aeNoteDismissed). -->
+  <div class="row g-ae-note" id="aeNote" hidden>
+    <span class="hint" data-i18n="ae.note">In After Effects some things are limited: markers sit on whole frames, sounds go in as layers and fades as volume keyframes. Sound work is easier in Premiere Pro.</span>
+    <button id="aeNoteDismiss" type="button" class="g-link" data-i18n="ae.noteDismiss">Got it</button>
+  </div>
+  <div class="row" id="selectionStatusRow">
+    <span id="selectionStatusDisplay" class="selection-status" data-i18n="selection.placeholder">Select an audio clip on the timeline to get started.</span>
+  </div>
+
+  <div id="tabContentAnalyze" class="tab-content" data-tab="analyze">
+
+  <!-- ANALYZE, in sections: 01 Clip (waveform and preview), 02 Tempo (BPM,
+       the "one", typed tempo), 03 Markers (type, where, timing), then one
+       action bar and the Marker tools. #tabContentAnalyze gets .has-analysis
+       while a beat grid exists (js/beat-preview.js _refreshBeatClickPreview /
+       _hideBeatClickPreview): Analyze turns from the main button into a
+       small "analyze again" link. -->
+  <section class="g-sec" id="gSecClip">
+    <div class="g-sec-head"><span class="g-sec-title" data-i18n="analyze.secClip">Clip</span><span class="g-sec-meta g-clip-slot" id="analyzeClipSlot"></span></div>
+    <button id="analyzeBtn" type="button" class="primary g-main g-analyze" data-i18n="analyze.run">Analyze selected audio</button>
+    <div class="g-wave-empty"><span data-i18n="analyze.notAnalyzed">Not analyzed yet</span></div>
+    <div class="row" id="beatClickWaveformRow" style="display:none">
+      <div class="beat-click-waveform-wrap">
+        <canvas id="beatClickWaveform" class="beat-click-waveform" height="96"></canvas>
+        <div id="beatClickZoomRow" class="beat-click-zoom-overlay" style="display:none">
+          <button id="beatClickZoomOutBtn" type="button" class="icon-btn" aria-label="Zoom out">−</button>
+          <button id="beatClickZoomFitBtn" type="button" class="ghost" data-i18n="analyze.beatClickZoomFit">Fit</button>
+          <button id="beatClickZoomInBtn" type="button" class="icon-btn" aria-label="Zoom in">+</button>
+          <span id="beatClickZoomLabel" class="hint"></span>
+        </div>
+      </div>
+    </div>
+    <div class="row" id="beatClickPanRow" style="display:none">
+      <input id="beatClickPanInput" type="range" class="mini-player-seek" min="0" max="0" step="0.01" value="0">
+    </div>
+    <div class="row g-transport mini-player-row" id="beatClickPlayerRow" style="display:none">
+      <button id="beatClickToggleBtn" type="button" class="g-link mini-player-toggle" aria-label="Play">▶</button>
+      <span class="mini-player-time" id="beatClickTime">0:00 / 0:00</span>
+      <span id="beatClickToggleRow" class="g-click-toggle" style="display:none"><label><input type="checkbox" id="beatClickEnableCheckbox" checked> <span data-i18n="analyze.beatClickLabel">Click on downbeats</span></label></span>
+      <audio id="beatClickAudio" preload="metadata"></audio>
+    </div>
+    <div class="row g-volumes" id="beatClickVolumeRow" style="display:none">
+      <span class="hint" data-i18n="analyze.beatClickTrackVolume">Track</span>
+      <input id="beatClickTrackVolumeInput" type="range" min="0" max="100" value="100">
+      <span class="hint" data-i18n="analyze.beatClickClickVolume">Click</span>
+      <input id="beatClickClickVolumeInput" type="range" min="0" max="100" value="90">
+    </div>
+    <!-- Shown when the file name looks like a music video's soundtrack: its
+         intro and ending may hold talking or effects. -->
+    <div class="row g-mv-note" id="musicVideoNote" hidden>
+      <span class="hint" data-i18n="analyze.musicVideoNote">Looks like a music video's sound: its intro and ending often have talking or sound effects - check the markers there. The song itself analyzes like any track.</span>
+    </div>
+  </section>
+
+  <section class="g-sec" id="gSecTempo">
+    <div class="g-sec-head"><span class="g-sec-title" data-i18n="analyze.secTempo">Tempo</span><span class="g-sec-meta" hidden><span id="beatCountDisplay">–</span> <span data-i18n="analyze.beats">Beats</span></span></div>
+    <div class="g-tempo">
+      <span class="g-bpm-wrap"><span class="g-bpm" id="bpmDisplay">–</span><span class="g-unit" data-i18n="analyze.bpm">BPM</span></span>
+    </div>
+    <!-- Each line is a label column and its controls, aligned like the
+         Markers grid below. Hints run full width under their line. -->
+    <!-- Typed tempo. The long intro hint is hidden by CSS; after the button is
+         used, the row shows a note that an even grid was placed and can be
+         reverted (main.js _setManualBpmMode). -->
+    <div class="row g-kv g-manual">
+      <span class="g-key" data-i18n="analyze.typeBpm">Custom BPM</span>
+      <input id="manualBpmInput" type="number" value="120" min="1" step="0.01" aria-label="BPM">
+      <button id="manualBpmBtn" type="button" class="g-link" data-i18n="analyze.manualBpmBtn">Use</button>
+      <span class="hint" id="manualBpmIntroText" data-i18n="analyze.manualBpmIntro">Already know the BPM? Skip analysis and place an even beat grid at the tempo you type in.</span>
+    </div>
+    <!-- #retempoHint is empty unless the half-time check fires (main.js
+         _updateRetempoLikelyHint); then it is a red line under the buttons. -->
+    <div class="row g-kv g-retempo" id="retempoRow" style="display:none">
+      <span class="g-key" data-i18n="analyze.retempoKey">Half / double</span>
+      <button id="retempoHalfBtn" type="button" class="g-link" data-i18n="analyze.retempoHalf">½×</button>
+      <button id="retempoDoubleBtn" type="button" class="g-link" data-i18n="analyze.retempoDouble">2×</button>
+      <span class="hint" id="retempoHint"></span>
+    </div>
+    <!-- Beat grid: Refined (the second detector, Beat This!, applied) or
+         Basic (the first detector only). -->
+    <div class="row g-kv g-beatgrid" id="beatThisRow" style="display:none">
+      <span class="g-key" data-i18n="analyze.gridLabel">Beat grid</span>
+      <span class="g-opts">
+        <button id="gridRefinedBtn" type="button" class="g-opt-btn" aria-pressed="false" data-i18n="analyze.gridRefined">Refined</button>
+        <span class="g-sep">/</span>
+        <button id="gridBasicBtn" type="button" class="g-opt-btn" aria-pressed="false" data-i18n="analyze.gridBasic">Basic</button>
+      </span>
+      <button id="beatThisBtn" type="button" hidden data-i18n="analyze.beatThisBtn">Try alternative analysis</button>
+      <span class="hint" id="beatThisHintText" data-i18n="analyze.gridHelp">Refined double-checks the beats with a second detector and is usually more accurate. If the markers miss the beats, try the other one.</span>
+    </div>
+    <div class="row g-warn" id="gridConfidenceRow" style="display:none">
+      <span class="hint is-error" id="gridConfidenceHint" data-i18n="analyze.gridConfidenceLow">This track's beat grid may be less reliable than usual (low detection confidence) - worth checking the markers against the audio by ear.</span>
+    </div>
+    <!-- Which beat of the bar is the real "1": 1 = as the analysis found it;
+         2, 3 or 4 move the "1" there; 1 puts it back. #phaseDisplay stays in
+         the DOM, hidden; main.js reads it for the log snapshot. -->
+    <div class="row g-kv g-phase-row">
+      <span class="g-key" data-i18n="analyze.phaseShort">The "1" is beat</span>
+      <span class="g-phase" id="phaseCells">
+        <button id="phaseBeat1" type="button" class="g-cell" data-shift="0">1</button>
+        <button id="phaseBeat2" type="button" class="g-cell" data-shift="1">2</button>
+        <button id="phaseBeat3" type="button" class="g-cell" data-shift="2">3</button>
+        <button id="phaseBeat4" type="button" class="g-cell" data-shift="3">4</button>
+        <span id="phaseDisplay" hidden>–</span>
+      </span>
+    </div>
+    <div class="row g-phase-hint">
+      <span class="hint" data-i18n="analyze.phaseHelp">If the markers fall on the wrong beat of the bar, click the beat that is really the first one ("1"). 1 = as found.</span>
+    </div>
+    <div class="row g-warn" id="phaseUncertainRow" style="display:none">
+      <span class="hint is-error" id="phaseUncertainHint" data-i18n="analyze.phaseUncertain">Not sure which beat is the "1" here (a weak signal, or not 4/4 - this tool assumes 4/4). Check the markers and pick the real "1" above if needed.</span>
+    </div>
+    <div class="row g-warn" id="phaseAgreementRow" style="display:none">
+      <span class="hint is-error" id="phaseAgreementHint"></span>
+    </div>
+  </section>
+
+  <section class="g-sec" id="gSecMarkers">
+    <div class="g-sec-head"><span class="g-sec-title" data-i18n="analyze.secMarkers">Markers</span></div>
+    <!-- Markers: downbeats, or every beat (D + b). Where: on the clip or the
+         timeline, settings.markerTarget. Timing: the frame the beat starts
+         in, or exact, settings.markerTiming. -->
+    <div class="g-grid">
+      <span class="g-key" data-i18n="analyze.typeLabel">Type</span>
+      <span class="g-opts">
+        <label class="g-opt"><input type="radio" name="cutMode" value="simple" checked><span data-i18n="analyze.modeSimple">Bars</span></label>
+        <span class="g-sep">/</span>
+        <label class="g-opt"><input type="radio" name="cutMode" value="detailed"><span data-i18n="analyze.modeDetailed">Bars + beats</span></label>
+      </span>
+      <span class="g-key" data-i18n="analyze.targetLabel">Place on</span>
+      <span class="g-opts">
+        <label class="g-opt"><input type="radio" name="markerTarget" value="clip" checked><span data-i18n="analyze.targetClip">Clip</span></label>
+        <span class="g-sep">/</span>
+        <label class="g-opt"><input type="radio" name="markerTarget" value="sequence"><span data-i18n="analyze.targetTimeline">Timeline</span></label>
+      </span>
+      <!-- Timing: Premiere only. After Effects has no Show Audio Time Units;
+           its playhead and Split Layer work in whole frames, so it always
+           places on the frame (main.js getMarkerTiming). -->
+      <span class="g-key" id="timingKey" data-i18n="analyze.timingLabel">Timing</span>
+      <span class="g-opts" id="timingOpts">
+        <label class="g-opt"><input type="radio" name="markerTiming" value="frame" checked><span data-i18n="analyze.timingFrame">Frame</span></label>
+        <span class="g-sep">/</span>
+        <label class="g-opt"><input type="radio" name="markerTiming" value="exact"><span data-i18n="analyze.timingExact">Exact</span></label>
+      </span>
+      <!-- Shift: a hand nudge for one track, when all its markers sit a
+           little before or after the hits. 1 ms a click, remembered per audio
+           file (settings.markerNudgeMs); markers move right away (main.js
+           _nudgeMarkers). Shown with Timing: Exact only - with Frame a 1 ms
+           shift almost never changes the frame. -->
+      <span class="g-key" id="nudgeKey" data-i18n="analyze.nudgeLabel" hidden>Shift</span>
+      <span class="g-opts g-nudge" id="nudgeOpts" hidden>
+        <button id="nudgeEarlierBtn" type="button" class="g-cell" data-i18n-title="analyze.nudgeEarlier" title="1 ms earlier">−</button>
+        <span class="g-nudge-value" id="nudgeValue"><span id="nudgeNumber">0</span> <span data-i18n="analyze.nudgeUnit">ms</span></span>
+        <button id="nudgeLaterBtn" type="button" class="g-cell" data-i18n-title="analyze.nudgeLater" title="1 ms later">+</button>
+      </span>
+    </div>
+    <div class="row g-nudge-hint" id="nudgeHintRow" hidden>
+      <span class="hint" data-i18n="analyze.nudgeHint">If every marker of this track sits a little before or after the hits: − moves them all 1 ms earlier, + 1 ms later. Remembered for this track.</span>
+    </div>
+    <!-- Premiere only (hidden in After Effects by main.js). No script can
+         switch this mode on, so the panel says where it is. -->
+    <div class="row" id="audioUnitsTipRow">
+      <span class="hint" data-i18n="analyze.audioUnitsTip">To cut exactly on the beat rather than on the nearest video frame, turn on Show Audio Time Units in the Timeline panel menu (☰ next to the sequence name).</span>
+    </div>
+  </section>
+
+  <div class="g-actions">
+    <button id="placeMarkersBtn" type="button" class="primary g-main" data-i18n="analyze.placeMarkers">Place markers</button>
+    <button id="clearMarkersBtn" type="button" class="ghost" data-i18n="analyze.clearShort">Clear</button>
+    <button id="markerToolsToggleBtn" type="button" class="ghost" aria-expanded="false" data-i18n="analyze.toolsShort">Tools</button>
+  </div>
+
+  <!-- Marker tools: Copy / paste. -->
+  <section class="g-sec" id="markerToolsSection" hidden>
+    <div class="g-sec-head"><span class="g-sec-title" data-i18n="analyze.markerToolsToggle">Marker tools</span></div>
+    <div class="row g-copy">
+      <button id="copyMarkersBtn" type="button" class="g-link" data-i18n="analyze.copyMarkers">Copy markers</button>
+      <span class="g-sep">/</span>
+      <button id="pasteMarkersBtn" type="button" class="g-link" data-i18n="analyze.pasteMarkers">Paste markers here</button>
+      <span id="copyMarkersStatus" class="hint"></span>
+    </div>
+    <div class="row">
+      <label><input type="checkbox" id="removeAfterCopyCheckbox"> <span data-i18n="analyze.removeAfterCopyLabel">Remove from source after copy (move instead of copy)</span></label>
+    </div>
+    <div class="row">
+      <span class="hint" data-i18n="analyze.copyMarkersHint">Copies this clip's markers into memory (sequence + clip markers, all types). Select a clip in another sequence or elsewhere in this one, then Paste - no need to analyze the same track again.</span>
+    </div>
+  </section>
+
+  <!-- Hidden Cut panel; its button handler is cutDownbeatsBtn in js/main.js. -->
+  <div class="panel" hidden>
+    <p class="panel-title" data-i18n="cut.title">Cut</p>
+    <div class="row">
+      <button id="cutDownbeatsBtn" type="button" class="primary" data-i18n="cut.run">Cut selected clip at downbeats</button>
+    </div>
+    <div class="row">
+      <span class="hint" data-i18n="cut.hint">Uses the last Analyze result on this clip — run Analyze first.</span>
+    </div>
+  </div>
+
+  </div><!-- /tabContentAnalyze -->
+
+  <div id="tabContentKey" class="tab-content" data-tab="key">
+
+  <!-- KEY & CAMELOT -->
+  <div class="panel">
+    <div class="g-sec-head"><span class="g-sec-title" data-i18n="key.title">Key &amp; Camelot</span><span class="g-sec-meta g-clip-slot" id="keyClipSlot"></span></div>
+    <div class="row">
+      <span class="hint" data-i18n="key.intro">Finds the musical key of any clip - song, riser, stinger, or SFX.</span>
+    </div>
+
+    <!-- Music / SFX switch: the two materials need different KeyExtractor
+         profile sets - see js/analyze.js's KEY_PROFILE_SETS. -->
+    <div id="keyMaterialSwitch" class="lang-switch">
+      <button id="keyMaterialMusicBtn" type="button" class="key-material-btn" data-material="music" data-i18n="key.materialMusic">Music</button>
+      <button id="keyMaterialSfxBtn" type="button" class="key-material-btn" data-material="sfx" data-i18n="key.materialSfx">Sound effect</button>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <span class="hint" data-i18n="key.materialHint">Music and sound effects need different analysis settings. Pick what this clip is.</span>
+    </div>
+
+    <div class="row">
+      <button id="detectKeyBtn" type="button" class="primary" data-i18n="key.run">Detect key</button>
+    </div>
+
+    <div class="wheel-wrap">
+      <svg id="camelotWheel" viewBox="0 0 200 200"></svg>
+    </div>
+
+    <div class="row">
+      <span class="hint" data-i18n="key.label">Key</span>
+      <span id="keyResultDisplay">–</span>
+    </div>
+
+    <div class="row" id="compatibleKeysRow" style="display:none">
+      <span class="hint" data-i18n="key.compatibleLabel">Goes well with</span>
+      <span id="compatibleKeysDisplay">–</span>
+    </div>
+
+    <div class="row" id="keyAgreementRow" style="display:none">
+      <span class="hint" id="keyAgreementDisplay"></span>
+    </div>
+
+    <div class="row">
+      <span class="hint" data-i18n="key.overrideLabel">Override</span>
+      <input id="keyOverrideInput" type="text" placeholder="8A" style="width:3.5em">
+      <button id="applyKeyOverrideBtn" type="button" class="ghost" data-i18n="key.overrideApply">Apply</button>
+      <span class="hint" data-i18n="key.overrideHint">if you already know the key</span>
+    </div>
+  </div>
+
+  <!-- PITCH SHIFT CALCULATOR - shows the shift between two keys; the button
+       below can also apply it to the selected clip. Logic in js/pitch.js,
+       rendering in js/main.js renderPitch(). -->
+  <div class="panel">
+    <p class="panel-title" data-i18n="key.pitchTitle">Pitch shift</p>
+    <div class="row">
+      <span class="hint" data-i18n="key.pitchIntro">The shift from one key to another - for your own pitch shifter, or applied to the selected clip itself (below).</span>
+    </div>
+    <div class="row">
+      <span class="hint pitch-label" data-i18n="key.pitchFrom">From</span>
+      <select id="pitchFromSelect" class="pitch-select"></select>
+    </div>
+    <div class="row">
+      <span class="hint pitch-label" data-i18n="key.pitchTo">To</span>
+      <select id="pitchToSelect" class="pitch-select"></select>
+    </div>
+    <div class="pitch-readout">
+      <span class="pitch-main" id="pitchSemitones">–</span>
+      <span class="pitch-units" id="pitchUnits"></span>
+    </div>
+    <p class="pitch-alt" id="pitchAlt"></p>
+    <p class="pitch-note" id="pitchNote"></p>
+    <!-- Apply: places the selected clip's own file on a free track at the
+         clip's position at the speed that gives the shift (pitch follows
+         speed, like the Library preview); the original is switched off, not
+         deleted. Handler: pitchApplyBtn in js/main.js. -->
+    <div class="row g-pitch-apply">
+      <button id="pitchApplyBtn" type="button" class="g-link" data-i18n="key.pitchApply">Pitch the clip</button>
+      <span id="pitchApplyStatus" class="hint"></span>
+    </div>
+    <div class="row">
+      <span class="hint" data-i18n="key.pitchApplyHint">Like the Library preview: higher also plays faster and shorter. The clip's own file goes on a free track at the clip's place, at the speed that gives the shift (no copy is made); the original stays, switched off.</span>
+    </div>
+  </div>
+
+  </div><!-- /tabContentKey -->
+
+  <div id="tabContentLibrary" class="tab-content" data-tab="library">
+
+  <!-- LIBRARY: two sections, Music and SFX, each made from folders on this
+       computer - search by key and BPM, listen, insert at the playhead. Data
+       and search in js/sound-library.js, the panel side in js/library-tab.js.
+       Clips analyzed on the timeline are listed too, in the section their key
+       material says. -->
+  <div class="panel">
+    <div class="g-lib-head">
+      <div id="libSectionSwitch" class="lang-switch lang-switch-big">
+        <button id="libSectionMusicBtn" type="button" class="key-material-btn lib-section-btn" data-section="music" data-i18n="library.sectionMusic">Music</button>
+        <span class="g-sep">/</span>
+        <button id="libSectionSfxBtn" type="button" class="key-material-btn lib-section-btn" data-section="sfx" data-i18n="library.sectionSfx">SFX</button>
+      </div>
+      <div class="g-lib-head-right">
+        <button id="libFoldersToggleBtn" type="button" class="ghost lib-folders-toggle" hidden></button>
+        <button id="libAddFolderBtn" type="button" class="ghost" data-i18n="library.addFolder">+ Folder</button>
+        <button id="libRescanBtn" type="button" class="ghost" data-i18n="library.rescan">Start scan</button>
+      </div>
+    </div>
+    <div class="row">
+      <span id="libScanStatus" class="hint"></span>
+    </div>
+
+    <div class="row lib-filter-row g-find-row">
+      <span class="hint g-find" data-i18n="library.findLabel">Find</span>
+      <input id="libSearchInput" type="text" class="lib-search" placeholder="whoosh, hit, riser… (-word excludes)" data-i18n-placeholder="library.searchPlaceholder">
+      <span id="libSearchExpand" class="hint g-expand"></span>
+      <!-- Synonyms on / off: ✕ searches only the typed words; "+ synonyms"
+           brings them back. Remembered (settings.librarySynonyms). -->
+      <button id="libSynToggle" type="button" class="g-link g-syn-toggle" hidden></button>
+    </div>
+    <!-- Two groups: the dropdowns, then the on / off filters and Reset. Side
+         by side when they fit; in a narrow panel each group takes its own
+         whole line, never a lone checkbox on a second line. -->
+    <div class="row lib-filter-row g-filters">
+      <span class="g-filter-picks">
+        <span class="hint" data-i18n="library.sortLabel">Sort</span>
+        <select id="libSortSelect" class="lib-sort-select"></select>
+        <span class="hint" data-i18n="library.keyLabel">Key</span>
+        <select id="libKeySelect" class="lib-key-select"></select>
+        <select id="libKeyModeSelect" class="lib-mode-select">
+          <option value="exact" data-i18n="library.keyExact">exact</option>
+          <option value="compatible" data-i18n="library.keyCompatible">+ compatible</option>
+        </select>
+      </span>
+      <span class="g-filter-checks">
+        <label><input type="checkbox" id="libFavOnlyCheckbox"> <span data-i18n="library.favOnly">Favorites</span></label>
+        <label id="libPitchedOnlyLabel"><input type="checkbox" id="libPitchedOnlyCheckbox"> <span data-i18n="library.pitchedOnly">Pitched</span></label>
+        <span class="g-lib-links">
+          <button id="libMatchClipBtn" type="button" class="ghost" data-i18n="library.matchClip">Match clip</button>
+          <span class="g-sep">·</span>
+          <button id="libResetFiltersBtn" type="button" class="ghost" data-i18n="library.resetFilters">Reset</button>
+        </span>
+      </span>
+    </div>
+    <!-- Music only: sound effects have no tempo filter. -->
+    <div class="row lib-filter-row" id="libBpmRow">
+      <span class="hint" data-i18n="library.bpmLabel">BPM</span>
+      <input id="libBpmInput" type="number" min="0" step="0.1" style="width:4.5em">
+      <span class="hint">±</span>
+      <input id="libBpmTolInput" type="number" min="0" step="1" value="4" style="width:3em">
+      <span class="hint">%</span>
+      <label><input type="checkbox" id="libHalfDoubleCheckbox" checked> <span data-i18n="library.halfDouble">also ½× and 2×</span></label>
+    </div>
+    <div class="row g-lib-count">
+      <span id="libResultCount" class="hint"></span>
+    </div>
+    <!-- Takes the keyboard focus after a click in the list, so Premiere
+         passes ↑ ↓ / Space / Enter to the panel (js/library-tab.js
+         _libFocusKeys). -->
+    <input id="libKeyCatcher" class="lib-key-catcher" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
+    <!-- The list and the preview pane. The Library tab fills the panel's
+         height and the list takes what is left (body.on-library); from 900 px
+         wide the pane sits to the right of the list. -->
+    <div class="g-lib-body">
+    <!-- The folder browser: a tree with search-scope squares; above the list
+         in a narrow panel, a column on its left from 900 px.
+         js/library-tab.js renderLibraryFolders. -->
+    <div id="libFolderList" class="lib-folders"></div>
+    <div class="g-lib-listcol">
+      <div id="libraryDisplay"></div>
+      <div class="row g-lib-keys">
+        <span class="hint" data-i18n="library.keysHint">↑ ↓ choose a file · Space listens · Enter inserts</span>
+      </div>
+    </div>
+    <audio id="libPreviewAudio" preload="none"></audio>
+    <!-- PREVIEW PANE: the selected file's waveform (click to jump), play,
+         time, Loop, Reverse, volume, Pitch − / + in semitones (sampler-style:
+         higher is also faster), Reset, and Add - always the original file,
+         with the part, fades, pitch and Reverse set on the clip. Sticks to
+         the bottom of the tab while the list scrolls. Sound side:
+         js/lib-preview.js; wiring: the preview-pane section of js/library-tab.js. -->
+    <div id="libPane" class="g-lib-pane" hidden>
+      <div class="g-lib-pane-head">
+        <span id="libPaneName" class="g-lib-pane-name"></span>
+        <span id="libPaneTime" class="g-lib-pane-time">0:00.00 / 0:00.00</span>
+      </div>
+      <canvas id="libPaneWave" class="g-lib-pane-wave" height="44" data-i18n-title="library.paneWaveTitle" title="Click to jump. Drag to select a part; drag the small squares at the top to fade in and out."></canvas>
+
+      <div id="libPaneSel" class="g-pane-sel" hidden>
+        <span id="libPaneSelText" class="hint"></span>
+        <button id="libPaneSelClear" type="button" class="g-link" data-i18n="library.paneClear">Clear</button>
+      </div>
+      <div id="libPaneNote" class="hint g-lib-pane-note" hidden></div>
+      <div class="g-lib-pane-row">
+        <button id="libPanePlayBtn" type="button" class="g-pane-play" aria-label="Play">▶</button>
+        <label class="g-pane-check"><input type="checkbox" id="libPaneLoop"><span data-i18n="library.paneLoop">Loop</span></label>
+        <label class="g-pane-check"><input type="checkbox" id="libPaneReverse"><span data-i18n="library.paneReverse">Reverse</span></label>
+        <span class="g-pane-vol"><span class="g-pane-key" data-i18n="library.paneVolume">Vol</span><input id="libPaneVolume" type="range" min="0" max="100" value="80"></span>
+      </div>
+      <div class="g-lib-pane-row">
+        <span class="g-pane-key" data-i18n="library.panePitch" data-i18n-title="library.panePitchTitle" title="Semitones, like a sampler: higher also plays faster">Pitch</span>
+        <button id="libPanePitchDown" type="button" class="g-cell" aria-label="−1 semitone">−</button>
+        <span id="libPanePitchValue" class="g-pane-pitch">0</span>
+        <button id="libPanePitchUp" type="button" class="g-cell" aria-label="+1 semitone">+</button>
+        <button id="libPanePitchReset" type="button" class="g-link" data-i18n="library.paneReset">Reset</button>
+        <!-- In key: pitches each previewed sound into the music clip's key;
+             see _libInKeyShift in js/library-tab.js. -->
+        <button id="libPaneInKeyBtn" type="button" class="g-link g-pane-inkey" aria-pressed="false" data-i18n="library.paneInKey" data-i18n-title="library.paneInKeyTitle" title="Pitch every sound you listen to into the music clip's key">In key</button>
+        <button id="libPaneAddBtn" type="button" class="g-pane-add" data-i18n="library.paneAdd" data-i18n-title="library.paneAddTitle" title="Put it on the timeline at the playhead - the file itself, with the part, fades, pitch and reverse set on the clip (no copy is made)">Add</button>
+      </div>
+      <!-- With a pitch on a sound that has a key or note: what it becomes. -->
+      <div id="libPaneKey" class="hint g-pane-keyline" hidden></div>
+    </div>
+    </div><!-- /g-lib-body -->
+  </div>
+
+  </div><!-- /tabContentLibrary -->
+
+  <!-- LIBRARY SCAN OVERLAY: a folder scan keeps every core busy for minutes,
+       so the panel is covered while it runs - progress in percent, files
+       done, time left, and Cancel. Driven by js/library-tab.js's
+       _libStartScan(). -->
+  <div id="libScanOverlay" class="busy-overlay lib-scan-overlay" hidden>
+    <div class="busy-card lib-scan-card">
+      <div class="busy-text" data-i18n="library.scanTitle">Analyzing the library…</div>
+      <div class="lib-scan-bar"><div id="libScanBarFill" class="lib-scan-bar-fill"></div></div>
+      <div id="libScanPercent" class="lib-scan-percent">0%</div>
+      <div id="libScanDetail" class="lib-scan-detail"></div>
+      <div id="libScanEta" class="lib-scan-detail lib-scan-eta"></div>
+      <div class="lib-scan-note" data-i18n="library.scanNote">This uses your computer's full power, so the panel waits until it is done. Files analyzed so far are kept if you cancel.</div>
+      <button id="libScanCancelBtn" type="button" class="ghost" data-i18n="library.scanCancel">Cancel</button>
+    </div>
+  </div>
+
+  <!-- BUSY OVERLAY -->
+  <div id="busyOverlay" class="busy-overlay" hidden>
+    <div class="busy-card">
+      <div class="busy-spinner"></div>
+      <div id="busyOverlayText" class="busy-text" data-i18n="busy.default">Working…</div>
+      <div class="busy-stuck-hint" data-i18n="busy.stuckHint">This is taking longer than expected.</div>
+      <button id="busyDismissBtn" type="button" class="ghost busy-dismiss-btn" data-i18n="busy.dismiss">Dismiss</button>
+    </div>
+  </div>
+
+  <!-- FIRST-RUN LANGUAGE PICKER -->
+  <div id="langPickOverlay" class="tour-overlay" hidden>
+    <div class="tour-card lang-pick-card">
+      <p class="tour-card-title" data-i18n="lang.pickTitle">Choose your language</p>
+      <div class="lang-switch lang-switch-big">
+        <button type="button" class="lang-btn" data-lang="en">EN</button>
+        <button type="button" class="lang-btn" data-lang="ru">RU</button>
+        <button type="button" class="lang-btn" data-lang="es">ES</button>
+      </div>
+      <p class="tour-card-body" data-i18n="lang.pickBody">You can change this later in Settings.</p>
+    </div>
+  </div>
+
+  <!-- ONBOARDING TOUR -->
+  <div id="tourOverlay" class="tour-overlay" hidden>
+    <div id="tourSpotlight" class="tour-spotlight"></div>
+    <div id="tourCallout" class="tour-callout">
+      <p class="tour-callout-step" id="tourStepIndicator"></p>
+      <p class="tour-callout-title" id="tourCalloutTitle"></p>
+      <p class="tour-callout-body" id="tourCalloutBody"></p>
+      <div class="tour-callout-actions">
+        <button id="tourSkipBtn" type="button" class="ghost" data-i18n="tour.skip">Skip tour</button>
+        <div class="tour-callout-nav">
+          <button id="tourBackBtn" type="button" class="ghost" data-i18n="tour.back">Back</button>
+          <button id="tourNextBtn" type="button" class="primary" data-i18n="tour.next">Next</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/CSInterface.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/cuesheet.js"></script>
+  <script src="js/camelot.js"></script>
+  <script src="js/pitch.js"></script>
+  <script src="js/key-combine.js"></script>
+  <script src="js/wheel.js"></script>
+  <script src="js/library.js"></script>
+  <script src="js/ucs-data.js"></script>
+  <script src="js/sfx-search.js"></script>
+  <script src="js/sound-library.js"></script>
+  <script src="js/persistence.js"></script>
+  <script src="js/place.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/lib-preview.js"></script>
+  <script src="js/tour.js"></script>
+  <script src="js/ui-select.js"></script>
+  <script src="js/bridge.js"></script>
+  <script src="js/settings-panel.js"></script>
+  <script src="js/library-tab.js"></script>
+  <script src="js/beat-preview.js"></script>
+  <script src="js/self-test.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
