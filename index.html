@@ -86,6 +86,25 @@
 
     <hr>
 
+    <p class="panel-title" data-i18n="settings.updates">Updates</p>
+    <div class="row">
+      <label><input type="checkbox" id="updateCheckCheckbox"> <span data-i18n="settings.updateCheck">Tell me when a new version is out</span></label>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <span class="hint" data-i18n="settings.updateHint">Off by default. When on, Downbeat asks GitHub once every three days for the number of the latest release. Nothing about you is sent, and nothing is installed: you download an update yourself.</span>
+    </div>
+    <div class="row g-status-row">
+      <span id="updateStatus" class="hint"></span>
+    </div>
+    <div class="row">
+      <button id="updateCheckNowBtn" type="button" class="ghost settings-full-btn" data-i18n="settings.updateCheckNow" hidden>Check now</button>
+    </div>
+    <div class="row">
+      <button id="updateOpenBtn" type="button" class="primary settings-full-btn" data-i18n="settings.updateOpen" hidden>Open the release page</button>
+    </div>
+
+    <hr>
+
     <p class="panel-title" data-i18n="settings.diagnostics">Diagnostics</p>
     <!-- Kept in the DOM, hidden: scripts/test-self-test.js and developers
          click it by id. -->
@@ -687,6 +706,7 @@
   <script src="js/tour.js"></script>
   <script src="js/ui-select.js"></script>
   <script src="js/bridge.js"></script>
+  <script src="js/update-check.js"></script>
   <script src="js/settings-panel.js"></script>
   <script src="js/library-tab.js"></script>
   <script src="js/beat-preview.js"></script>

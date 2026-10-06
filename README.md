@@ -299,10 +299,14 @@ components and their licenses are listed in [`NOTICE.md`](NOTICE.md).
 <details>
 <summary><b>Does it work offline? Is anything uploaded?</b></summary>
 
-It works completely offline. Nothing is uploaded, there is no account, no
-analytics and no update check; the panel never goes online. The only web link
-is the feedback link in Settings, which opens in your browser after a
-confirmation.
+It works completely offline. Nothing is uploaded, there is no account and no
+analytics. The panel goes online only if you switch on **Settings → Updates →
+Tell me when a new version is out** (off by default): then, once every three
+days, it asks GitHub for the number of the latest release and shows a link when
+a newer one exists. No data about you is sent (GitHub sees your IP address, as
+any website does), and nothing is installed by itself. Apart from that, the
+only web links are the feedback link and the release link, which open in your
+browser after a confirmation.
 </details>
 
 <details>
@@ -393,8 +397,9 @@ developer sections further down this page.
 <details>
 <summary><b>Privacy and security</b></summary>
 
-Everything runs on your computer. The panel makes no network calls, and
-`scripts/check-code.js` fails the build if code that could is added. Saved data
+Everything runs on your computer. The panel makes no network calls except the
+optional update notice (off by default), and `scripts/check-code.js` fails the
+build if any other code that could is added. Saved data
 (settings, track library, temporary files) lives in `Documents/Downbeat`,
 never inside the plugin's own folder. Report a vulnerability privately through
 the repository's Security tab; see [`SECURITY.md`](SECURITY.md).
@@ -510,7 +515,7 @@ comments, is this repository.
 
 The bundled runtimes are fetched once, manually, by the two scripts above
 (pinned versions, hash-checked), never automatically. The plugin itself
-never goes online and has no update check.
+goes online only for the optional update notice, which is off by default.
 
 ## Uninstall
 

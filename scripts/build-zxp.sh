@@ -150,6 +150,8 @@ node "$HERE/scripts/test-host-insert.js" > /dev/null 2>&1 \
   || { echo "  Library insert test FAILED - run: node scripts/test-host-insert.js"; exit 1; }
 node "$HERE/scripts/test-library-tab.js" > /dev/null 2>&1 \
   || { echo "  Library tab test FAILED - run: node scripts/test-library-tab.js"; exit 1; }
+node "$HERE/scripts/test-update-check.js" > /dev/null 2>&1 \
+  || { echo "  Update notice test FAILED - run: node scripts/test-update-check.js"; exit 1; }
 node "$HERE/scripts/test-library-decode-queue.js" > /dev/null 2>&1 \
   || { echo "  Library decode queue test FAILED - run: node scripts/test-library-decode-queue.js"; exit 1; }
 node "$HERE/scripts/test-library-skey.js" > /dev/null 2>&1 \
@@ -267,7 +269,7 @@ find "$STAGE" -name '__MACOSX' -prune -exec rm -rf {} +
 if [ "${STRIP_COMMENTS:-0}" = "1" ]; then
   node "$HERE/scripts/strip-comments.js" "$STAGE" \
     || { echo "  comment stripping FAILED - not building"; exit 1; }
-  for t in test-panel-boot test-host-ae test-host-insert test-self-test test-worker-smoke test-lib-preview test-library-tab test-analyze-pipeline; do
+  for t in test-panel-boot test-host-ae test-host-insert test-self-test test-worker-smoke test-lib-preview test-library-tab test-update-check test-analyze-pipeline; do
     DOWNBEAT_ROOT="$STAGE" node "$HERE/scripts/$t.js" > /dev/null 2>&1 \
       || { echo "  $t FAILED on the stripped release copy - rerun it with DOWNBEAT_ROOT set to a staged copy"; exit 1; }
   done

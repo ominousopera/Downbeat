@@ -1,9 +1,13 @@
 # Security
 
-Downbeat is a local panel: it has no server, no account, no update check and
-makes no network calls (`scripts/check-code.js` fails the build if code that
-could is added). The only web address it ever opens is a link in Settings,
-in your browser, after a confirmation.
+Downbeat is a local panel: it has no server and no account, and it makes no
+network calls except one optional request: if you switch on the update notice
+in Settings (off by default), it asks `api.github.com` for the latest release
+of this project once every three days, sends nothing about you, and installs
+nothing (`scripts/check-code.js` fails the build if any other code that could
+go online is added, or if the notice talks to anything but this project's
+release record). The only web addresses it opens are links in Settings, in
+your browser, after a confirmation.
 
 What is worth reporting: anything that lets a crafted audio file, file name,
 folder, project or saved settings file make the panel run code, read or write

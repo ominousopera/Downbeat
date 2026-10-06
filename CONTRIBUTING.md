@@ -18,8 +18,9 @@ Diagnostics > Copy log** puts the log on the clipboard; please paste it.
   need real tracks or ffmpeg skip when those are missing.
 - Code, comments and docs are in English. User-facing text goes through
   `js/i18n.js` in all three languages (English first).
-- The panel must stay offline: no network calls, no update check, no
-  telemetry. Nothing writes into the extension folder (it would break the
+- The panel must stay offline: no network calls, no telemetry. The one
+  exception is the optional, off-by-default update notice in
+  `js/update-check.js`, which only reads this project's latest release number. Nothing writes into the extension folder (it would break the
   signature); saved data lives in `Documents/Downbeat`.
 - Never change or delete a user's audio file; sounds are inserted as the file
   itself, with pitch and reverse set on the clip.

@@ -2379,3 +2379,16 @@ body.on-library #tabContentLibrary .g-lib-body > #libFolderList:empty { display:
 
 /* First-run language picker: the choices sit in the middle, under the centred title. */
 .lang-pick-card .lang-switch { justify-content: center; }
+
+/* A new version is out: a small dot on the settings gear. */
+.icon-btn.has-update { position: relative; }
+.icon-btn.has-update::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}

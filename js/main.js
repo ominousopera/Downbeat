@@ -209,6 +209,7 @@
     window.BeatMarkerSfxSearch.setSynonyms(initialSettings.librarySynonyms !== false);
   }
   _library.applySettings(initialSettings); // folder scope, preview volume
+  _settingsPanel.applySettings(initialSettings); // the update notice
   var isFirstRun = !loadedSettings.existed;
 
   function persistSettings(overrides) {

@@ -304,6 +304,81 @@
     document.getElementById("feedbackBtn").addEventListener("click", function () {
       _confirmAndOpenUrl("https://linktr.ee/nkolesov");
     });
+    // UPDATE NOTICE (Settings > Updates). Off until the user turns it on;
+    // then, at most once every three days (and when it is switched on or
+    // "Check now" is pressed), js/update-check.js asks GitHub for the latest
+    // release number. The answer is remembered in the settings, so a newer
+    // version is announced again on the next start without another request.
+    // Nothing is downloaded: the button opens the release page behind the
+    // usual link confirmation.
+    var UC = window.BeatMarkerUpdateCheck;
+    var updateCheckCheckbox = document.getElementById("updateCheckCheckbox");
+    var updateStatus = document.getElementById("updateStatus");
+    var updateCheckNowBtn = document.getElementById("updateCheckNowBtn");
+    var updateOpenBtn = document.getElementById("updateOpenBtn");
+    var settingsGearBtn = document.getElementById("settingsGearBtn");
+    var _updateUrl = null;
+    var _updateBusy = false;
+    function _showUpdateState(seen) {
+      var current = getPluginVersion();
+      var newer = !!(seen && UC.isNewer(seen.version, current));
+      _updateUrl = newer ? seen.url : null;
+      updateOpenBtn.hidden = !newer;
+      settingsGearBtn.classList.toggle("has-update", newer);
+      if (newer) {
+        setTranslatedText(updateStatus, "settings.updateNew", { latest: seen.version, version: current });
+      } else if (seen) {
+        setTranslatedText(updateStatus, "settings.updateNone", { version: current });
+      } else {
+        updateStatus.textContent = "";
+      }
+    }
+    function _runUpdateCheck() {
+      if (_updateBusy) {
+        return;
+      }
+      _updateBusy = true;
+      setTranslatedText(updateStatus, "settings.updateChecking");
+      UC.fetchLatest(function (err, latest) {
+        _updateBusy = false;
+        if (err) {
+          log("Update check: " + err.message);
+          setTranslatedText(updateStatus, "settings.updateFailed", { error: err.message });
+          return;
+        }
+        persistSettings({ lastUpdateCheck: Date.now(), latestRelease: latest });
+        _showUpdateState(latest);
+      });
+    }
+    updateCheckCheckbox.addEventListener("change", function () {
+      persistSettings({ updateCheck: updateCheckCheckbox.checked });
+      updateCheckNowBtn.hidden = !updateCheckCheckbox.checked;
+      if (updateCheckCheckbox.checked) {
+        _runUpdateCheck();
+      } else {
+        _showUpdateState(null);
+      }
+    });
+    updateCheckNowBtn.addEventListener("click", _runUpdateCheck);
+    updateOpenBtn.addEventListener("click", function () {
+      if (_updateUrl) {
+        _confirmAndOpenUrl(_updateUrl);
+      }
+    });
+    // Called by main.js once the saved settings are loaded.
+    function applySettings(settings) {
+      var on = settings.updateCheck === true;
+      updateCheckCheckbox.checked = on;
+      updateCheckNowBtn.hidden = !on;
+      if (!on) {
+        return;
+      }
+      _showUpdateState(settings.latestRelease && typeof settings.latestRelease.version === "string" ? settings.latestRelease : null);
+      if (UC.isDue(settings.lastUpdateCheck, Date.now())) {
+        _runUpdateCheck();
+      }
+    }
+
     // DELETE MY DATA (Settings). Every safety rule lives in
     // js/persistence.js's _listOwnFiles() - this handler only shows the user
     // the exact list of files first, and refuses while an analysis still has
@@ -366,7 +441,8 @@
 
     return {
       closeSettingsPanel: closeSettingsPanel,
-      getPluginVersion: getPluginVersion
+      getPluginVersion: getPluginVersion,
+      applySettings: applySettings
     };
   }
 

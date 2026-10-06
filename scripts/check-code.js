@@ -1,7 +1,10 @@
 "use strict";
 // Code checks run by build-zxp.sh before every build. Third-party files
 // (js/lib/, js/CSInterface.js, jsx/json2.js, scripts/vendor/) and the
-// generated js/ucs-data.js are left out. Run: node scripts/check-code.js.
+// generated js/ucs-data.js are left out. The panel makes no network calls: the
+// one exception is js/update-check.js (the optional update notice, off until
+// the user turns it on), which may use Node's https for this project's GitHub
+// release record only. Run: node scripts/check-code.js.
 const fs = require("fs");
 const path = require("path");
 const { execFileSync } = require("child_process");
@@ -117,7 +120,24 @@ const NETWORK = [
   [/\bwindow\.open\s*\(/, "window.open"], [/\bnew\s+Image\s*\(/, "new Image() (loads a URL)"],
   [/["'`](curl|wget)["'`]/, "curl / wget"]
 ];
+// The one exception: the optional update notice. Its file may use Node's
+// https and nothing else that goes online, and it may name only GitHub's
+// release record of this project.
+const UPDATE_FILE = "js/update-check.js";
 tracked.filter(function (f) { return /^(js|worker)\/.*\.js$|^jsx\/.*\.jsx$/.test(f); }).forEach(function (f) {
+  if (f === UPDATE_FILE) {
+    const own = fs.readFileSync(path.join(ROOT, f), "utf8");
+    const hosts = own.match(/["']https?:\/\/[^"']*["']|host:\s*HOST|var HOST = ["'][^"']*["']/g) || [];
+    hosts.forEach(function (h) {
+      if (!/ominousopera\/Downbeat|host:\s*HOST|var HOST = ["']api\.github\.com["']/.test(h)) {
+        problems.push(f + ": talks to something other than this project's GitHub release record: " + h);
+      }
+    });
+    if (/\bfetch\s*\(|XMLHttpRequest|WebSocket|sendBeacon|EventSource/.test(own)) {
+      problems.push(f + ": only Node's https is allowed for the update notice");
+    }
+    return;
+  }
   const code = fs.readFileSync(path.join(ROOT, f), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'\\])\/\/[^\n]*/g, "$1");
   NETWORK.forEach(function (n) {
     if (n[0].test(code)) { problems.push(f + ": network call (" + n[1] + ") - the plugin never goes online"); }
