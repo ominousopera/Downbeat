@@ -48,7 +48,8 @@
 > **The analysis is automatic, so check it by ear.** Downbeat estimates the
 > tempo, beats, bars and key from the audio, and it can be wrong, especially
 > on tracks with a changing tempo, a weak or unusual beat, a long quiet intro,
-> or very short sounds. Press play on the click track and listen. If something
+> a time signature other than 4/4 (Downbeat assumes four beats to a bar;
+> **Bars + beats** is the safer choice there), or very short sounds. Press play on the click track and listen. If something
 > is off, fix it: half / double tempo, the beat that is the "1", **Shift**, or
 > set the key by hand (**Override**). The key of a sound effect is only a hint,
 > because many effects have no clear pitch. **Match clip** and **In key** give
@@ -104,7 +105,8 @@ never changed.
 
 ### Analyze
 
-Finds the tempo, beats and downbeats with two detectors and puts markers
+Finds the tempo, beats and downbeats with two detectors (a classic algorithm
+and the Beat This! model, which runs locally) and puts markers
 where it hears them, so you can cut there; check them with the click track. Then Premiere does the rest: with snapping on
 (<kbd>S</kbd>), the Razor tool (<kbd>C</kbd>) snaps to the markers, so cutting
 to the beat takes minutes.
@@ -124,6 +126,9 @@ to the beat takes minutes.
   **Shift − / +** nudges a whole track 1 ms at a time.
 - Half / double tempo fix, pick which beat is the "1", or type your own BPM;
   a click track lets you check it by ear.
+- **Refined / Basic.** If the markers miss the beats, switch between the two
+  detectors' results with one click.
+- **Copy and paste markers** from one clip to another, or move them.
 
 </td>
 </tr>
@@ -185,6 +190,13 @@ shrinks to the sounds that fit it.
   the same tempo for music), so you stop auditioning files that clash.
 - **Search by sound type.** Type "swoosh" and it finds your whooshes, because
   it knows the sound-effect categories and their synonyms.
+- **Filters and shortcuts.** Filter by key (exact or compatible) and by BPM
+  (a range, also half and double tempo), show only favorites (★) or only
+  pitched sounds, sort by match, name, length or tempo. ↑ ↓, Space and Enter
+  work without the mouse.
+- **Folders you can scope.** Tick folders to search only those. Files that are
+  not there any more are marked, not forgotten, and **Settings → Library →
+  Save a copy / Load a copy** backs the whole library up.
 - **Preview in the panel** with play, loop, reverse and volume. Drag across the
   waveform to pick just a part of the sound, and drag the fade handles to add
   a fade in and a fade out.
@@ -255,6 +267,39 @@ need any music theory.
 ### Using Downbeat
 
 <details>
+<summary><b>How does the analysis work?</b></summary>
+
+Everything runs on your computer; nothing is sent anywhere.
+
+**Tempo, beats and bars.** Two detectors listen to the same audio. The first
+is a classic beat tracker from the open-source
+[essentia](https://essentia.upf.edu/) library, which finds the tempo and the
+beats. The second is **Beat This!**, a small neural network that finds beats and
+downbeats (the first beat of each bar). Downbeat uses the network's result only
+if it passes checks against the first one (for example, it must not hear the
+track at half or double speed); otherwise the classic result stays. With the
+classic detector the first beat of a bar is chosen by weighing the low-end
+energy and the chord changes at each beat; with the network it comes from the
+network itself. The beat times are then evened out along the local tempo line,
+corrected for the detectors' delay, and every marker is placed at the start of
+the video frame its beat falls in (or at the exact time, in Premiere Pro with
+**Timing → Exact**).
+
+**Key.** Three independent analyses vote: classic key profiles (essentia), the
+chord progression, and **S-KEY**, a small neural network trained on music. The
+profile vote stands unless the chord analysis and S-KEY agree with each other on
+a different key; then theirs wins. Sound effects use another setup (a longer
+analysis window and no S-KEY, which is trained on music).
+
+**Library scan.** To stay fast the scan reads part of each file. It finds the
+key and, for music, the tempo, and it decides whether a sound effect has a clear
+pitch at all. A key or tempo written in the file name is used as it is.
+
+The result is an estimate, not a measurement: see "check it by ear" above. The
+components and their licenses are listed in [`NOTICE.md`](NOTICE.md).
+</details>
+
+<details>
 <summary><b>Does it work offline? Is anything uploaded?</b></summary>
 
 It works completely offline. Nothing is uploaded, there is no account, no
@@ -290,7 +335,17 @@ lists the keys that go well with the one it found.
 Any folder with audio files (WAV, AIFF, MP3, M4A, AAC, FLAC, OGG), added as
 <b>Music</b> or <b>SFX</b>. A scan reads the key and, for music, the tempo.
 Sound effects get no tempo; most of them have no pitch either, so they show
-"no clear pitch" and are skipped by a key search.
+"no clear pitch" and are skipped by a key search. Files your host cannot import
+(for example FLAC and OGG in Premiere Pro) can be scanned and previewed, but
+not inserted.
+</details>
+
+<details>
+<summary><b>Does it work with any time signature?</b></summary>
+
+Downbeat assumes four beats to a bar and has no time-signature detection. On a
+track that is not in 4/4 the downbeat pick can look confident and still be
+wrong; **Bars + beats** is the safer choice there.
 </details>
 
 <details>
@@ -304,7 +359,8 @@ on, the Razor tool snaps to the markers, so it takes a few clicks per cut.
 <summary><b>Which versions are supported?</b></summary>
 
 Premiere Pro 2021 and newer and After Effects 2021 and newer, on macOS (Apple
-Silicon and Intel) and Windows x64. Analyze reads what the host can put on a
+Silicon and Intel) and Windows x64, with an interface in English, Russian and
+Spanish. Analyze reads what the host can put on a
 timeline and the panel can decode: WAV, AIFF, MP3, M4A / AAC, and the audio of
 MP4 / MOV.
 </details>
