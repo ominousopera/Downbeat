@@ -26,6 +26,13 @@
 </p>
 
 <p align="center">
+  <sub>User guide:
+  <a href="GUIDE.md">English</a> &middot;
+  <a href="GUIDE.ru.md">Russian</a> &middot;
+  <a href="GUIDE.es.md">Spanish</a></sub>
+</p>
+
+<p align="center">
   <img src="docs/images/hero-three-cards.png" alt="Downbeat: find the beat, match the key, find the sound" width="100%">
 </p>
 
@@ -207,6 +214,23 @@ shrinks to the sounds that fit it.
 - **Add at the playhead** as your original file. The trim, fades, pitch and
   reverse are set on the clip, and no processed copy of your audio is ever
   written.
+
+## Known limits
+
+- **Time signature.** Downbeat assumes four beats to a bar. On a track that is
+  not in 4/4 the bar markers can be wrong; use **Bars + beats** there.
+- **Tempo changes inside a track.** The panel shows one BPM. The markers follow
+  the beats it finds and a sudden change starts a new tempo line, but check
+  such tracks with the click track.
+- **Sound effects.** No tempo is detected for them, and many have no clear
+  pitch, so they get no key. The key of a tonal effect is a hint, and sounds
+  shorter than 10 seconds get a note that it is less reliable.
+- **File formats.** Analyze reads WAV, AIFF, MP3, M4A / AAC and the audio of
+  MP4 / MOV; other formats need converting first. Files your host cannot import
+  (for example FLAC and OGG in Premiere Pro) can be scanned and previewed in the
+  Library, but not inserted.
+- **After Effects.** A smaller set of features, listed in the note at the top:
+  whole-frame markers, layers at normal speed, cutting by hand.
 
 ## FAQ
 
