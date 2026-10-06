@@ -300,6 +300,8 @@ AGPL-3.0, see [`LICENSE`](LICENSE). Third-party components:
 [Russian](GUIDE.ru.md) · [Spanish](GUIDE.es.md). Contributing:
 [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
+Built with the help of Claude Code.
+
 ---
 
 ## For developers
