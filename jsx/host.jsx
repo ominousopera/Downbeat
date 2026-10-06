@@ -774,6 +774,54 @@ function _findItemInBinByPath(bin, mediaPath) {
     }
     return null;
 }
+
+// The three audio crossfades under their names in the languages Premiere
+// is shipped in. QE looks a transition up by the name shown in the
+// interface, so on a Premiere that is not in English the English name finds
+// nothing. The list of what this Premiere offers is read as well, to match
+// by name ignoring case and, as a last resort, to report in the log.
+var _TRANSITION_NAMES = {
+    "Constant Power": ["Constant Power", "\u041f\u043e\u0441\u0442\u043e\u044f\u043d\u043d\u0430\u044f \u043c\u043e\u0449\u043d\u043e\u0441\u0442\u044c", "Potencia constante", "Konstante Leistung", "Puissance constante", "\u30b3\u30f3\u30b9\u30bf\u30f3\u30c8\u30d1\u30ef\u30fc", "Pot\u00eancia constante", "Potenza costante"],
+    "Constant Gain": ["Constant Gain", "\u041f\u043e\u0441\u0442\u043e\u044f\u043d\u043d\u043e\u0435 \u0443\u0441\u0438\u043b\u0435\u043d\u0438\u0435", "Ganancia constante", "Konstante Verst\u00e4rkung", "Gain constant", "\u30b3\u30f3\u30b9\u30bf\u30f3\u30c8\u30b2\u30a4\u30f3", "Ganho constante", "Guadagno costante"],
+    "Exponential Fade": ["Exponential Fade", "\u042d\u043a\u0441\u043f\u043e\u043d\u0435\u043d\u0446\u0438\u0430\u043b\u044c\u043d\u043e\u0435 \u0437\u0430\u0442\u0443\u0445\u0430\u043d\u0438\u0435", "Fundido exponencial", "Exponentielles Ausblenden", "Fondu exponentiel", "\u30a8\u30af\u30b9\u30dd\u30cd\u30f3\u30b7\u30e3\u30eb\u30d5\u30a7\u30fc\u30c9", "Fade exponencial", "Dissolvenza esponenziale"]
+};
+function _findAudioTransition(name) {
+    var result = { transition: null, usedName: null, available: null };
+    var candidates = _TRANSITION_NAMES[name] || [name];
+    var i;
+    for (i = 0; i < candidates.length; i++) {
+        var t = null;
+        try { t = qe.project.getAudioTransitionByName(candidates[i]); } catch (e1) { t = null; }
+        if (t) {
+            result.transition = t;
+            result.usedName = candidates[i];
+            return result;
+        }
+    }
+    try {
+        var list = qe.project.getAudioTransitionList();
+        var names = [];
+        for (var k = 0; list && k < list.length; k++) { names.push(String(list[k])); }
+        result.available = names.join(", ");
+        for (i = 0; i < candidates.length; i++) {
+            for (var n = 0; n < names.length; n++) {
+                if (names[n].toLowerCase() === candidates[i].toLowerCase()) {
+                    var byList = null;
+                    try { byList = qe.project.getAudioTransitionByName(names[n]); } catch (e2) { byList = null; }
+                    if (byList) {
+                        result.transition = byList;
+                        result.usedName = names[n];
+                        return result;
+                    }
+                }
+            }
+        }
+    } catch (e3) {
+        result.available = null;
+    }
+    return result;
+}
+
 // Adds Premiere audio transitions as edge fades to the clip that starts at
 // startSeconds on audio track `target`, through the QE API (the way a script
 // can put fades on a clip that stay editable). opts: fadeInSec, fadeOutSec
@@ -817,13 +865,24 @@ function _addEdgeFades(sequence, target, startSeconds, opts) {
             var name = side[3] || "Constant Power";
             var frames = Math.max(1, Math.round(side[2] * fps));
             var asked = false;
+            var why = null;
+            var shownName = name;
             try {
-                var transition = qe.project.getAudioTransitionByName(name);
-                asked = !!transition && !!qeItem.addTransition(transition, side[1], String(frames), "0", 0, true, false);
+                var found = _findAudioTransition(name);
+                shownName = found.usedName || name;
+                if (!found.transition) {
+                    why = "no audio transition named " + name + " (this Premiere offers: " + (found.available || "unknown") + ")";
+                } else {
+                    asked = !!qeItem.addTransition(found.transition, side[1], String(frames), "0", 0, true, false);
+                    if (!asked) {
+                        why = "Premiere refused the transition";
+                    }
+                }
             } catch (sideErr) {
                 asked = false;
+                why = sideErr.message ? sideErr.message : String(sideErr);
             }
-            out[side[0]] = { transition: name, frames: frames, asked: asked };
+            out[side[0]] = { transition: shownName, frames: frames, asked: asked, why: why };
         }
     } catch (e) {
         out.error = e.message ? e.message : e.toString();

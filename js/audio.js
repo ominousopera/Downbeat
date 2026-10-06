@@ -55,11 +55,33 @@
     }
     return out;
   }
+  // The decoder can stall without ever answering; the analysis would then
+  // wait forever. After a limit that grows with the file the wait ends with
+  // an error, so the plugin's own reader can take over for WAV / AIFF and the
+  // panel never stays busy. The shared context is dropped as well, since a
+  // stalled one may stay stuck for later files.
+  function _withDecodeLimit(decodePromise, byteLength) {
+    var limitMs = 30000 + Math.round(byteLength / 1048576) * 2000;
+    return new Promise(function (resolve, reject) {
+      var timer = setTimeout(function () {
+        _decodeCtx = null;
+        reject(new Error("the decoder did not answer within " + Math.round(limitMs / 1000) + " s"));
+      }, limitMs);
+      decodePromise.then(function (value) {
+        clearTimeout(timer);
+        resolve(value);
+      }, function (err) {
+        clearTimeout(timer);
+        reject(err);
+      });
+    });
+  }
+
   // Decodes to mono 44100 Hz (the offline context from _decoder() decodes
   // straight to that rate). Resolves to { samples, original }.
   function decodeToMono44100(arrayBuffer) {
     var decodeCtx = _decoder();
-    return decodeCtx.decodeAudioData(arrayBuffer).catch(function (e) {
+    return _withDecodeLimit(decodeCtx.decodeAudioData(arrayBuffer), arrayBuffer.byteLength).catch(function (e) {
       var detail = (e && e.message) ? e.message : (e && e.name) ? e.name : String(e);
       throw new Error(
         "This file's audio codec isn't supported by Chromium's Web Audio decoder " +

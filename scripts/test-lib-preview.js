@@ -210,6 +210,19 @@ waitFor(function () { return rows().length === 2; }, "listing the SFX folder")
       Math.abs(o3.speed - rate1) < 1e-9 && !o3.reverse && Math.abs(o3.fadeInSec - 0.2 / rate1) < 1e-9 && Math.abs(o3.fadeOutSec - 0.2 / rate1) < 1e-9 &&
       o3.curveOut === 60, JSON.stringify(o3));
     $.libPanePitchReset._fire("click");
+    // Reverse with the part still selected: the pane shows the part mirrored
+    // (the heard direction), the host must still get the same part OF THE FILE.
+    $.libPaneReverse.checked = true;
+    $.libPaneReverse._fire("change");
+    $.libPaneAddBtn._fire("click");
+    return waitFor(function () { return inserts.length === 5; }, "Add with a part and Reverse");
+  })
+  .then(function () {
+    const o4 = inserts[4].opts || {};
+    check("Reverse with a part selected: the host gets the part of the file itself (0.4-1.4 s), not its mirror image",
+      o4.reverse === true && Math.abs(o4.inSec - 0.4) < 1e-9 && Math.abs(o4.outSec - 1.4) < 1e-9, JSON.stringify(o4));
+    $.libPaneReverse.checked = false;
+    $.libPaneReverse._fire("change");
     $.libPaneSelClear._fire("click");
     check("Clear goes back to the whole file without fades", $.libPaneSel.hidden);
     // In key: every previewed sound pitched into the music clip's key. With

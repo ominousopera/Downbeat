@@ -86,6 +86,47 @@
       renderLibrary();
     }
 
+    // File and folder dialogs. CEP's own dialog first: it is parented to
+    // Premiere, so on Windows it opens in front and does not tie up the
+    // host script engine (the ExtendScript dialog opened behind Premiere
+    // there, and every host call stalled until it was found and closed).
+    // The ExtendScript dialog stays as the fallback when CEP's is missing.
+    // Both resolve like the host functions: { directory } / { path },
+    // null when cancelled.
+    function _nativeFs() {
+      return (window.cep && window.cep.fs && typeof window.cep.fs.showOpenDialogEx === "function") ? window.cep.fs : null;
+    }
+    function _pickFolderDialog() {
+      var nativeFs = _nativeFs();
+      if (nativeFs) {
+        var res = nativeFs.showOpenDialogEx(false, true, I18n.t("library.folderPick"), "");
+        if (res && res.err === 0) {
+          return Promise.resolve({ directory: res.data && res.data.length ? res.data[0] : null });
+        }
+      }
+      return evalJson("pickFolder()");
+    }
+    function _pickOpenFileDialog(title) {
+      var nativeFs = _nativeFs();
+      if (nativeFs) {
+        var res = nativeFs.showOpenDialogEx(false, false, title, "");
+        if (res && res.err === 0) {
+          return Promise.resolve({ path: res.data && res.data.length ? res.data[0] : null });
+        }
+      }
+      return evalJson("pickOpenFile(" + _jsxStringArg(title) + ")");
+    }
+    function _pickSaveFileDialog(suggestedName, title) {
+      var nativeFs = _nativeFs();
+      if (nativeFs && typeof nativeFs.showSaveDialogEx === "function") {
+        var res = nativeFs.showSaveDialogEx(title, "", ["json"], suggestedName);
+        if (res && res.err === 0) {
+          return Promise.resolve({ path: res.data || null });
+        }
+      }
+      return evalJson("pickSaveFile(" + _jsxStringArg(suggestedName) + ", " + _jsxStringArg(title) + ")");
+    }
+
     function persistSoundLibrary() {
       var result = window.BeatMarkerPersistence.saveSoundLibrary(ctx.csInterface(), SL.getState());
       if (!result.ok) {
@@ -921,7 +962,7 @@
           if (data.fades) {
             var fd = data.fades;
             var side = function (label, x) {
-              return x ? label + " " + x.transition + " " + x.frames + " frame(s)" + (x.asked ? "" : " (not added)") : "";
+              return x ? label + " " + x.transition + " " + x.frames + " frame(s)" + (x.asked ? "" : " (not added" + (x.why ? ": " + x.why : "") + ")") : "";
             };
             log("Library: fades as Premiere transitions - " + [side("in", fd.fadeIn), side("out", fd.fadeOut)].filter(Boolean).join(", ") +
                 (fd.error ? " (" + fd.error + ")" : "") + ".");
@@ -1537,8 +1578,11 @@
         transitionOut: LP.transitionFor(f.curveOut)
       };
       if (region) {
-        opts.inSec = region.a;
-        opts.outSec = region.b;
+        // The pane counts the part in the HEARD direction; with Reverse on
+        // that is the file read backwards, so the part of the file itself
+        // is the mirror image of it.
+        opts.inSec = set.reverse ? whole - region.b : region.a;
+        opts.outSec = set.reverse ? whole - region.a : region.b;
       }
       if (set.semitones) {
         opts.speed = speed;
@@ -1578,7 +1622,7 @@
     });
 
     libAddFolderBtn.addEventListener("click", function () {
-      evalJson("pickFolder()")
+      _pickFolderDialog()
         .then(function (picked) {
           if (!picked.directory) {
             return; // cancelled
@@ -1956,7 +2000,7 @@
         setTranslatedText(libraryAdminStatus, "library.exportEmpty");
         return;
       }
-      evalJson("pickSaveFile(" + _jsxStringArg("downbeat-library-copy.json") + ", " + _jsxStringArg(I18n.t("library.backupSave")) + ")")
+      _pickSaveFileDialog("downbeat-library-copy.json", I18n.t("library.backupSave"))
         .then(function (picked) {
           if (!picked.path) {
             return; // cancelled
@@ -1978,7 +2022,7 @@
         setTranslatedText(libraryAdminStatus, "library.busyScanning");
         return;
       }
-      evalJson("pickOpenFile(" + _jsxStringArg(I18n.t("library.backupPick")) + ")")
+      _pickOpenFileDialog(I18n.t("library.backupPick"))
         .then(function (picked) {
           if (!picked.path) {
             return; // cancelled

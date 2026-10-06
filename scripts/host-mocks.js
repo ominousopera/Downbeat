@@ -237,7 +237,10 @@ function makePremiereHost(opts) {
         return true;
       } }, enableQE: function () {} },
     qe: { project: {
-      getAudioTransitionByName: function (name) { return /^(Constant Power|Constant Gain|Exponential Fade)$/.test(name) ? { name: name } : null; },
+      // opts.transitionNames: the names a Premiere in another language
+      // offers (default: the English ones).
+      getAudioTransitionByName: function (name) { return (opts.transitionNames || ["Constant Power", "Constant Gain", "Exponential Fade"]).indexOf(name) !== -1 ? { name: name } : null; },
+      getAudioTransitionList: function () { return opts.transitionNames || ["Constant Power", "Constant Gain", "Exponential Fade"]; },
       getActiveSequence: function () {
         return { getAudioTrackAt: function (i) {
           const track = sequence.audioTracks[i];

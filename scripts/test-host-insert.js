@@ -64,6 +64,21 @@ try {
     JSON.stringify(placed && placed.transitions));
   check("Premiere: the QE clip's fade / curve members are reported for the log", r.data && r.data.fades && r.data.fades.qeMembers && r.data.fades.qeMembers.join() === "getFadeCurve()",
     JSON.stringify(r.data && r.data.fades));
+  // A Premiere in another language: the transitions carry that language's
+  // names, so the English name finds nothing and the localized one must.
+  const pRu = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60, playheadSeconds: 40, audioTrackCount: 2, insertDurationSec: 5,
+    transitionNames: ["\u041f\u043e\u0441\u0442\u043e\u044f\u043d\u043d\u043e\u0435 \u0443\u0441\u0438\u043b\u0435\u043d\u0438\u0435", "\u041f\u043e\u0441\u0442\u043e\u044f\u043d\u043d\u0430\u044f \u043c\u043e\u0449\u043d\u043e\u0441\u0442\u044c", "\u042d\u043a\u0441\u043f\u043e\u043d\u0435\u043d\u0446\u0438\u0430\u043b\u044c\u043d\u043e\u0435 \u0437\u0430\u0442\u0443\u0445\u0430\u043d\u0438\u0435"] });
+  const phRu = mocks.loadHost(pRu.context);
+  r = JSON.parse(phRu.run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + js(({ inSec: 1, outSec: 3, fadeInSec: 0.2, fadeOutSec: 0.5, transitionIn: "Constant Power", transitionOut: "Exponential Fade" })) + ")"));
+  check("Premiere in another language: the fades are still added, by the localized transition names",
+    r.ok && r.data.fades && r.data.fades.fadeIn && r.data.fades.fadeIn.asked === true && r.data.fades.fadeOut && r.data.fades.fadeOut.asked === true,
+    JSON.stringify(r.data && r.data.fades));
+  // A Premiere whose names are unknown: not added, and the log says what it offers.
+  const pXx = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60, playheadSeconds: 40, audioTrackCount: 2, insertDurationSec: 5, transitionNames: ["Foo", "Bar"] });
+  const phXx = mocks.loadHost(pXx.context);
+  r = JSON.parse(phXx.run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + js(({ fadeInSec: 0.2, transitionIn: "Constant Power" })) + ")"));
+  check("Premiere with unknown transition names: fade not added, the reason lists what Premiere offers",
+    r.ok && r.data.fades.fadeIn.asked === false && /Foo, Bar/.test(r.data.fades.fadeIn.why || ""), JSON.stringify(r.data && r.data.fades));
   // A Premiere that cannot set in / out: the whole file lands, is taken out
   // again, and the result reports that the trim failed (checked below, after
   // the pitched-insert case).
