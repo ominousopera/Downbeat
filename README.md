@@ -103,7 +103,7 @@ never changed.
 
 <table>
 <tr>
-<td width="38%" valign="top">
+<td width="42%" valign="top">
 
 <img src="docs/images/analyze.png" alt="The Analyze tab: waveform with beat markers, 124 BPM, marker settings" width="100%">
 
@@ -153,7 +153,7 @@ calculator, and "Pitch the clip" retimes the clip itself to another key. Your
 audio is never rewritten.
 
 </td>
-<td width="38%" valign="top">
+<td width="42%" valign="top">
 
 <img src="docs/images/key.png" alt="The Key tab: Camelot wheel, detected key 8A, pitch shift of -5 semitones" width="100%">
 
