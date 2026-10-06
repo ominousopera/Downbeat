@@ -157,6 +157,9 @@ shrinks to the sounds that fit it.
 
 - **Key and tempo on every file**, like `8A · A minor` or `124 BPM`, found
   when you scan your folders.
+- **How sure the key is, in words.** A music key comes from three methods. The
+  row says *key agreed* when at least two of them gave it, and *key uncertain*
+  (in red) when all three differed, so you know which ones to check by ear.
 - **Names that already say the key.** Many sample packs put it in the file name
   (`Pad Am`, `Bass Fm 128 BPM`, `Key Emaj`, `8A`). Downbeat reads it, trusts it
   over its own guess, and marks the row *from the file name*, so you know which

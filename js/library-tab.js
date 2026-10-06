@@ -417,6 +417,7 @@
       meta.className = "lib-row-meta";
       var parts = [];
       var keyPart = -1; // index of the key in parts, if any
+      var confPart = -1; // index of the key's "agreed / uncertain" word in parts, if any
       var missing = !_libFileThere(item.path);
       if (missing) {
         row.classList.add("is-missing");
@@ -445,6 +446,14 @@
           var friendly = window.BeatMarkerCamelot.fromCamelotCode(item.camelot);
           parts.push(item.camelot + (friendly ? " " + _localKeyName(friendly.key, friendly.scale) : ""));
         }
+        // How sure the key is, in words: music keys come from three
+        // opinions, and the scan keeps whether at least two of them agreed
+        // or all three differed. A key read from the file name has no
+        // doubt to show.
+        if (item.camelot && item.keyFrom !== "name" && (item.keyAgreement === "two" || item.keyAgreement === "none")) {
+          confPart = parts.length;
+          parts.push(I18n.t(item.keyAgreement === "none" ? "library.keyUncertain" : "library.keyAgreed"));
+        }
         if (item.keyFrom === "name" || item.bpmFrom === "name") {
           parts.push(I18n.t("library.fromName"));
         }
@@ -462,6 +471,9 @@
         var part = document.createElement("span");
         if (k === keyPart) {
           part.className = "lib-row-key";
+        } else if (k === confPart) {
+          part.className = "lib-row-conf" + (item.keyAgreement === "none" ? " is-warn" : "");
+          part.title = I18n.t(item.keyAgreement === "none" ? "library.keyUncertainTitle" : "library.keyAgreedTitle");
         }
         part.textContent = text;
         meta.appendChild(part);

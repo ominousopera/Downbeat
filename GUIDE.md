@@ -165,6 +165,10 @@ computer.
   marked "from the file name" in the list. Short forms like "Am" count only in
   an unambiguous spot ("_Am_", "(Am)", or next to a BPM), because in plain
   text they are usually words.
+- **How sure a music key is.** The key comes from three methods. The row says
+  "key agreed" when at least two of them gave it, and "key uncertain" (in red)
+  when all three differed; check those by ear. Keys read from a file name and
+  sound effects show no such word.
 - While a scan runs, a window covers the panel — it uses the computer's
   full power — showing the progress, the time left and **Cancel**. Files
   analyzed so far are kept, and Start scan continues with the rest.

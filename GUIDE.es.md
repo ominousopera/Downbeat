@@ -180,6 +180,11 @@ carpetas de tu equipo.
   nombre del archivo» en la lista. Las formas cortas como «Am» solo
   cuentan en un sitio inequívoco («_Am_», «(Am)», o junto a un BPM),
   porque en texto normal suelen ser palabras.
+- **Cuánta seguridad tiene una tonalidad de música.** La tonalidad sale de tres
+  métodos. La fila dice «tonalidad acordada» si al menos dos la dieron, y
+  «tonalidad incierta» (en rojo) si los tres difieren; esas conviene
+  comprobarlas de oído. Una tonalidad tomada del nombre del archivo y los
+  efectos de sonido no muestran esa palabra.
 - Mientras se ejecuta un análisis, una ventana cubre el panel —usa toda la
   potencia del equipo— y muestra el progreso, el tiempo restante y
   **Cancelar**. Los archivos analizados hasta ese momento se conservan, e

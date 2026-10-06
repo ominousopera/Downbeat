@@ -2392,3 +2392,7 @@ body.on-library #tabContentLibrary .g-lib-body > #libFolderList:empty { display:
   border-radius: 50%;
   background: var(--accent);
 }
+
+/* The key's "agreed / uncertain" word in a Library row. */
+.lib-row-conf { color: var(--text-faint); }
+.lib-row-conf.is-warn { color: var(--danger-bright); }

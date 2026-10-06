@@ -152,6 +152,8 @@ node "$HERE/scripts/test-library-tab.js" > /dev/null 2>&1 \
   || { echo "  Library tab test FAILED - run: node scripts/test-library-tab.js"; exit 1; }
 node "$HERE/scripts/test-update-check.js" > /dev/null 2>&1 \
   || { echo "  Update notice test FAILED - run: node scripts/test-update-check.js"; exit 1; }
+node "$HERE/scripts/test-key-confidence-words.js" > /dev/null 2>&1 \
+  || { echo "  Key confidence words test FAILED - run: node scripts/test-key-confidence-words.js"; exit 1; }
 node "$HERE/scripts/test-library-decode-queue.js" > /dev/null 2>&1 \
   || { echo "  Library decode queue test FAILED - run: node scripts/test-library-decode-queue.js"; exit 1; }
 node "$HERE/scripts/test-library-skey.js" > /dev/null 2>&1 \
