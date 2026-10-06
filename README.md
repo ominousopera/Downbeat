@@ -21,7 +21,6 @@
 
 <p align="center">
   <a href="https://github.com/ominousopera/Downbeat/releases/latest"><img src="docs/images/download-mac.svg" alt="Download for macOS" height="52"></a>
-  &nbsp;
   <a href="https://github.com/ominousopera/Downbeat/releases/latest"><img src="docs/images/download-win.svg" alt="Download for Windows" height="52"></a>
 </p>
 
