@@ -20,9 +20,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/ominousopera/downbeat/releases/latest"><img src="docs/images/download-mac.svg" alt="Download for macOS" height="52"></a>
+  <a href="https://github.com/ominousopera/Downbeat/releases/latest"><img src="docs/images/download-mac.svg" alt="Download for macOS" height="52"></a>
   &nbsp;
-  <a href="https://github.com/ominousopera/downbeat/releases/latest"><img src="docs/images/download-win.svg" alt="Download for Windows" height="52"></a>
+  <a href="https://github.com/ominousopera/Downbeat/releases/latest"><img src="docs/images/download-win.svg" alt="Download for Windows" height="52"></a>
 </p>
 
 <p align="center">
@@ -258,7 +258,7 @@ MP4 / MOV.
 ## Install
 
 1. Download the package for your computer from
-   [Releases](https://github.com/ominousopera/downbeat/releases/latest):
+   [Releases](https://github.com/ominousopera/Downbeat/releases/latest):
    `Downbeat-1.0.0-mac.zxp` or `Downbeat-1.0.0-win.zxp`.
 2. Drag it onto [ZXP Installer](https://aescripts.com/zxpinstaller/) (free),
    restart Premiere Pro or After Effects, then open
@@ -272,8 +272,8 @@ wrong one says so when you press Analyze.
 <summary><b>Build from source</b></summary>
 
 ```sh
-git clone https://github.com/ominousopera/downbeat.git
-cd downbeat
+git clone https://github.com/ominousopera/Downbeat.git
+cd Downbeat
 scripts/fetch-node-runtime.sh        # Node.js for macOS and Windows, SHA-256 checked
 scripts/fetch-beatthis-runtime.sh    # onnxruntime-web by its committed lockfile
 scripts/build-zxp.sh                 # needs Adobe's ZXPSignCmd, see below
