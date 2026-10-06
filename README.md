@@ -44,6 +44,16 @@
 > - Library sounds are added as a new layer; fades become volume keyframes,
 >   and pitch and reverse are set through Time Stretch.
 
+> [!IMPORTANT]
+> **The analysis is automatic, so check it by ear.** Downbeat estimates the
+> tempo, beats, bars and key from the audio, and it can be wrong, especially
+> on tracks with a changing tempo, a weak or unusual beat, a long quiet intro,
+> or very short sounds. Press play on the click track and listen. If something
+> is off, fix it: half / double tempo, the beat that is the "1", **Shift**, or
+> set the key by hand (**Override**). The key of a sound effect is only a hint,
+> because many effects have no clear pitch. **Match clip** and **In key** give
+> you a shortlist to audition, not a promise that two sounds will blend.
+
 ## Why editors use it
 
 **Working with music in a video edit is three jobs:** getting the timing
@@ -54,7 +64,7 @@ ads, documentaries, game montages.
 
 | 01 · TIMING | 02 · HARMONY | 03 · SOUND |
 |---|---|---|
-| **Find the beat**<br>Tempo, beats and the strong beat of every bar, placed as markers. Clips snap to them, so cutting many video clips to one track is fast and lands exactly on the downbeat. | **Match the key**<br>The musical key of every track (Camelot and note names) and the keys that blend with it. Make transitions between songs that fit, or pitch one into the key of the other, so they never clash. | **Find the sound**<br>Your own music and sound effects, searchable by **key, tempo and sound type** without leaving the app. Pick the clip you are cutting, press Match clip, and see what fits. |
+| **Find the beat**<br>Tempo, beats and the strong beat of every bar, placed as markers. Clips snap to them, so cutting many video clips to one track is fast and lands on the downbeat once the detection is right. | **Match the key**<br>The musical key of every track (Camelot and note names) and the keys that blend with it. Make transitions between songs that fit, or pitch one into the key of the other, so they clash less. | **Find the sound**<br>Your own music and sound effects, searchable by **key, tempo and sound type** without leaving the app. Pick the clip you are cutting, press Match clip, and see what fits. |
 
 **One workflow:** analyze the track, check its key, find music and effects
 that fit, drop them on the timeline.
@@ -82,7 +92,7 @@ never changed.
 <img src="docs/images/analyze.png" alt="The Analyze tab: waveform with beat markers, 124 BPM, marker settings" width="360" align="right">
 
 Finds the tempo, beats and downbeats with two detectors and puts markers
-exactly where you want to cut. Then Premiere does the rest: with snapping on
+where it hears them, so you can cut there; check them with the click track. Then Premiere does the rest: with snapping on
 (<kbd>S</kbd>), the Razor tool (<kbd>C</kbd>) snaps to the markers, so cutting
 to the beat takes minutes.
 
@@ -95,7 +105,7 @@ to the beat takes minutes.
 - **Frame-accurate by default.** Each marker sits at the start of the video
   frame the beat begins in, so a cut lands on the beat or up to one frame
   before it, never after.
-- **Sample-accurate in Premiere Pro.** Choose **Timing → Exact** and turn on
+- **Sample-accurate marker timing in Premiere Pro.** Choose **Timing → Exact** and turn on
   **Show Audio Time Units** in the Timeline panel menu: the ruler then counts
   audio samples and you can cut between frames, right on the beat.
   **Shift − / +** nudges a whole track 1 ms at a time.
