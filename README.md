@@ -69,6 +69,12 @@ ads, documentaries, game montages.
 **One workflow:** analyze the track, check its key, find music and effects
 that fit, drop them on the timeline.
 
+**Not only on the beat.** Cutting on the beat is half of it. For a series of cuts
+and sounds to play as one track, their notes have to fit as well: a hit or a
+riser in the wrong key breaks the montage into separate pieces, in the right
+key it sounds like one piece. Downbeat shows the key of every clip and sound,
+so you can pick the ones that match, or pitch one into the key of the other.
+
 ### Without Downbeat and with it
 
 | | Without Downbeat | With Downbeat |
@@ -87,9 +93,16 @@ never changed.
 
 ## What it does
 
-### Analyze
+<table>
+<tr>
+<td width="38%" valign="top">
 
-<img src="docs/images/analyze.png" alt="The Analyze tab: waveform with beat markers, 124 BPM, marker settings" width="360" align="right">
+<img src="docs/images/analyze.png" alt="The Analyze tab: waveform with beat markers, 124 BPM, marker settings" width="100%">
+
+</td>
+<td valign="top">
+
+### Analyze
 
 Finds the tempo, beats and downbeats with two detectors and puts markers
 where it hears them, so you can cut there; check them with the click track. Then Premiere does the rest: with snapping on
@@ -112,17 +125,29 @@ to the beat takes minutes.
 - Half / double tempo fix, pick which beat is the "1", or type your own BPM;
   a click track lets you check it by ear.
 
-<br clear="right">
+</td>
+</tr>
+</table>
+
+<table>
+<tr>
+<td valign="top">
 
 ### Key
 
-<img src="docs/images/key.png" alt="The Key tab: Camelot wheel, detected key 8A, pitch shift of -5 semitones" width="360" align="right">
-
-Musical key in Camelot and note names from three opinions. A pitch shift
+Musical key in Camelot and note names from three opinions (sound effects get
+a key only when they have a clear pitch). A pitch shift
 calculator, and "Pitch the clip" retimes the clip itself to another key. Your
 audio is never rewritten.
 
-<br clear="right">
+</td>
+<td width="38%" valign="top">
+
+<img src="docs/images/key.png" alt="The Key tab: Camelot wheel, detected key 8A, pitch shift of -5 semitones" width="100%">
+
+</td>
+</tr>
+</table>
 
 ### Library
 
@@ -130,10 +155,20 @@ Your own music and sound effects, with the key of every file written right
 next to it. Pick the song you are cutting, press **Match clip**, and the list
 shrinks to the sounds that fit it.
 
-<p>
-  <img src="docs/images/library-match.png" alt="The Library with Match clip on: only sounds in the song's key or a neighbouring one" width="48%">
-  <img src="docs/images/library-preview.png" alt="The Library preview: pitch a sound into the song's key, trim it, add fades" width="48%">
-</p>
+<table>
+<tr>
+<td width="50%" valign="top">
+
+<img src="docs/images/library-match.png" alt="The Library with Match clip on: only sounds in the song's key or a neighbouring one" width="100%">
+
+</td>
+<td width="50%" valign="top">
+
+<img src="docs/images/library-preview.png" alt="The Library preview: pitch a sound into the song's key, trim it, add fades" width="100%">
+
+</td>
+</tr>
+</table>
 
 - **Key and tempo on every file**, like `8A · A minor` or `124 BPM`, found
   when you scan your folders.
@@ -142,6 +177,10 @@ shrinks to the sounds that fit it.
   over its own guess, and marks the row *from the file name*, so you know which
   keys come straight from the pack. Those files are ready instantly, with no
   analysis.
+- **Not every sound effect has a key.** Whooshes, impacts, footsteps, wind
+  or rain are noise, not notes: they show "no clear pitch" and a key search
+  skips them. Only tonal sounds (risers, drones, stingers, pads, bass hits)
+  get a key, and even then it is a hint to check by ear.
 - **Match clip** shows only the sounds in the same or a neighbouring key (and
   the same tempo for music), so you stop auditioning files that clash.
 - **Search by sound type.** Type "swoosh" and it finds your whooshes, because
@@ -162,7 +201,7 @@ shrinks to the sounds that fit it.
 ### Why it matters
 
 <details>
-<summary><b>Why cut exactly on the beat?</b></summary>
+<summary><b>Why cut on the beat, and why match the key?</b></summary>
 
 You feel a cut that is off the beat even if you can't say why. Land it on the
 beat and the clip just feels right. Miss by a few frames and it looks like a
@@ -171,6 +210,11 @@ mistake.
 It also helps everything built on the cut: text hits, transitions and speed
 ramps all sit on the same beat. With markers you don't tap along and nudge
 every cut by eye.
+
+The beat is only half of a good cut. When you assemble cuts and sounds into one
+track, the notes have to fit too: pieces in different keys sound like separate
+clips, pieces in the same or a neighbouring key sound like one track. Downbeat
+marks the beat to cut on and shows the key to match, so you pick both.
 </details>
 
 <details>
