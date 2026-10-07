@@ -73,6 +73,20 @@ try {
   check("Premiere in another language: the fades are still added, by the localized transition names",
     r.ok && r.data.fades && r.data.fades.fadeIn && r.data.fades.fadeIn.asked === true && r.data.fades.fadeOut && r.data.fades.fadeOut.asked === true,
     JSON.stringify(r.data && r.data.fades));
+  // A Premiere that refuses the standard call (seen live on Windows): the
+  // same request is made in other forms until one is taken, and the answer
+  // names which one worked.
+  const pRef = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60, playheadSeconds: 40, audioTrackCount: 2, insertDurationSec: 5, refuseTransitions: 3 });
+  const phRef = mocks.loadHost(pRef.context);
+  r = JSON.parse(phRef.run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + js(({ fadeInSec: 0.2, transitionIn: "Constant Power" })) + ")"));
+  check("Premiere that refuses the standard call: the fade is taken by a later form, and says which",
+    r.ok && r.data.fades.fadeIn.asked === true && /length as a number/.test(r.data.fades.fadeIn.why || ""), JSON.stringify(r.data && r.data.fades));
+  const pRefAll = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60, playheadSeconds: 40, audioTrackCount: 2, insertDurationSec: 5, refuseTransitions: 99 });
+  const phRefAll = mocks.loadHost(pRefAll.context);
+  r = JSON.parse(phRefAll.run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + js(({ fadeInSec: 0.2, transitionIn: "Constant Power" })) + ")"));
+  check("Premiere that refuses every form: not added, and the reason lists what each form answered",
+    r.ok && r.data.fades.fadeIn.asked === false && /standard: refused.*clip selected: refused.*linked media on: refused.*length as a number: refused.*short form: refused.*timecode length: refused/.test(r.data.fades.fadeIn.why || ""),
+    JSON.stringify(r.data && r.data.fades));
   // A Premiere whose names are unknown: not added, and the log says what it offers.
   const pXx = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60, playheadSeconds: 40, audioTrackCount: 2, insertDurationSec: 5, transitionNames: ["Foo", "Bar"] });
   const phXx = mocks.loadHost(pXx.context);

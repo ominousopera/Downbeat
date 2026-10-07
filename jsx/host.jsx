@@ -842,6 +842,59 @@ function _findAudioTransition(name) {
     return result;
 }
 
+// One fade edge: the standard QE call first, and when the host answers
+// false although the transition was found, the same request in other forms
+// until one is taken: with the placed clip selected, with the linked media
+// switched on, with the length as a number, in the short form, and as a
+// timecode. The first one that works is named in the result and the log;
+// when none does, the trail of answers says what each one said. Plain
+// if / else and loops: this engine has no array methods.
+function _timecodeFor(frames, fps) {
+    var base = Math.max(1, Math.round(fps));
+    var ff = frames % base;
+    var totalSeconds = Math.floor(frames / base);
+    var ss = totalSeconds % 60;
+    var mm = Math.floor(totalSeconds / 60) % 60;
+    var hh = Math.floor(totalSeconds / 3600);
+    function two(n) { return n < 10 ? "0" + n : String(n); }
+    return two(hh) + ":" + two(mm) + ":" + two(ss) + ":" + two(ff);
+}
+function _addOneFade(qeItem, transition, atStart, frames, fps, placedClip) {
+    var result = { ok: false, variant: null, trail: [] };
+    var variants = ["standard", "clip selected", "linked media on", "length as a number", "short form", "timecode length"];
+    for (var v = 0; v < variants.length; v++) {
+        var answer = null;
+        try {
+            if (v === 0) {
+                answer = qeItem.addTransition(transition, atStart, String(frames), "0", 0, true, false);
+            } else if (v === 1) {
+                if (placedClip && typeof placedClip.setSelected === "function") {
+                    placedClip.setSelected(true, true);
+                }
+                answer = qeItem.addTransition(transition, atStart, String(frames), "0", 0, true, false);
+            } else if (v === 2) {
+                answer = qeItem.addTransition(transition, atStart, String(frames), "0", 0, true, true);
+            } else if (v === 3) {
+                answer = qeItem.addTransition(transition, atStart, frames, 0, 0, true, false);
+            } else if (v === 4) {
+                answer = qeItem.addTransition(transition, atStart, String(frames));
+            } else {
+                answer = qeItem.addTransition(transition, atStart, _timecodeFor(frames, fps), "0", 0, true, false);
+            }
+            result.trail.push(variants[v] + ": " + (answer ? "taken" : "refused"));
+        } catch (callErr) {
+            answer = null;
+            result.trail.push(variants[v] + ": " + (callErr.message ? callErr.message : String(callErr)));
+        }
+        if (answer) {
+            result.ok = true;
+            result.variant = variants[v];
+            return result;
+        }
+    }
+    return result;
+}
+
 // Adds Premiere audio transitions as edge fades to the clip that starts at
 // startSeconds on audio track `target`, through the QE API (the way a script
 // can put fades on a clip that stay editable). opts: fadeInSec, fadeOutSec
@@ -876,6 +929,21 @@ function _addEdgeFades(sequence, target, startSeconds, opts) {
         } catch (reflectErr) {
             out.qeMembers = null;
         }
+        try {
+            var qms = qeItem.reflect.methods;
+            for (var qm = 0; qm < qms.length; qm++) {
+                if (qms[qm].name === "addTransition" && qms[qm].arguments) {
+                    var argText = [];
+                    for (var qa = 0; qa < qms[qm].arguments.length; qa++) {
+                        argText.push(qms[qm].arguments[qa].name + ":" + qms[qm].arguments[qa].dataType);
+                    }
+                    out.addTransitionArgs = argText.join(", ");
+                }
+            }
+            out.clipSeen = { type: String(qeItem.type), start: qeItem.start ? qeItem.start.secs : null, fps: fps };
+        } catch (argsErr) {
+            out.addTransitionArgs = null;
+        }
         var sides = [["fadeIn", true, Number(opts.fadeInSec) || 0, opts.transitionIn], ["fadeOut", false, Number(opts.fadeOutSec) || 0, opts.transitionOut]];
         for (var sIdx = 0; sIdx < sides.length; sIdx++) {
             var side = sides[sIdx];
@@ -893,9 +961,12 @@ function _addEdgeFades(sequence, target, startSeconds, opts) {
                 if (!found.transition) {
                     why = "no audio transition named " + name + " (this Premiere offers: " + (found.available || "unknown") + ")";
                 } else {
-                    asked = !!qeItem.addTransition(found.transition, side[1], String(frames), "0", 0, true, false);
+                    var tried = _addOneFade(qeItem, found.transition, side[1], frames, fps, _findClipStartingAt(sequence.audioTracks[target], startSeconds));
+                    asked = tried.ok;
                     if (!asked) {
-                        why = "Premiere refused the transition";
+                        why = "Premiere refused the transition (" + tried.trail.join("; ") + ")";
+                    } else if (tried.variant !== "standard") {
+                        why = "the standard call was refused; taken as: " + tried.variant;
                     } else if (found.byPosition) {
                         // No name matched, so the transition was taken by
                         // its place in the list. Said out loud: a Premiere

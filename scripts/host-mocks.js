@@ -266,7 +266,12 @@ function makePremiereHost(opts) {
                   c.end = T(c.start.seconds + (opts.speedBehavior === "wrongLength" ? len * 2 : len / speed));
                   return true;
                 },
-                addTransition: function (tr, atStart, frames) { (c.transitions = c.transitions || []).push({ name: tr.name, atStart: atStart, frames: frames }); return true; } };
+                // opts.refuseTransitions = N: the first N calls answer false
+                // (a Premiere that refuses the standard call).
+                addTransition: function (tr, atStart, frames) {
+                  opts._transitionCalls = (opts._transitionCalls || 0) + 1;
+                  if (opts.refuseTransitions && opts._transitionCalls <= opts.refuseTransitions) { return false; }
+                  (c.transitions = c.transitions || []).push({ name: tr.name, atStart: atStart, frames: frames }); return true; } };
             }
           };
         } };

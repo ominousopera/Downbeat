@@ -998,6 +998,10 @@
             };
             log("Library: fades as Premiere transitions - " + [side("in", fd.fadeIn), side("out", fd.fadeOut)].filter(Boolean).join(", ") +
                 (fd.error ? " (" + fd.error + ")" : "") + ".");
+            if (fd.addTransitionArgs || fd.clipSeen) {
+              log("Library: fade call as this host reports it - addTransition(" + (fd.addTransitionArgs || "unknown") + ")" +
+                  (fd.clipSeen ? "; clip " + fd.clipSeen.type + " at " + fd.clipSeen.start + " s, " + fd.clipSeen.fps + " fps" : "") + ".");
+            }
           }
           // Fades were asked for and this host took neither of them: the
           // sound is in, but it is dry, so say so in the panel instead of
