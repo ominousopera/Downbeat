@@ -420,6 +420,9 @@ Premiere Pro and After Effects through every round of fixes: the folder
 dialogs, the fades and the reversed layers on Windows all got their answers
 from his logs.
 
+Special thanks to **Vladislav Baranov** for his ideas and hints on how to
+make the plugin better.
+
 ## License
 
 AGPL-3.0, see [`LICENSE`](LICENSE). Third-party components:
