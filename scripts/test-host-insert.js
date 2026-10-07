@@ -85,13 +85,23 @@ try {
   r = JSON.parse(mocks.loadHost(pAlign.context).run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + js(({ fadeInSec: 0.2, transitionIn: "Constant Power" })) + ")"));
   check("... and one taken only with the transition aligned to the edge says so",
     r.ok && r.data.fades.fadeIn.asked === true && /alignment 1/.test(r.data.fades.fadeIn.why || ""), JSON.stringify(r.data && r.data.fades.fadeIn));
-  // A host whose name lookup answers any name with something unusable: the
-  // log says so, and the transition taken from the list's own entry works.
-  const pDud = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60, playheadSeconds: 40, audioTrackCount: 2, insertDurationSec: 5, lookupAnswersAnything: true });
-  r = JSON.parse(mocks.loadHost(pDud.context).run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + js(({ fadeInSec: 0.2, transitionIn: "Constant Power" })) + ")"));
-  check("A host whose lookup answers any name: reported, and the list's own entry is taken",
-    r.ok && r.data.fades.anyNameAnswers === true && r.data.fades.fadeIn.asked === true && /list entry "Constant Power"/.test(r.data.fades.fadeIn.why || "") &&
-    /Constant Gain, Constant Power, Exponential Fade/.test(r.data.fades.transitionList || ""), JSON.stringify(r.data && r.data.fades));
+  // A host whose name lookup answers any name: the log says so, the direct
+  // name hits are skipped, and the name as the list spells it is taken by
+  // the plain call - no refusals on the way.
+  const ruNames = ["\u041f\u043e\u0441\u0442\u043e\u044f\u043d\u043d\u0430\u044f \u043c\u043e\u0449\u043d\u043e\u0441\u0442\u044c", "\u041f\u043e\u0441\u0442\u043e\u044f\u043d\u043d\u043e\u0435 \u0443\u0441\u0438\u043b\u0435\u043d\u0438\u0435", "\u042d\u043a\u0441\u043f\u043e\u043d\u0435\u043d\u0446\u0438\u0430\u043b\u044c\u043d\u043e\u0435 \u0437\u0430\u0442\u0443\u0445\u0430\u043d\u0438\u0435"];
+  const pDud = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60, playheadSeconds: 40, audioTrackCount: 2, insertDurationSec: 5, lookupAnswersAnything: true, transitionNames: ruNames });
+  r = JSON.parse(mocks.loadHost(pDud.context).run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + js(({ fadeInSec: 0.2, fadeOutSec: 0.5, transitionIn: "Constant Power", transitionOut: "Constant Gain" })) + ")"));
+  check("A host whose lookup answers any name: reported, and the listed names are taken at the first call",
+    r.ok && r.data.fades.anyNameAnswers === true && r.data.fades.fadeIn.asked === true && r.data.fades.fadeIn.why === null &&
+    r.data.fades.fadeIn.transition === ruNames[0] && r.data.fades.fadeOut.transition === ruNames[1] && r.data.fades.fadeOut.why === null,
+    JSON.stringify(r.data && r.data.fades));
+  // Nothing matches by name, the lookup is untrusted: the entry by its
+  // place, Constant Power first.
+  const pPlace = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60, playheadSeconds: 40, audioTrackCount: 2, insertDurationSec: 5, lookupAnswersAnything: true, transitionNames: ["P-x", "G-x", "E-x"] });
+  r = JSON.parse(mocks.loadHost(pPlace.context).run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + js(({ fadeInSec: 0.2, fadeOutSec: 0.5, transitionIn: "Constant Power", transitionOut: "Constant Gain" })) + ")"));
+  check("... and with names it cannot read, by place: Constant Power first, then Constant Gain",
+    r.ok && r.data.fades.fadeIn.transition === "P-x" && r.data.fades.fadeOut.transition === "G-x" && /by position/.test(r.data.fades.fadeIn.why || ""),
+    JSON.stringify(r.data && r.data.fades));
   const pRefAll = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60, playheadSeconds: 40, audioTrackCount: 2, insertDurationSec: 5, refuseTransitions: 99 });
   const phRefAll = mocks.loadHost(pRefAll.context);
   r = JSON.parse(phRefAll.run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + js(({ fadeInSec: 0.2, transitionIn: "Constant Power" })) + ")"));

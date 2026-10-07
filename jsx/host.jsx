@@ -807,7 +807,11 @@ function _findAudioTransition(name) {
     } catch (probeErr) {
         result.anyNameAnswers = null;
     }
-    for (i = 0; i < candidates.length; i++) {
+    // A lookup that answers a made-up name answers every name, real or not,
+    // and what it hands back for a name the host does not use is refused by
+    // addTransition, while the name as the list spells it works. Then only
+    // names the list itself shows are asked for, below.
+    for (i = 0; i < candidates.length && result.anyNameAnswers !== true; i++) {
         var t = null;
         try { t = qe.project.getAudioTransitionByName(candidates[i]); } catch (e1) { t = null; }
         if (t) {
@@ -835,14 +839,13 @@ function _findAudioTransition(name) {
             }
         }
         // Last resort for an interface language whose names are not in
-        // the list above: Premiere offers the three crossfades in a fixed
-        // order (Constant Gain, Constant Power, Exponential Fade) in every
-        // language, so take the entry by position when the list holds
-        // exactly those three. The caller says so in its result, since a
-        // different order would mean the wrong curve.
+        // the list above: take the entry by its place when the list holds
+        // exactly the three crossfades, which Premiere lists as Constant
+        // Power, Constant Gain, Exponential Fade. The caller says so in its
+        // result, since a different order would mean the wrong curve.
         var position = -1;
-        if (name === "Constant Gain") { position = 0; }
-        if (name === "Constant Power") { position = 1; }
+        if (name === "Constant Power") { position = 0; }
+        if (name === "Constant Gain") { position = 1; }
         if (name === "Exponential Fade") { position = 2; }
         if (position >= 0 && names.length === 3) {
             var byPosition = null;
@@ -919,8 +922,8 @@ function _addOneFade(qeItem, transition, atStart, frames, fps, placedClip) {
 }
 
 // Transitions taken from Premiere's own list instead of by name: the
-// crossfade's entry (by a known name, else by its place - Constant Gain,
-// Constant Power, Exponential Fade in that order) looked up by its listed
+// crossfade's entry (by a known name, else by its place - Constant Power,
+// Constant Gain, Exponential Fade in that order) looked up by its listed
 // name, and the list entry itself in case the list hands out usable
 // objects. Labels say which, for the log.
 function _transitionsFromList(found, name) {
@@ -942,8 +945,8 @@ function _transitionsFromList(found, name) {
         }
     }
     if (position < 0) {
-        if (name === "Constant Gain") { position = 0; }
-        if (name === "Constant Power") { position = 1; }
+        if (name === "Constant Power") { position = 0; }
+        if (name === "Constant Gain") { position = 1; }
         if (name === "Exponential Fade") { position = 2; }
     }
     if (position < 0 || position >= items.length) {

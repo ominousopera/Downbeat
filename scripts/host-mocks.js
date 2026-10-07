@@ -239,15 +239,18 @@ function makePremiereHost(opts) {
     qe: { project: {
       // opts.transitionNames: the names a Premiere in another language
       // offers (default: the English ones).
-      // opts.lookupAnswersAnything: the name lookup hands back a dud object
-      // for any name (addTransition refuses it); only the list's own entries
-      // are real.
+      // opts.lookupAnswersAnything: the name lookup answers ANY name; a name
+      // the list does not show gets a dud object (addTransition refuses it),
+      // a listed name the real one.
       getAudioTransitionByName: function (name) {
-        if (opts.lookupAnswersAnything) { return { name: name, dud: true }; }
+        if (opts.lookupAnswersAnything) {
+          const listed = (opts.transitionNames || ["Constant Power", "Constant Gain", "Exponential Fade"]).indexOf(name) !== -1;
+          return listed ? { name: name } : { name: name, dud: true };
+        }
         return (opts.transitionNames || ["Constant Power", "Constant Gain", "Exponential Fade"]).indexOf(name) !== -1 ? { name: name } : null;
       },
       getAudioTransitionList: function () {
-        if (opts.lookupAnswersAnything) { return (opts.transitionNames || ["Constant Gain", "Constant Power", "Exponential Fade"]).map(function (n) { return { name: n, toString: function () { return n; } }; }); }
+        if (opts.lookupAnswersAnything) { return (opts.transitionNames || ["Constant Power", "Constant Gain", "Exponential Fade"]).map(function (n) { return { name: n, toString: function () { return n; } }; }); }
         return opts.transitionNames || ["Constant Power", "Constant Gain", "Exponential Fade"];
       },
       getActiveSequence: function () {
