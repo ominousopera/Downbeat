@@ -895,6 +895,114 @@ function _addOneFade(qeItem, transition, atStart, frames, fps, placedClip) {
     return result;
 }
 
+// Fades as Volume > Level keyframes: the way out when the host refuses
+// every form of the transition call. Plain Premiere scripting, no QE, so it
+// does not depend on the transition machinery; the keyframes stay editable
+// on the clip. Level is read first: only a unity of 1 (0 dB as a linear
+// gain) is trusted, and anything else means this host reads Level
+// differently, so nothing is touched. Key times run from the clip's in
+// point. After the keys are set they are read back at the planned times;
+// any mismatch puts Level back to its old constant value and reports
+// failure.
+function _levelParamOf(clip) {
+    var comps = clip.components;
+    if (!comps || !comps.numItems) {
+        return null;
+    }
+    for (var c = 0; c < comps.numItems; c++) {
+        var comp = comps[c];
+        var cname = String(comp.displayName || "");
+        if (!/volume|\u0433\u0440\u043e\u043c\u043a\u043e\u0441\u0442|volumen|lautst/i.test(cname) && c !== 0) {
+            continue;
+        }
+        var props = comp.properties;
+        if (!props || !props.numItems) {
+            continue;
+        }
+        for (var q = 0; q < props.numItems; q++) {
+            var pname = String(props[q].displayName || "");
+            if (/^(level|\u0443\u0440\u043e\u0432\u0435\u043d\u044c|nivel|pegel|niveau|livello|n\u00edvel)$/i.test(pname)) {
+                return props[q];
+            }
+        }
+        if (props.numItems > 1) {
+            return props[1];
+        }
+    }
+    return null;
+}
+function _fadeByLevelKeys(clip, fadeInSec, fadeOutSec, curveIn, curveOut) {
+    var out = { ok: false, why: null };
+    var param = null;
+    var base = null;
+    try {
+        param = _levelParamOf(clip);
+        if (!param) {
+            out.why = "no Volume > Level on the clip";
+            return out;
+        }
+        if (typeof param.areKeyframesSupported === "function" && !param.areKeyframesSupported()) {
+            out.why = "Level takes no keyframes here";
+            return out;
+        }
+        base = Number(param.getValue());
+        if (!(base > 0.5 && base < 2)) {
+            out.why = "Level reads " + base + " (expected about 1 as a linear gain)";
+            return out;
+        }
+        var length = clip.end.seconds - clip.start.seconds;
+        var offset = clip.inPoint ? clip.inPoint.seconds : 0;
+        var steps = [0, 0.1, 0.2, 0.35, 0.5, 0.65, 0.8, 0.9, 1];
+        var planned = [];
+        var k;
+        if (fadeInSec > 0) {
+            for (k = 0; k < steps.length; k++) {
+                planned.push({ r: steps[k] * fadeInSec, g: _dbAeFadeGain(steps[k], true, curveIn) });
+            }
+        }
+        if (fadeOutSec > 0) {
+            for (k = 0; k < steps.length; k++) {
+                planned.push({ r: length - fadeOutSec + steps[k] * fadeOutSec, g: _dbAeFadeGain(steps[k], false, curveOut) });
+            }
+        }
+        param.setTimeVarying(true);
+        for (k = 0; k < planned.length; k++) {
+            var t = new Time();
+            t.seconds = offset + planned[k].r;
+            param.addKey(t);
+            param.setValueAtKey(t, base * planned[k].g, true);
+        }
+        var bad = null;
+        for (k = 0; k < planned.length; k++) {
+            var rt = new Time();
+            rt.seconds = offset + planned[k].r;
+            var got = Number(param.getValueAtTime(rt));
+            if (isNaN(got) || Math.abs(got - base * planned[k].g) > 0.03 * base) {
+                bad = "read back " + got + " at " + planned[k].r.toFixed(3) + " s, planned " + (base * planned[k].g).toFixed(3);
+                break;
+            }
+        }
+        if (bad) {
+            throw new Error(bad);
+        }
+        out.ok = true;
+        return out;
+    } catch (e) {
+        out.why = e.message ? e.message : String(e);
+        try {
+            if (param) {
+                param.setTimeVarying(false);
+                if (base !== null) {
+                    param.setValue(base, true);
+                }
+            }
+        } catch (undoErr) {
+            out.why += " (and Level could not be put back: " + (undoErr.message ? undoErr.message : String(undoErr)) + ")";
+        }
+        return out;
+    }
+}
+
 // Adds Premiere audio transitions as edge fades to the clip that starts at
 // startSeconds on audio track `target`, through the QE API (the way a script
 // can put fades on a clip that stay editable). opts: fadeInSec, fadeOutSec
@@ -980,6 +1088,30 @@ function _addEdgeFades(sequence, target, startSeconds, opts) {
                 why = sideErr.message ? sideErr.message : String(sideErr);
             }
             out[side[0]] = { transition: shownName, frames: frames, asked: asked, why: why };
+        }
+        // A side the host would not take as a transition: both sides as
+        // Level keyframes in one go, since the clip's Level is set once,
+        // unless a transition already took the other side.
+        var inLeft = out.fadeIn && !out.fadeIn.asked;
+        var outLeft = out.fadeOut && !out.fadeOut.asked;
+        if (inLeft || outLeft) {
+            var keyed = _fadeByLevelKeys(_findClipStartingAt(sequence.audioTracks[target], startSeconds),
+                inLeft ? Number(opts.fadeInSec) || 0 : 0, outLeft ? Number(opts.fadeOutSec) || 0 : 0,
+                opts.curveIn || 0, opts.curveOut || 0);
+            var sidesLeft = [["fadeIn", inLeft], ["fadeOut", outLeft]];
+            for (var kk = 0; kk < sidesLeft.length; kk++) {
+                if (!sidesLeft[kk][1]) {
+                    continue;
+                }
+                var entry = out[sidesLeft[kk][0]];
+                if (keyed.ok) {
+                    entry.transition = "Volume keyframes";
+                    entry.asked = true;
+                    entry.why = "no transition was taken (" + entry.why + "); set as Volume > Level keyframes instead";
+                } else {
+                    entry.why = entry.why + "; Volume keyframes also failed: " + keyed.why;
+                }
+            }
         }
     } catch (e) {
         out.error = e.message ? e.message : e.toString();

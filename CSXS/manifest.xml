@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<ExtensionManifest Version="11.0" ExtensionBundleId="com.downbeat.pro" ExtensionBundleVersion="1.0.3" ExtensionBundleName="Downbeat">
+<ExtensionManifest Version="11.0" ExtensionBundleId="com.downbeat.pro" ExtensionBundleVersion="1.0.4" ExtensionBundleName="Downbeat">
   <ExtensionList>
-    <Extension Id="com.downbeat.pro.panel" Version="1.0.3" />
+    <Extension Id="com.downbeat.pro.panel" Version="1.0.4" />
   </ExtensionList>
   <ExecutionEnvironment>
     <HostList>
