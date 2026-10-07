@@ -62,7 +62,7 @@ try {
     placed.transitions[0].name === "Constant Power" && placed.transitions[0].atStart === true && placed.transitions[0].frames === "5" &&
     placed.transitions[1].name === "Constant Gain" && placed.transitions[1].atStart === false && placed.transitions[1].frames === "13",
     JSON.stringify(placed && placed.transitions));
-  check("Premiere: the QE clip's fade / curve members are reported for the log", r.data && r.data.fades && r.data.fades.qeMembers && r.data.fades.qeMembers.join() === "getFadeCurve()",
+  check("Premiere: the QE clip's fade / curve / transition members are reported for the log", r.data && r.data.fades && r.data.fades.qeMembers && r.data.fades.qeMembers.join() === "addTransition(),getFadeCurve()",
     JSON.stringify(r.data && r.data.fades));
   // A Premiere in another language: the transitions carry that language's
   // names, so the English name finds nothing and the localized one must.
@@ -81,17 +81,22 @@ try {
   r = JSON.parse(phRef.run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + js(({ fadeInSec: 0.2, transitionIn: "Constant Power" })) + ")"));
   check("Premiere that refuses the standard call: the fade is taken by a later form, and says which",
     r.ok && r.data.fades.fadeIn.asked === true && /length as a number/.test(r.data.fades.fadeIn.why || ""), JSON.stringify(r.data && r.data.fades));
+  const pAlign = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60, playheadSeconds: 40, audioTrackCount: 2, insertDurationSec: 5, refuseTransitions: 6 });
+  r = JSON.parse(mocks.loadHost(pAlign.context).run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + js(({ fadeInSec: 0.2, transitionIn: "Constant Power" })) + ")"));
+  check("... and one taken only with the transition aligned to the edge says so",
+    r.ok && r.data.fades.fadeIn.asked === true && /alignment 1/.test(r.data.fades.fadeIn.why || ""), JSON.stringify(r.data && r.data.fades.fadeIn));
   const pRefAll = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60, playheadSeconds: 40, audioTrackCount: 2, insertDurationSec: 5, refuseTransitions: 99 });
   const phRefAll = mocks.loadHost(pRefAll.context);
   r = JSON.parse(phRefAll.run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + js(({ fadeInSec: 0.2, transitionIn: "Constant Power" })) + ")"));
   check("Premiere that refuses every form: not added, and the reason lists what each form answered",
     r.ok && r.data.fades.fadeIn.asked === false && /standard: refused.*clip selected: refused.*linked media on: refused.*length as a number: refused.*short form: refused.*timecode length: refused/.test(r.data.fades.fadeIn.why || ""),
     JSON.stringify(r.data && r.data.fades));
-  // A Premiere that refuses every form inside the insert call but takes the
+  // A Premiere that refuses every form inside the insert call (eight forms
+  // and the fresh lookup, nine calls) but takes the
   // fade in a call of its own: the insert reports the refusal (with the
   // fresh lookup in the trail) and the track it used, and retryEdgeFades
   // then adds the fade to the same clip.
-  const pLate = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60, playheadSeconds: 40, audioTrackCount: 2, insertDurationSec: 5, refuseTransitions: 7 });
+  const pLate = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60, playheadSeconds: 40, audioTrackCount: 2, insertDurationSec: 5, refuseTransitions: 9 });
   const phLate = mocks.loadHost(pLate.context);
   r = JSON.parse(phLate.run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + js(({ fadeInSec: 0.2, transitionIn: "Constant Power" })) + ")"));
   check("Premiere that refuses inside the insert: the answer says refused, lists the fresh lookup too, and names the track",

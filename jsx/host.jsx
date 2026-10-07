@@ -861,7 +861,7 @@ function _timecodeFor(frames, fps) {
 }
 function _addOneFade(qeItem, transition, atStart, frames, fps, placedClip) {
     var result = { ok: false, variant: null, trail: [] };
-    var variants = ["standard", "clip selected", "linked media on", "length as a number", "short form", "timecode length"];
+    var variants = ["standard", "clip selected", "linked media on", "length as a number", "short form", "timecode length", "alignment 1", "alignment 2"];
     for (var v = 0; v < variants.length; v++) {
         var answer = null;
         try {
@@ -878,8 +878,13 @@ function _addOneFade(qeItem, transition, atStart, frames, fps, placedClip) {
                 answer = qeItem.addTransition(transition, atStart, frames, 0, 0, true, false);
             } else if (v === 4) {
                 answer = qeItem.addTransition(transition, atStart, String(frames));
-            } else {
+            } else if (v === 5) {
                 answer = qeItem.addTransition(transition, atStart, _timecodeFor(frames, fps), "0", 0, true, false);
+            } else {
+                // The alignment of the transition on the edit: the standard
+                // form passes 0; a clip with no media beyond its edge may
+                // only take one aligned to that edge.
+                answer = qeItem.addTransition(transition, atStart, String(frames), "0", v - 5, true, false);
             }
             result.trail.push(variants[v] + ": " + (answer ? "taken" : "refused"));
         } catch (callErr) {
@@ -954,7 +959,7 @@ function _addEdgeFades(sequence, target, startSeconds, opts) {
             throw new Error("the placed clip was not found on the QE track");
         }
         try {
-            var wanted = /fade|curve/i;
+            var wanted = /fade|curve|transition/i;
             var members = [];
             var ms = qeItem.reflect.methods;
             for (var m = 0; m < ms.length; m++) { if (wanted.test(ms[m].name)) { members.push(ms[m].name + "()"); } }
@@ -976,6 +981,29 @@ function _addEdgeFades(sequence, target, startSeconds, opts) {
                 }
             }
             out.clipSeen = { type: String(qeItem.type), start: qeItem.start ? qeItem.start.secs : null, fps: fps };
+            // How much of the file lies beyond each edge of the clip (a
+            // transition centred on an edge needs some), and what the
+            // standard clip object offers about fades in this Premiere.
+            var placedStd = _findClipStartingAt(sequence.audioTracks[target], startSeconds);
+            if (placedStd) {
+                out.clipSeen.mediaBefore = placedStd.inPoint ? placedStd.inPoint.seconds : null;
+                try {
+                    var mediaEnd = placedStd.projectItem && typeof placedStd.projectItem.getOutPoint === "function" ? placedStd.projectItem.getOutPoint() : null;
+                    out.clipSeen.mediaAfter = mediaEnd && placedStd.outPoint ? mediaEnd.seconds - placedStd.outPoint.seconds : null;
+                } catch (endErr) {
+                    out.clipSeen.mediaAfter = null;
+                }
+                try {
+                    var stdMembers = [];
+                    var sm = placedStd.reflect.methods;
+                    for (var si = 0; si < sm.length; si++) { if (wanted.test(sm[si].name)) { stdMembers.push(sm[si].name + "()"); } }
+                    var sp = placedStd.reflect.properties;
+                    for (var sj = 0; sj < sp.length; sj++) { if (wanted.test(sp[sj].name)) { stdMembers.push(sp[sj].name); } }
+                    out.clipMembers = stdMembers;
+                } catch (stdReflectErr) {
+                    out.clipMembers = null;
+                }
+            }
         } catch (argsErr) {
             out.addTransitionArgs = null;
         }

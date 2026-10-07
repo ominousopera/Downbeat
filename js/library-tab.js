@@ -963,8 +963,13 @@
       log("Library: " + title + " - " + [side("in", fd.fadeIn), side("out", fd.fadeOut)].filter(Boolean).join(", ") +
           (fd.error ? " (" + fd.error + ")" : "") + ".");
       if (fd.addTransitionArgs || fd.clipSeen) {
+        var cs = fd.clipSeen;
         log("Library: fade call as this host reports it - addTransition(" + (fd.addTransitionArgs || "unknown") + ")" +
-            (fd.clipSeen ? "; clip " + fd.clipSeen.type + " at " + fd.clipSeen.start + " s, " + fd.clipSeen.fps + " fps" : "") + ".");
+            (cs ? "; clip " + cs.type + " at " + cs.start + " s, " + cs.fps + " fps" +
+              "; file beyond the edges: " + (cs.mediaBefore === undefined || cs.mediaBefore === null ? "?" : Number(cs.mediaBefore).toFixed(2)) + " s before, " +
+              (cs.mediaAfter === undefined || cs.mediaAfter === null ? "?" : Number(cs.mediaAfter).toFixed(2)) + " s after" : "") +
+            "; fade members - QE clip: " + (fd.qeMembers ? fd.qeMembers.join(" ") || "none" : "?") +
+            ", clip: " + (fd.clipMembers ? fd.clipMembers.join(" ") || "none" : "?") + ".");
       }
     }
     // The insert options for just the fades Premiere refused (the
