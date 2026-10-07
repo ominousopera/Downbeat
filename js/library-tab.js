@@ -1380,7 +1380,9 @@
         var top = mid - _libPanePeaks.max[src] * mid * k;
         var bottom = mid - _libPanePeaks.min[src] * mid * k;
         g.fillStyle = !inside ? outside : (x < playedX ? lit : dim);
+        g.globalAlpha = inside || !_libPlayer.region() ? 1 : 0.55;
         g.fillRect(x, top, 1, Math.max(1, bottom - top));
+        g.globalAlpha = 1;
       }
       if (hasFades) {
         g.strokeStyle = _libPaneColor("--accent", "#ff9f2e");
@@ -1399,12 +1401,28 @@
         }
         g.stroke();
       }
+      // The part's own edges as thin full-height lines, like a clip's edges,
+      // so the white playhead and the unplayed (dim) end of the part are not
+      // taken for an edge.
+      if (_libPlayer.region()) {
+        var ew = Math.max(1, Math.round(dpr));
+        g.fillStyle = _libPaneColor("--text-dim", "#9c9c9c");
+        g.fillRect(Math.min(w - ew, Math.max(0, xa)), 0, ew, h);
+        g.fillRect(Math.min(w - ew, Math.max(0, xb - ew)), 0, ew, h);
+      }
       var hd = _libPaneHandles();
       if (hd) {
         var size = Math.round(LIB_PANE_HANDLE * dpr);
         g.fillStyle = _libPaneColor("--text", "#e8e6e1");
-        g.fillRect(Math.min(w - size, Math.round(hd.inX * w)), 0, size, size);
-        g.fillRect(Math.max(0, Math.round(hd.outX * w) - size), 0, size, size);
+        // Each square sits centred on the point where its fade turns (the
+        // fade-in's end, the fade-out's start), as on a Premiere clip, and
+        // stays inside the part at its edges.
+        var placeHandle = function (fx) {
+          var cx = Math.round(fx * w) - Math.round(size / 2);
+          return Math.max(Math.max(0, xa), Math.min(Math.min(w, xb) - size, cx));
+        };
+        g.fillRect(placeHandle(hd.inX), 0, size, size);
+        g.fillRect(placeHandle(hd.outX), 0, size, size);
       }
       g.fillStyle = _libPaneColor("--text", "#e8e6e1");
       g.fillRect(Math.min(w - 1, Math.round(playedX)), 0, Math.max(1, Math.round(dpr)), h);
