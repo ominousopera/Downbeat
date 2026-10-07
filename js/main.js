@@ -422,7 +422,7 @@
   window.BeatMarkerSelect.enhanceAll(); // drawn dropdowns over every <select> - see js/ui-select.js
   log("panel loaded");
   log("Downbeat version: " + getPluginVersion());
-  log("host app: " + csInterface.getHostEnvironment().appName);
+  log("host app: " + csInterface.getHostEnvironment().appName + " " + csInterface.getHostEnvironment().appVersion);
   log("userAgent: " + navigator.userAgent);
   setTranslatedText(document.getElementById("settingsFooterText"), "settings.footer", { version: getPluginVersion() });
   // First-run onboarding: the language picker (on the very first launch,
@@ -711,6 +711,76 @@
   var phaseDisplay = document.getElementById("phaseDisplay");
   var bpmDisplay = document.getElementById("bpmDisplay");
   var beatCountDisplay = document.getElementById("beatCountDisplay");
+  var heardTempoRow = document.getElementById("heardTempoRow");
+  var heardTempoHint = document.getElementById("heardTempoHint");
+  var heardKeyRow = document.getElementById("heardKeyRow");
+  var heardKeyHint = document.getElementById("heardKeyHint");
+
+  // "Plays at ... on the timeline". The panel measures the FILE, but
+  // Premiere plays the clip at the clip's own speed, and speed carries
+  // pitch with it like a sampler, so neither the tempo nor the key shown
+  // is what the timeline plays. Both lines are hidden at 100%. Every
+  // bpmDisplay write goes through _setBpmText, so the lines cannot be left
+  // standing from an earlier tempo.
+  function _setBpmText(text) {
+    bpmDisplay.textContent = text;
+    _renderHeard();
+  }
+  function _renderHeard() {
+    _renderHeardTempo();
+    _renderHeardKey();
+  }
+  function _clipSpeed() {
+    var ci = lastAnalysis && lastAnalysis.clipInfo;
+    var fromAnalysis = ci && Number(ci.speed) > 0 ? Number(ci.speed) : null;
+    var fromKey = lastKeyResult && Number(lastKeyResult.clipSpeed) > 0 ? Number(lastKeyResult.clipSpeed) : null;
+    return fromAnalysis || fromKey || null;
+  }
+  function _speedPct(speed) {
+    var pct = speed * 100;
+    return (Math.abs(pct - Math.round(pct)) < 0.05 ? String(Math.round(pct)) : pct.toFixed(1));
+  }
+  function _renderHeardTempo() {
+    var bpm = parseFloat(bpmDisplay.textContent);
+    var heard = isNaN(bpm) ? null : window.BeatMarkerPitch.heardOnTimeline(_clipSpeed(), bpm, null);
+    // No tempo measured yet (the BPM reads "-"), nothing to re-state.
+    if (!heard || !heard.bpm) {
+      heardTempoRow.hidden = true;
+      return;
+    }
+    heardTempoRow.hidden = false;
+    setTranslatedText(heardTempoHint, "analyze.heardTempo", {
+      bpm: heard.bpm.toFixed(2),
+      pct: _speedPct(heard.speed)
+    });
+  }
+  function _renderHeardKey() {
+    var camelot = lastKeyResult && lastKeyResult.camelot ? lastKeyResult.camelot : null;
+    var heard = window.BeatMarkerPitch.heardOnTimeline(_clipSpeed(), null, camelot);
+    // A speed within a hair of a whole octave-free semitone of 0 (say
+    // 100.2%) moves no key, so there is nothing to say about the key.
+    if (!heard || !camelot || (heard.onSemitone && heard.semitones === 0)) {
+      heardKeyRow.hidden = true;
+      return;
+    }
+    heardKeyRow.hidden = false;
+    var pct = _speedPct(heard.speed);
+    var sign = heard.exactSemitones > 0 ? "+" : "-";
+    if (heard.camelot && heard.key) {
+      setTranslatedText(heardKeyHint, "key.heardKey", {
+        key: heard.camelot + " - " + _localKeyName(heard.key.key, heard.key.scale),
+        sign: sign,
+        semitones: String(Math.abs(heard.semitones)),
+        pct: pct
+      });
+    } else {
+      setTranslatedText(heardKeyHint, "key.heardKeyBetween", {
+        sign: sign,
+        semitones: Math.abs(heard.exactSemitones).toFixed(1),
+        pct: pct
+      });
+    }
+  }
   var phaseUncertainRow = document.getElementById("phaseUncertainRow");
   var phaseAgreementRow = document.getElementById("phaseAgreementRow");
   var phaseAgreementHint = document.getElementById("phaseAgreementHint");
@@ -1243,7 +1313,7 @@
           tempoChangeRegions: analysis.tempoChangeRegions || []
         };
         _updatePhaseShiftUi();
-        bpmDisplay.textContent = analysis.cuesheet.bpm.toFixed(2);
+        _setBpmText(analysis.cuesheet.bpm.toFixed(2));
         beatCountDisplay.textContent = String(beatCount);
         _updatePhaseUncertainHint(analysis.phaseMarginRatio);
         _updatePhaseAgreementHint(analysis);
@@ -1543,7 +1613,7 @@
   var MANUAL_BPM_GRID_PAD_BEATS = 8;
   function _restoreManualBpmSnapshot(snap) {
     lastAnalysis = snap.lastAnalysis;
-    bpmDisplay.textContent = snap.bpmText;
+    _setBpmText(snap.bpmText);
     beatCountDisplay.textContent = snap.beatCountText;
     _updatePhaseShiftUi();
     _updatePhaseUncertainHint(lastAnalysis ? lastAnalysis.phaseMarginRatio : null);
@@ -1632,7 +1702,7 @@
           _preManualBpmSnapshot: preSnapshot
         };
         _updatePhaseShiftUi();
-        bpmDisplay.textContent = bpm.toFixed(2);
+        _setBpmText(bpm.toFixed(2));
         beatCountDisplay.textContent = String(beatsArray.length);
         _updatePhaseUncertainHint(null);
         _updatePhaseAgreementHint(null);
@@ -1711,7 +1781,7 @@
 
     var newBpm = analysis.cuesheet.bpm;
     _updatePhaseShiftUi();
-    bpmDisplay.textContent = newBpm.toFixed(2);
+    _setBpmText(newBpm.toFixed(2));
     beatCountDisplay.textContent = String(analysis.beatsArray.length);
     _updatePhaseUncertainHint(analysis.phaseMarginRatio);
     _updatePhaseAgreementHint(analysis);
@@ -1798,7 +1868,7 @@
     }
     _forgetPhaseShift();
     _updatePhaseShiftUi();
-    bpmDisplay.textContent = bpmText;
+    _setBpmText(bpmText);
     beatCountDisplay.textContent = String(lastAnalysis.beatsArray.length);
     _updatePhaseUncertainHint(lastAnalysis.phaseMarginRatio);
     _updatePhaseAgreementHint(lastAnalysis);
@@ -1920,7 +1990,7 @@
     _forgetPhaseShift();
 
     _updatePhaseShiftUi();
-    bpmDisplay.textContent = newBpm.toFixed(2);
+    _setBpmText(newBpm.toFixed(2));
     beatCountDisplay.textContent = String(newBeats.length);
     _updatePhaseUncertainHint(null);
     _updatePhaseAgreementHint(null);
@@ -2426,6 +2496,7 @@
   function renderKeyResult() {
     if (!lastKeyResult) {
       keyResultDisplay.textContent = "-";
+      _renderHeardKey();
       compatibleKeysRow.style.display = "none";
       keyAgreementRow.style.display = "none";
       window.BeatMarkerWheel.renderWheel(document.getElementById("camelotWheel"), null);
@@ -2456,6 +2527,7 @@
       text += " " + I18n.t("key.manuallySet");
     }
     keyResultDisplay.textContent = text;
+    _renderHeardKey();
     window.BeatMarkerWheel.renderWheel(document.getElementById("camelotWheel"), lastKeyResult.camelot);
     // The direct answer to "which key should the OTHER track / riser / SFX be
     // for this to sound good with it", shown as plain key names alongside the
@@ -2586,6 +2658,9 @@
           strength: result.strength,
           camelot: result.camelot,
           mediaPath: clipInfoForKey.mediaPath,
+          // The clip's speed, so the key can also be shown as the
+          // timeline plays it.
+          clipSpeed: Number(clipInfoForKey.speed) > 0 ? Number(clipInfoForKey.speed) : 1,
           manual: false,
           // Music/SFX vote + chord witness - see js/analyze.js's detectKey().
           // Not persisted to the library, so a cached entry simply shows no
@@ -2647,7 +2722,7 @@
       log("Key override: '" + raw + "' isn't a valid Camelot code (expected like '8A' or '11B').");
       return;
     }
-    lastKeyResult = { key: null, scale: null, strength: null, camelot: raw, manual: true,
+    lastKeyResult = { key: null, scale: null, strength: null, camelot: raw, manual: true, clipSpeed: _clipSpeed() || 1,
       mediaPath: lastKeyResult ? lastKeyResult.mediaPath : null };
     renderKeyResult();
     log("Key manually set to " + raw + ".");
@@ -2758,7 +2833,7 @@
   function _clearSelectionDependentState() {
     lastAnalysis = null;
     _updatePhaseShiftUi();
-    bpmDisplay.textContent = "-";
+    _setBpmText("-");
     beatCountDisplay.textContent = "-";
     _updatePhaseUncertainHint(null);
     _updateGridConfidenceHint(null);
@@ -2781,14 +2856,14 @@
         downbeatTimes: entry.downbeatTimes || null // Beat This! downbeats, when they were in use
       };
       _updatePhaseShiftUi();
-      bpmDisplay.textContent = entry.bpm.toFixed(2);
+      _setBpmText(entry.bpm.toFixed(2));
       beatCountDisplay.textContent = String(entry.beatsArray.length);
       var cachedBpmText = entry.bpm.toFixed(1);
       statusParts.push(function () { return cachedBpmText + " BPM (" + I18n.t("selection.alreadyAnalyzed") + ")"; });
     } else {
       lastAnalysis = null;
       _updatePhaseShiftUi();
-      bpmDisplay.textContent = "-";
+      _setBpmText("-");
       beatCountDisplay.textContent = "-";
     }
     _updatePhaseUncertainHint(null);
@@ -2797,7 +2872,8 @@
     _refreshBeatClickPreview();
 
     if (entry && entry.camelot) {
-      lastKeyResult = { key: entry.key, scale: entry.scale, strength: entry.strength, camelot: entry.camelot, manual: false, mediaPath: entry.mediaPath };
+      lastKeyResult = { key: entry.key, scale: entry.scale, strength: entry.strength, camelot: entry.camelot, manual: false,
+                        mediaPath: entry.mediaPath, clipSpeed: Number(freshClipInfo.speed) > 0 ? Number(freshClipInfo.speed) : 1 };
       statusParts.push(entry.camelot);
     } else {
       lastKeyResult = null;

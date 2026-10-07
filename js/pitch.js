@@ -103,8 +103,42 @@
     return out;
   }
 
+  // What a re-sped clip sounds like, for the Analyze and Key tabs. The
+  // panel measures the file, but Premiere plays the clip at the clip's own
+  // speed, and speed carries pitch with it the way a sampler does: twice
+  // as fast is an octave up. So the tempo heard is bpm x speed and the key
+  // heard is 12 x log2(speed) semitones away; Reverse moves neither.
+  // Returns null at 100%, where the file and the clip agree and there is
+  // nothing to say. `semitones` is rounded for display, with the exact
+  // figure in `exactSemitones`: a hand-typed speed rarely lands on a
+  // whole semitone.
+  function heardOnTimeline(speed, bpm, camelot) {
+    var s = Number(speed);
+    if (!(s > 0) || Math.abs(s - 1) < 0.0005) { return null; }
+    var exact = 12 * Math.log(s) / Math.LN2;
+    var rounded = Math.round(exact);
+    var out = {
+      speed: s,
+      exactSemitones: exact,
+      semitones: rounded,
+      onSemitone: Math.abs(exact - rounded) < 0.05,
+      bpm: null,
+      camelot: null,
+      key: null
+    };
+    if (Number(bpm) > 0) { out.bpm = Number(bpm) * s; }
+    // A key only moves in whole semitones, so an off-semitone speed lands
+    // between two keys and no honest code can be shown for it.
+    if (camelot && out.onSemitone) {
+      out.camelot = transpose(camelot, rounded);
+      out.key = out.camelot ? CAM.fromCamelotCode(out.camelot) : null;
+    }
+    return out;
+  }
+
   global.BeatMarkerPitch = {
     shiftBetween: shiftBetween,
+    heardOnTimeline: heardOnTimeline,
     describeShift: describeShift,
     transpose: transpose,
     plan: plan,

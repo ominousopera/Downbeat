@@ -273,6 +273,13 @@
     <div class="g-tempo">
       <span class="g-bpm-wrap"><span class="g-bpm" id="bpmDisplay">–</span><span class="g-unit" data-i18n="analyze.bpm">BPM</span></span>
     </div>
+    <!-- The tempo the clip is heard at when Premiere plays it at a speed
+         other than 100%: the figure above is measured in the file, while
+         the timeline plays it faster or slower and carries the pitch with
+         it. Hidden at 100%, where there is nothing to add. -->
+    <div class="row" id="heardTempoRow" hidden>
+      <span class="hint" id="heardTempoHint"></span>
+    </div>
     <!-- Each line is a label column and its controls, aligned like the
          Markers grid below. Hints run full width under their line. -->
     <!-- Typed tempo. The long intro hint is hidden by CSS; after the button is
@@ -446,6 +453,12 @@
     <div class="row">
       <span class="hint" data-i18n="key.label">Key</span>
       <span id="keyResultDisplay">–</span>
+    </div>
+
+    <!-- The key as the timeline plays it, when the clip is not at 100%.
+         See heardTempoRow above. -->
+    <div class="row" id="heardKeyRow" hidden>
+      <span class="hint" id="heardKeyHint"></span>
     </div>
 
     <div class="row" id="compatibleKeysRow" style="display:none">

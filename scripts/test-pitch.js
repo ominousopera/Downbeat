@@ -106,6 +106,30 @@ check("unknown source code", P.plan("99Z", "8A", 120), null);
 check("unknown target code", P.plan("8A", "99Z", 120), null);
 check("transpose of junk", P.transpose("nope", 3), null);
 
+// ---- what a re-sped clip sounds like on the timeline ------------------
+check("100% says nothing", P.heardOnTimeline(1, 120, "8A"), null);
+check("a speed of 0 or junk says nothing", P.heardOnTimeline(0, 120, "8A"), null);
+const up3 = P.heardOnTimeline(Math.pow(2, 3 / 12), 120, "8A");
+check("+3 semitones at that speed", up3.semitones, 3);
+close("tempo carried by the speed", up3.bpm, 142.7, 0.1);
+check("A minor played 3 up is C minor", up3.camelot, "5A");
+const half = P.heardOnTimeline(0.5, 120, "8A");
+check("half speed is an octave down", half.semitones, -12);
+check("an octave lands on the same code", half.camelot, "8A");
+close("half the tempo", half.bpm, 60, 0.001);
+const between = P.heardOnTimeline(1.07, 120, "8A");
+check("107% is not a whole semitone", between.onSemitone, false);
+check("so no key code is claimed", between.camelot, null);
+close("but the tempo is still exact", between.bpm, 128.4, 0.001);
+const tiny = P.heardOnTimeline(1.002, 120, "8A");
+check("a hair off 100% moves no key", tiny.semitones, 0);
+check("and names the same key, so the UI can hide the line", tiny.camelot, "8A");
+const oct = P.heardOnTimeline(2, 120, "8A");
+check("double speed is an octave up", oct.semitones, 12);
+check("an octave up is the same code", oct.camelot, "8A");
+check("no key given, no key shown", P.heardOnTimeline(1.5, 120, null).camelot, null);
+check("no bpm given, no bpm shown", P.heardOnTimeline(1.5, null, "8A").bpm, null);
+
 if (failures) {
   console.error("\n" + failures + " assertion(s) FAILED");
   process.exit(1);

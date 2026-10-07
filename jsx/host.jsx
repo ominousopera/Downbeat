@@ -783,10 +783,10 @@ function _findItemInBinByPath(bin, mediaPath) {
 var _TRANSITION_NAMES = {
     "Constant Power": ["Constant Power", "\u041f\u043e\u0441\u0442\u043e\u044f\u043d\u043d\u0430\u044f \u043c\u043e\u0449\u043d\u043e\u0441\u0442\u044c", "Potencia constante", "Konstante Leistung", "Puissance constante", "\u30b3\u30f3\u30b9\u30bf\u30f3\u30c8\u30d1\u30ef\u30fc", "Pot\u00eancia constante", "Potenza costante"],
     "Constant Gain": ["Constant Gain", "\u041f\u043e\u0441\u0442\u043e\u044f\u043d\u043d\u043e\u0435 \u0443\u0441\u0438\u043b\u0435\u043d\u0438\u0435", "Ganancia constante", "Konstante Verst\u00e4rkung", "Gain constant", "\u30b3\u30f3\u30b9\u30bf\u30f3\u30c8\u30b2\u30a4\u30f3", "Ganho constante", "Guadagno costante"],
-    "Exponential Fade": ["Exponential Fade", "\u042d\u043a\u0441\u043f\u043e\u043d\u0435\u043d\u0446\u0438\u0430\u043b\u044c\u043d\u043e\u0435 \u0437\u0430\u0442\u0443\u0445\u0430\u043d\u0438\u0435", "Fundido exponencial", "Exponentielles Ausblenden", "Fondu exponentiel", "\u30a8\u30af\u30b9\u30dd\u30cd\u30f3\u30b7\u30e3\u30eb\u30d5\u30a7\u30fc\u30c9", "Fade exponencial", "Dissolvenza esponenziale"]
+    "Exponential Fade": ["Exponential Fade", "\u042d\u043a\u0441\u043f\u043e\u043d\u0435\u043d\u0446\u0438\u0430\u043b\u044c\u043d\u043e\u0435 \u0437\u0430\u0442\u0443\u0445\u0430\u043d\u0438\u0435", "\u042d\u043a\u0441\u043f\u043e\u043d\u0435\u043d\u0446\u0438\u0430\u043b\u044c\u043d\u044b\u0439 \u0441\u043f\u0430\u0434", "Fundido exponencial", "Exponentielles Ausblenden", "Fondu exponentiel", "\u30a8\u30af\u30b9\u30dd\u30cd\u30f3\u30b7\u30e3\u30eb\u30d5\u30a7\u30fc\u30c9", "Fade exponencial", "Dissolvenza esponenziale"]
 };
 function _findAudioTransition(name) {
-    var result = { transition: null, usedName: null, available: null };
+    var result = { transition: null, usedName: null, available: null, byPosition: false };
     var candidates = _TRANSITION_NAMES[name] || [name];
     var i;
     for (i = 0; i < candidates.length; i++) {
@@ -814,6 +814,26 @@ function _findAudioTransition(name) {
                         return result;
                     }
                 }
+            }
+        }
+        // Last resort for an interface language whose names are not in
+        // the list above: Premiere offers the three crossfades in a fixed
+        // order (Constant Gain, Constant Power, Exponential Fade) in every
+        // language, so take the entry by position when the list holds
+        // exactly those three. The caller says so in its result, since a
+        // different order would mean the wrong curve.
+        var position = -1;
+        if (name === "Constant Gain") { position = 0; }
+        if (name === "Constant Power") { position = 1; }
+        if (name === "Exponential Fade") { position = 2; }
+        if (position >= 0 && names.length === 3) {
+            var byPosition = null;
+            try { byPosition = qe.project.getAudioTransitionByName(names[position]); } catch (e4) { byPosition = null; }
+            if (byPosition) {
+                result.transition = byPosition;
+                result.usedName = names[position];
+                result.byPosition = true;
+                return result;
             }
         }
     } catch (e3) {
@@ -876,6 +896,12 @@ function _addEdgeFades(sequence, target, startSeconds, opts) {
                     asked = !!qeItem.addTransition(found.transition, side[1], String(frames), "0", 0, true, false);
                     if (!asked) {
                         why = "Premiere refused the transition";
+                    } else if (found.byPosition) {
+                        // No name matched, so the transition was taken by
+                        // its place in the list. Said out loud: a Premiere
+                        // that orders them differently would otherwise get
+                        // the wrong curve with nothing to show it.
+                        why = "no name matched, taken by position in the list (" + (found.available || "unknown") + ")";
                     }
                 }
             } catch (sideErr) {

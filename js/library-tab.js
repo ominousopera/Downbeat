@@ -489,13 +489,13 @@
         evt.stopPropagation();
         _libBlur(insert);
         _libSelect(item.path, false);
-        _libInsert(item);
+        _libInsertFromRow(item);
       });
       row.addEventListener("click", function () {
         _libSelect(item.path, false);
         _libFocusKeys();
       });
-      row.addEventListener("dblclick", function () { _libInsert(item); });
+      row.addEventListener("dblclick", function () { _libInsertFromRow(item); });
       if (missing) {
         play.disabled = true;
         insert.disabled = true;
@@ -932,6 +932,19 @@
     // selected part, fades, pitch and Reverse from the preview pane; if the
     // host cannot apply them, it removes the clip again and the panel says so
     // (no copy is made).
+    // One meaning for "insert": the row's Insert button, a double click on
+    // a row and Enter all insert the sound the preview pane is showing
+    // through the pane itself, so its fades, selected part, pitch and
+    // Reverse come along. What you hear in the pane is what lands on the
+    // timeline. Any other sound is inserted as the plain file.
+    function _libInsertFromRow(item) {
+      if (_libPaneItem && item && _libPaneItem.path === item.path && _libPaneReady && _libPaneHasEdits()) {
+        _libPaneAdd();
+        return;
+      }
+      _libInsert(item);
+    }
+
     function _libInsert(item, opts) {
       if (_libMissing(item.path)) {
         return;
@@ -974,12 +987,29 @@
           if (data.fades) {
             var fd = data.fades;
             var side = function (label, x) {
-              return x ? label + " " + x.transition + " " + x.frames + " frame(s)" + (x.asked ? "" : " (not added" + (x.why ? ": " + x.why : "") + ")") : "";
+              if (!x) { return ""; }
+              var note = "";
+              if (!x.asked) {
+                note = " (not added" + (x.why ? ": " + x.why : "") + ")";
+              } else if (x.why) {
+                note = " (" + x.why + ")";
+              }
+              return label + " " + x.transition + " " + x.frames + " frame(s)" + note;
             };
             log("Library: fades as Premiere transitions - " + [side("in", fd.fadeIn), side("out", fd.fadeOut)].filter(Boolean).join(", ") +
                 (fd.error ? " (" + fd.error + ")" : "") + ".");
           }
-          setTranslatedText(libScanStatus, "library.inserted", { name: item.name, where: data.where });
+          // Fades were asked for and this host took neither of them: the
+          // sound is in, but it is dry, so say so in the panel instead of
+          // leaving it in the log only. Happens when the host offers no
+          // audio transition this code can find.
+          var fadesAsked = !!(opts && (Number(opts.fadeInSec) > 0 || Number(opts.fadeOutSec) > 0));
+          var fadesDone = !!(data.fades && ((data.fades.fadeIn && data.fades.fadeIn.asked) || (data.fades.fadeOut && data.fades.fadeOut.asked)));
+          if (fadesAsked && !fadesDone) {
+            setTranslatedText(libScanStatus, "library.insertedNoFades", { name: item.name, where: data.where });
+          } else {
+            setTranslatedText(libScanStatus, "library.inserted", { name: item.name, where: data.where });
+          }
           log("Library: inserted " + item.name + " at " + data.startSeconds.toFixed(2) + " s on " + data.where +
               (data.imported ? " (imported into the Downbeat bin)" : " (already in the project)") + ".");
         })
@@ -1627,7 +1657,7 @@
       } else if (evt.key === "Enter" && libSelectedPath) {
         var i = _libShownIndex(libSelectedPath);
         if (i >= 0 && _libShown[i].item.status === "done") {
-          _libInsert(_libShown[i].item);
+          _libInsertFromRow(_libShown[i].item);
           evt.preventDefault();
         }
       }
