@@ -1034,7 +1034,10 @@
             // Fades were asked for and this host took neither of them: the
             // sound is in, but it is dry, so say so in the panel instead of
             // leaving it in the log only.
-            var fadesAsked = !!(opts && (Number(opts.fadeInSec) > 0 || Number(opts.fadeOutSec) > 0));
+            // Only a host that reports its fades (Premiere's transitions)
+            // can say it took none; After Effects sets them as Audio Levels
+            // keyframes and sends no such report, so no report is no news.
+            var fadesAsked = !!(opts && (Number(opts.fadeInSec) > 0 || Number(opts.fadeOutSec) > 0)) && !!data.fades;
             var fadesDone = !!(data.fades && ((data.fades.fadeIn && data.fades.fadeIn.asked) || (data.fades.fadeOut && data.fades.fadeOut.asked)));
             if (fadesAsked && !fadesDone) {
               setTranslatedText(libScanStatus, "library.insertedNoFades", { name: item.name, where: data.where });

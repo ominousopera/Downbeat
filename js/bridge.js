@@ -38,6 +38,15 @@
           try {
             parsed = JSON.parse(rawResult);
           } catch (e) {
+            // "{: ,: ,: }" - keys and values gone: the host's own
+            // JSON.stringify is broken. In After Effects every panel and
+            // script shares one script engine, so something else loaded
+            // there can spoil it; restarting the host clears it.
+            if (/^\{\s*(:\s*,\s*)*:\s*\}$/.test(String(rawResult))) {
+              reject("The host's script engine answered unreadably (its JSON is broken, often by another script or extension). Restart " +
+                (csInterface.getHostEnvironment && csInterface.getHostEnvironment().appName === "AEFT" ? "After Effects" : "Premiere Pro") + " and try again.");
+              return;
+            }
             reject("Could not parse JSX response as JSON: " + e.message + " (raw: " + rawResult + ")");
             return;
           }
