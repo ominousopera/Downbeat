@@ -464,7 +464,7 @@ function dbAeGetMarkersDataForSelectedClip() {
 // Whether a reversed layer really plays source outSec..inSec over comp
 // startSeconds..endSeconds: active just inside both ends, and the source
 // time there as expected (within two frames). `known` is false when this
-// After Effects offers neither activeAtTime nor sourceTime to ask.
+// After Effects has no activeAtTime or no sourceTime to ask.
 function _dbAeCheckReversed(layer, startSeconds, endSeconds, inSec, outSec, fps) {
     var out = { ok: false, known: false, seen: "" };
     if (typeof layer.activeAtTime !== "function" || typeof layer.sourceTime !== "function") {

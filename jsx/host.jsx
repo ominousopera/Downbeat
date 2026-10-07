@@ -863,13 +863,7 @@ function _findAudioTransition(name) {
     return result;
 }
 
-// One fade edge: the standard QE call first, and when the host answers
-// false although the transition was found, the same request in other forms
-// until one is taken: with the placed clip selected, with the linked media
-// switched on, with the length as a number, in the short form, and as a
-// timecode. The first one that works is named in the result and the log;
-// when none does, the trail of answers says what each one said. Plain
-// if / else and loops: this engine has no array methods.
+// A frame count as HH:MM:SS:FF at the sequence's whole frame rate.
 function _timecodeFor(frames, fps) {
     var base = Math.max(1, Math.round(fps));
     var ff = frames % base;
@@ -880,6 +874,13 @@ function _timecodeFor(frames, fps) {
     function two(n) { return n < 10 ? "0" + n : String(n); }
     return two(hh) + ":" + two(mm) + ":" + two(ss) + ":" + two(ff);
 }
+// One fade edge: the standard QE call first, and when the host answers
+// false although the transition was found, the same request in other forms
+// until one is taken: with the placed clip selected, with the linked media
+// switched on, with the length as a number, in the short form, and as a
+// timecode. The first one that works is named in the result and the log;
+// when none does, the trail of answers says what each one said. Plain
+// if / else and loops: this engine has no array methods.
 function _addOneFade(qeItem, transition, atStart, frames, fps, placedClip) {
     var result = { ok: false, variant: null, trail: [] };
     var variants = ["standard", "clip selected", "linked media on", "length as a number", "short form", "timecode length", "alignment 1", "alignment 2"];

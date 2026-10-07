@@ -22,8 +22,9 @@ Diagnostics > Copy log** puts the log on the clipboard; please paste it.
   exception is the optional, off-by-default update notice in
   `js/update-check.js`, which reads this project's latest release number and,
   when the user presses the button, downloads that release's package and checks
-  it against the published checksum before opening it. Nothing writes into the extension folder (it would break the
-  signature); saved data lives in `Documents/Downbeat`.
+  it against the published checksum before opening it. Nothing writes into
+  the extension folder (it would break the signature); saved data lives in
+  `Documents/Downbeat`.
 - Never change or delete a user's audio file; sounds are inserted as the file
   itself, with pitch and reverse set on the clip.
 - Third-party code is pinned by hand and recorded with its hash in

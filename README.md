@@ -406,8 +406,9 @@ developer sections further down this page.
 <summary><b>Privacy and security</b></summary>
 
 Everything runs on your computer. The panel makes no network calls except the
-optional update notice and the download it offers (your choice at the first start), and `scripts/check-code.js` fails the
-build if any other code that could is added. Saved data
+optional update notice and the download it offers (your choice at the first
+start), and `scripts/check-code.js` fails the build if any other code that
+could is added. Saved data
 (settings, track library, temporary files) lives in `Documents/Downbeat`,
 never inside the plugin's own folder. Report a vulnerability privately through
 the repository's Security tab; see [`SECURITY.md`](SECURITY.md).

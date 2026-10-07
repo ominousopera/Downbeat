@@ -73,9 +73,8 @@ try {
   check("Premiere in another language: the fades are still added, by the localized transition names",
     r.ok && r.data.fades && r.data.fades.fadeIn && r.data.fades.fadeIn.asked === true && r.data.fades.fadeOut && r.data.fades.fadeOut.asked === true,
     JSON.stringify(r.data && r.data.fades));
-  // A Premiere that refuses the standard call (seen live on Windows): the
-  // same request is made in other forms until one is taken, and the answer
-  // names which one worked.
+  // A Premiere that refuses the standard call: the same request is made in
+  // other forms until one is taken, and the answer names which one worked.
   const pRef = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60, playheadSeconds: 40, audioTrackCount: 2, insertDurationSec: 5, refuseTransitions: 3 });
   const phRef = mocks.loadHost(pRef.context);
   r = JSON.parse(phRef.run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + js(({ fadeInSec: 0.2, transitionIn: "Constant Power" })) + ")"));

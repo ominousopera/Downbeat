@@ -1342,10 +1342,9 @@
       if (!libPaneWave.getContext) {
         return;
       }
-      // The canvas must have exactly as many pixels as it is shown with:
-      // a layout change (the wide pane, another tab) without a window
-      // resize left it stretched by the browser, every line blurred and
-      // off by a few pixels. Measured on every draw, peaks redone on change.
+      // The canvas must have exactly as many pixels as it is shown with, or
+      // the browser stretches it and every line blurs. Measured on every
+      // draw; the peaks are redone when the size changed.
       var wantW = Math.max(50, Math.round((libPaneWave.clientWidth || 300) * (window.devicePixelRatio || 1)));
       var wantH = Math.round((libPaneWave.clientHeight || 44) * (window.devicePixelRatio || 1));
       if (libPaneWave.clientWidth && (libPaneWave.width !== wantW || libPaneWave.height !== wantH)) {
