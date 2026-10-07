@@ -255,6 +255,7 @@ put it on the timeline with those, exactly like the pane's own **Add**.
 and stays in view while the list scrolls:
 - its **waveform** — click anywhere on it to jump there. **Drag** across
   it to select a part: ▶ then plays just that part, and Loop repeats it.
+  Drag an edge of the part to move just that edge, like trimming a clip.
   The two small squares at the top are **fade handles**, like the fade
   handles on a clip in Premiere's timeline: drag one **sideways** for the
   length of the fade in or fade out, and **up or down** for its curve,

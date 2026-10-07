@@ -280,7 +280,8 @@ todo eso, igual que el botón **Añadir** del propio panel.
 y se queda a la vista mientras la lista se desplaza:
 - su **forma de onda**: haz clic en cualquier punto para saltar ahí.
   **Arrastra** sobre ella para seleccionar una parte: ▶ reproduce solo esa
-  parte, y Bucle la repite. Los dos cuadraditos de arriba son
+  parte, y Bucle la repite. Arrastra un borde de la parte para mover solo
+  ese borde, como al recortar un clip. Los dos cuadraditos de arriba son
   **tiradores de fundido**, como los tiradores de fundido de un clip en la
   línea de tiempo de Premiere: arrastra uno **hacia los lados** para la
   duración del fundido de entrada o de salida, y **arriba o abajo** para

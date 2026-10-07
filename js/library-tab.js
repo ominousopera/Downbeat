@@ -1570,13 +1570,39 @@
             mode = dIn <= dOut ? "fadeIn" : "fadeOut";
           }
         }
+        // Below the handles, a press on an edge of the selected part moves
+        // that edge only, like trimming a clip; anywhere else a drag
+        // selects a new part.
+        var region0 = _libPlayer.region();
+        if (mode === "select" && region0) {
+          var D0 = _libPlayer.duration() || 1;
+          var dA = Math.abs(p.f - region0.a / D0) * p.w, dB = Math.abs(p.f - region0.b / D0) * p.w;
+          if (Math.min(dA, dB) <= LIB_PANE_HANDLE) {
+            mode = dA <= dB ? "edgeA" : "edgeB";
+          }
+        }
         var fd0 = _libPlayer.fades();
         paneDrag = { mode: mode, f0: p.f, y0: evt.clientY, moved: false, w: p.w, curve0: mode === "fadeIn" ? fd0.curveIn : fd0.curveOut,
-          fadeIn0: fd0.fadeIn, fadeOut0: fd0.fadeOut };
+          fadeIn0: fd0.fadeIn, fadeOut0: fd0.fadeOut,
+          keep: region0 ? (mode === "edgeA" ? region0.b : region0.a) : 0 };
         if (evt.preventDefault) { evt.preventDefault(); }
       });
+      // A release outside the panel (over the host's window) never reaches
+      // it, so a move with no button down, or the window losing focus, ends
+      // the drag; otherwise the part's edges would follow the mouse.
+      var endPaneDrag = function () {
+        if (paneDrag) {
+          paneDrag = null;
+          _libPaneRefresh();
+        }
+      };
+      window.addEventListener("blur", endPaneDrag);
       document.addEventListener("mousemove", function (evt) {
         if (!paneDrag) {
+          return;
+        }
+        if (typeof evt.buttons === "number" && evt.buttons === 0) {
+          endPaneDrag();
           return;
         }
         var p = paneFrac(evt);
@@ -1591,6 +1617,11 @@
         var fd = _libPlayer.fades();
         if (paneDrag.mode === "select") {
           _libPlayer.setRegion(Math.min(paneDrag.f0, p.f) * D, Math.max(paneDrag.f0, p.f) * D);
+        } else if (paneDrag.mode === "edgeA" || paneDrag.mode === "edgeB") {
+          // The other edge stays where it was when the drag began; dragged
+          // past it, the two simply swap.
+          var at = p.f * D;
+          _libPlayer.setRegion(Math.min(paneDrag.keep, at), Math.max(paneDrag.keep, at));
         } else {
           // Like the fade handle on a clip in Premiere: sideways the length,
           // up / down the curve (-100..100; 2.5 per px, up = louder longer).
@@ -1612,7 +1643,7 @@
         }
         var drag = paneDrag;
         paneDrag = null;
-        if (drag.mode === "select" && !drag.moved) {
+        if ((drag.mode === "select" || drag.mode === "edgeA" || drag.mode === "edgeB") && !drag.moved) {
           var p = paneFrac(evt);
           var D = _libPlayer.duration();
           var region = _libPlayer.region();
