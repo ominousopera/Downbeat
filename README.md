@@ -378,7 +378,7 @@ MP4 / MOV.
 
 1. Download the package for your computer from
    [Releases](https://github.com/ominousopera/Downbeat/releases/latest):
-   `Downbeat-1.0.4-mac.zxp` or `Downbeat-1.0.4-win.zxp`.
+   `Downbeat-1.0.3-mac.zxp` or `Downbeat-1.0.3-win.zxp`.
 2. Drag it onto [ZXP Installer](https://aescripts.com/zxpinstaller/) (free),
    restart Premiere Pro or After Effects, then open
    `Window > Extensions > Downbeat`.
@@ -562,4 +562,4 @@ spaces), and `scripts/check-code.js` checks it before every build.
 
 ## Version
 
-1.0.4.
+1.0.3.
