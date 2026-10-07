@@ -48,7 +48,9 @@ Numbered sections, top to bottom:
   analyzes like any track, and lyric videos and "Official Audio" uploads
   get no note.
 - **02 / Tempo** — top to bottom, one label per line:
-  - the **BPM** the analysis found, in large type;
+  - the **BPM** the analysis found, in large type; when the clip plays at a
+    speed other than 100%, a line under it gives the tempo as it plays
+    (BPM × speed);
   - **Custom BPM** — type a tempo and click **Use** to place an exactly
     even grid at it instead (**Undo** brings the analysis back);
   - **Half / double** — **½×** or **2×** when the tempo came out at half
@@ -142,6 +144,11 @@ uses, on a free track at the clip's own place, at the speed that gives
 the shift — no copy is made, it is still your file where it lies. The
 original stays where it was, switched off (Disable in Premiere, its sound
 off in After Effects) — switch it back on to undo.
+
+When the selected clip plays at a speed other than 100%, a line under the
+result says how the key sounds on the timeline (for example "5A, +3
+semitones"), because speed carries pitch with it. A speed that is not a
+whole semitone says the clip lands between two keys.
 
 ## Library tab: Music and SFX
 
@@ -240,6 +247,9 @@ the first audio track that is empty for the whole sound — nothing is
 overwritten; if there is no such track, it says so — and in After Effects
 as a new layer at the current time. The file is imported into a
 "Downbeat" bin (folder, in After Effects) once and reused after that.
+When the preview pane below shows that same sound and you have set fades, a
+part, a pitch or Reverse there, **Insert**, the double-click and **Enter**
+put it on the timeline with those, exactly like the pane's own **Add**.
 
 **The preview pane** at the bottom of the tab shows the file you chose
 and stays in view while the list scrolls:

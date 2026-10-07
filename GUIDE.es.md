@@ -58,6 +58,9 @@ Secciones numeradas, de arriba abajo:
     análisis);
   - **Mitad / doble**: **½×** o **2×** cuando el tempo salió a la mitad
     o al doble del real;
+  - si el clip se reproduce a una velocidad distinta del 100 %, una línea
+    bajo el BPM da el tempo tal como suena en la línea de tiempo
+    (BPM × velocidad);
   - **Cuadrícula: Afinada / Básica**: aparece cuando se ejecutó el
     segundo detector o podría ayudar; ver «Segundo detector de tiempos»
     más abajo;
@@ -155,6 +158,12 @@ ese cambio; no se crea ninguna copia, sigue siendo tu archivo donde
 está. El original se queda donde estaba, desactivado (Desactivar en
 Premiere, sin sonido en After Effects): vuelve a activarlo para
 deshacerlo.
+
+Si el clip seleccionado se reproduce a una velocidad distinta del 100 %, una
+línea bajo el resultado dice cómo suena la tonalidad en la línea de tiempo
+(por ejemplo «5A, +3 semitonos»), porque la velocidad arrastra el tono. Si la
+velocidad no es un número entero de semitonos, la línea dice que el clip cae
+entre dos tonalidades.
 
 ## Pestaña Biblioteca: Música y SFX
 
@@ -262,7 +271,10 @@ cursor: en Premiere, en la primera pista de audio que esté libre durante
 todo el sonido —no se sobrescribe nada; si no hay una pista así, lo
 dice—, y en After Effects como una capa nueva en el tiempo actual. El
 archivo se importa una vez a una bandeja «Downbeat» (carpeta, en After
-Effects) y después se reutiliza.
+Effects) y después se reutiliza. Si el panel de vista previa de abajo muestra
+ese mismo sonido y has puesto allí fundidos, una parte, un tono o Reverso,
+**Insertar**, el doble clic e **Intro** lo ponen en la línea de tiempo con
+todo eso, igual que el botón **Añadir** del propio panel.
 
 **El panel de escucha**, abajo en la pestaña, muestra el archivo elegido
 y se queda a la vista mientras la lista se desplaza:

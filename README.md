@@ -142,7 +142,8 @@ to the beat takes minutes.
 Musical key in Camelot and note names from three opinions (sound effects get
 a key only when they have a clear pitch). A pitch shift
 calculator, and "Pitch the clip" retimes the clip itself to another key. Your
-audio is never rewritten.
+audio is never rewritten. When a clip plays at another speed, Analyze and Key
+also show the tempo and the key as they sound on the timeline.
 
 ### Library
 
