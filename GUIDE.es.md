@@ -445,6 +445,9 @@ con una capa en lugar de un clip:
   Premiere guarda en los comentarios del marcador no se añade.
 - **Copiar / pegar marcadores** funciona entre capas, en la misma
   composición o en otra.
+- **Cambiar el tono del clip** pone la capa nueva justo encima de la capa de
+  la que sale y apaga el sonido de esa capa; un sonido de la Biblioteca entra
+  como capa nueva arriba, en el tiempo actual.
 
 ## FAQ
 

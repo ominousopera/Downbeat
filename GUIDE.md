@@ -400,6 +400,9 @@ Pro. Otherwise it works the same way, with a layer in place of a clip:
   explanation Premiere keeps in the marker's comments is not added.
 - **Copy/paste markers** works between layers, in the same or another
   composition.
+- **Pitch the clip** puts the pitched layer right above the layer it was
+  made from and switches that layer's sound off; a sound from the Library
+  goes in as a new layer on top, at the current time.
 
 ## FAQ
 

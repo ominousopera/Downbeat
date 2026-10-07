@@ -54,6 +54,12 @@ function Layer(comp, opts) {
 }
 Object.defineProperty(Layer.prototype, "index", { get: function () { return this.comp.layers.indexOf(this) + 1; } });
 Layer.prototype.remove = function () { this.comp.layers.splice(this.comp.layers.indexOf(this), 1); };
+// Like After Effects: this layer goes directly above `other` in the stack.
+Layer.prototype.moveBefore = function (other) {
+  const layers = this.comp.layers;
+  layers.splice(layers.indexOf(this), 1);
+  layers.splice(layers.indexOf(other), 0, this);
+};
 Layer.prototype.property = function (name) {
   if (name === "Marker") { return this.markers; }
   const self = this;

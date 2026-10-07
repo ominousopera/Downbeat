@@ -219,8 +219,12 @@ try {
     r.ok && trimmedLayer.startTime === 29 && trimmedLayer.inPoint === 30 && trimmedLayer.outPoint === 32, JSON.stringify(r.data || r.error));
   const selectedSong = a.comp.layers.filter(function (l) { return l.selected && l.hasAudio; })[0];
   r = JSON.parse(ah.run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + js(({ atSeconds: 3, muteSelected: true })) + ")"));
+  const pitchedLayer = a.comp.layers.filter(function (l) { return l !== selectedSong && l.startTime === 3; })[0];
   check("After Effects: a pitched copy starts at the layer's place, and the original layer's sound is switched off",
-    r.ok && a.comp.layers[0].startTime === 3 && r.data.muted === true && selectedSong && selectedSong.audioEnabled === false, JSON.stringify(r.data || r.error));
+    r.ok && pitchedLayer && r.data.muted === true && selectedSong && selectedSong.audioEnabled === false, JSON.stringify(r.data || r.error));
+  check("After Effects: the pitched layer sits right above the layer it was made from, not on top of the comp",
+    pitchedLayer && pitchedLayer.index === selectedSong.index - 1 && pitchedLayer.index > 1,
+    "pitched at " + (pitchedLayer && pitchedLayer.index) + ", original at " + (selectedSong && selectedSong.index));
   check("After Effects: fades as Audio Levels keyframes, silent (-96 dB) at both ends, full in between",
     keys.length === 18 && firstKey && firstKey.t === 30 && firstKey.v[0] === -96 && lastKey && lastKey.v[0] === -96 &&
     keys.some(function (k) { return Math.abs(k.t - 30.2) < 1e-9 && k.v[0] === 0; }), keys.length + " keys");

@@ -526,6 +526,16 @@ function dbAeInsertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
                 item.parentFolder = folder;
             }
             var added = comp.layers.add(item);
+            // The pitched clip (Key tab) goes right above the layer it was
+            // made from, not to the top of the comp, so the two stay
+            // together in a busy comp. A layer that will not move stays on top.
+            if (toMute) {
+                try {
+                    added.moveBefore(toMute);
+                } catch (moveErr) {
+                    /* still inserted, just on top */
+                }
+            }
             var inSec = opts && Number(opts.inSec) > 0 ? Number(opts.inSec) : 0;
             var outSec = opts && Number(opts.outSec) > inSec ? Number(opts.outSec) : null;
             // Pitch and Reverse on the layer itself: Time Stretch plays the
