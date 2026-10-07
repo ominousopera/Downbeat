@@ -83,55 +83,29 @@ try {
     r.ok && r.data.fades.fadeIn.asked === true && /length as a number/.test(r.data.fades.fadeIn.why || ""), JSON.stringify(r.data && r.data.fades));
   const pRefAll = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60, playheadSeconds: 40, audioTrackCount: 2, insertDurationSec: 5, refuseTransitions: 99 });
   const phRefAll = mocks.loadHost(pRefAll.context);
-  mocks.PClip.levelMode = "noKeys"; // no keyframe way out either, so the trail of answers is what is left
   r = JSON.parse(phRefAll.run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + js(({ fadeInSec: 0.2, transitionIn: "Constant Power" })) + ")"));
-  mocks.PClip.levelMode = undefined;
   check("Premiere that refuses every form: not added, and the reason lists what each form answered",
     r.ok && r.data.fades.fadeIn.asked === false && /standard: refused.*clip selected: refused.*linked media on: refused.*length as a number: refused.*short form: refused.*timecode length: refused/.test(r.data.fades.fadeIn.why || ""),
     JSON.stringify(r.data && r.data.fades));
-  // When every form of the transition call is refused, the fades are set
-  // as Volume > Level keyframes, and the answer says so.
-  const levelOf = function (host) {
-    const all = [].concat.apply([], host.sequence.audioTracks.map(function (t) { return t.clips; }));
-    return all.filter(function (c) { return Math.abs(c.start.seconds - 40) < 1e-6; })[0];
-  };
-  const mkRefusing = function () {
-    return mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60, playheadSeconds: 40, audioTrackCount: 2, insertDurationSec: 5, refuseTransitions: 99 });
-  };
-  const opts2 = js(({ inSec: 1, outSec: 3, fadeInSec: 0.2, fadeOutSec: 0.5, transitionIn: "Constant Power", transitionOut: "Constant Power", curveIn: 0, curveOut: 0 }));
-  let pKey = mkRefusing();
-  r = JSON.parse(mocks.loadHost(pKey.context).run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + opts2 + ")"));
-  let keyedClip = levelOf(pKey);
-  check("Refused transitions: both fades become Volume keyframes, and the answer says so",
-    r.ok && r.data.fades.fadeIn.asked === true && r.data.fades.fadeIn.transition === "Volume keyframes" && r.data.fades.fadeOut.transition === "Volume keyframes" &&
-    /Volume > Level keyframes/.test(r.data.fades.fadeIn.why), JSON.stringify(r.data && r.data.fades));
-  const levelKeys = keyedClip && keyedClip._level._keys;
-  check("... 9 keys per fade, from the clip's in point (1 s) on, silent at the very start and the very end",
-    levelKeys && levelKeys.length === 18 && Math.abs(levelKeys[0].t - 1) < 1e-9 && levelKeys[0].v === 0 && levelKeys[8].v === 1 && Math.abs(levelKeys[17].t - 3) < 1e-9 && levelKeys[17].v === 0,
-    JSON.stringify(levelKeys && levelKeys.map(function (k) { return [Number(k.t.toFixed(3)), Number(k.v.toFixed(3))]; })));
-  check("... Level stays unity in the middle of the clip", keyedClip && Math.abs(keyedClip._level.getValueAtTime({ seconds: 2 }) - 1) < 1e-9);
-  const mockLevel = function (mode, refuse) {
-    mocks.PClip.levelMode = mode;
-    const h = mkRefusing();
-    const rr = JSON.parse(mocks.loadHost(h.context).run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + opts2 + ")"));
-    mocks.PClip.levelMode = undefined;
-    return { r: rr, clip: levelOf(h) };
-  };
-  let m = mockLevel("dB");
-  check("A host that counts Level in dB is left alone: nothing keyed, the reason says why",
-    m.r.data.fades.fadeIn.asked === false && /expected about 1/.test(m.r.data.fades.fadeIn.why) && m.clip._level._keys.length === 0, m.r.data.fades.fadeIn.why);
-  m = mockLevel("noKeys");
-  check("A Level that takes no keyframes is reported, nothing keyed",
-    m.r.data.fades.fadeIn.asked === false && /no keyframes/.test(m.r.data.fades.fadeIn.why) && m.clip._level._keys.length === 0, m.r.data.fades.fadeIn.why);
-  m = mockLevel("deaf");
-  check("Keys that read back wrong are undone: Level is a plain constant again and the failure is reported",
-    m.r.data.fades.fadeIn.asked === false && /read back/.test(m.r.data.fades.fadeIn.why) && m.clip._level.isTimeVarying() === false && m.clip._level.getValue() === 1, m.r.data.fades.fadeIn.why);
+  // A Premiere that refuses every form inside the insert call but takes the
+  // fade in a call of its own: the insert reports the refusal (with the
+  // fresh lookup in the trail) and the track it used, and retryEdgeFades
+  // then adds the fade to the same clip.
+  const pLate = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60, playheadSeconds: 40, audioTrackCount: 2, insertDurationSec: 5, refuseTransitions: 7 });
+  const phLate = mocks.loadHost(pLate.context);
+  r = JSON.parse(phLate.run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + js(({ fadeInSec: 0.2, transitionIn: "Constant Power" })) + ")"));
+  check("Premiere that refuses inside the insert: the answer says refused, lists the fresh lookup too, and names the track",
+    r.ok && r.data.fades.fadeIn.asked === false && /fresh clip lookup after a pause: refused/.test(r.data.fades.fadeIn.why || "") && typeof r.data.target === "number",
+    JSON.stringify(r.data && r.data.fades));
+  const late = JSON.parse(phLate.run("retryEdgeFades(" + r.data.target + ", " + r.data.startSeconds + ", " + js(({ fadeInSec: 0.2, transitionIn: "Constant Power" })) + ")"));
+  const lateClip = [].concat.apply([], pLate.sequence.audioTracks.map(function (t) { return t.clips; })).filter(function (c) { return Math.abs(c.start.seconds - 40) < 1e-6; })[0];
+  check("... and the second call adds it to the same clip, as a transition",
+    late.ok && late.data.fadeIn.asked === true && lateClip && lateClip.transitions && lateClip.transitions.length === 1 && lateClip.transitions[0].atStart === true,
+    JSON.stringify(late));
   // A Premiere whose names are unknown: not added, and the log says what it offers.
   const pXx = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60, playheadSeconds: 40, audioTrackCount: 2, insertDurationSec: 5, transitionNames: ["Foo", "Bar"] });
   const phXx = mocks.loadHost(pXx.context);
-  mocks.PClip.levelMode = "noKeys";
   r = JSON.parse(phXx.run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + js(({ fadeInSec: 0.2, transitionIn: "Constant Power" })) + ")"));
-  mocks.PClip.levelMode = undefined;
   check("Premiere with unknown transition names: fade not added, the reason lists what Premiere offers",
     r.ok && r.data.fades.fadeIn.asked === false && /Foo, Bar/.test(r.data.fades.fadeIn.why || ""), JSON.stringify(r.data && r.data.fades));
   // A Premiere that cannot set in / out: the whole file lands, is taken out

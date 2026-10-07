@@ -154,42 +154,7 @@ function PClip(projectItem, start, end, inPoint, selected) {
   this.inPoint = T(inPoint);
   this.outPoint = T(inPoint + (end - start));
   this.selected = !!selected;
-  this.components = listWith("numItems", [makeVolumeComponent(this)]);
-}
-// A clip's Volume component with its Level parameter, enough for the
-// keyframe fade: Level starts at 1 (0 dB as a linear gain); keys are kept
-// as {t, v}, read back by linear interpolation. PClip.levelMode changes how
-// the host behaves: "dB" reads Level as 0 at unity (a host that counts in
-// dB), "noKeys" takes no keyframes, "deaf" accepts the keys but reads back
-// the constant value.
-function makeVolumeComponent(clip) {
-  let value = 1;
-  let varying = false;
-  const keys = [];
-  const level = {
-    displayName: "Level",
-    areKeyframesSupported: function () { return PClip.levelMode !== "noKeys"; },
-    getValue: function () { return PClip.levelMode === "dB" ? 0 : value; },
-    setValue: function (v) { value = v; },
-    setTimeVarying: function (on) { varying = !!on; if (!on) { keys.length = 0; } },
-    isTimeVarying: function () { return varying; },
-    addKey: function (t) { keys.push({ t: t.seconds, v: value }); keys.sort(function (a, b) { return a.t - b.t; }); },
-    setValueAtKey: function (t, v) { keys.forEach(function (k) { if (Math.abs(k.t - t.seconds) < 1e-9) { k.v = v; } }); },
-    getValueAtTime: function (t) {
-      if (!varying || !keys.length || PClip.levelMode === "deaf") { return value; }
-      if (t.seconds <= keys[0].t) { return keys[0].v; }
-      for (let i = 1; i < keys.length; i++) {
-        if (t.seconds <= keys[i].t) {
-          const a = keys[i - 1]; const b = keys[i];
-          return a.v + (b.v - a.v) * ((t.seconds - a.t) / (b.t - a.t || 1));
-        }
-      }
-      return keys[keys.length - 1].v;
-    },
-    _keys: keys
-  };
-  clip._level = level;
-  return { displayName: "Volume", properties: listWith("numItems", [{ displayName: "Bypass" }, level]) };
+  this.components = listWith("numItems", []);
 }
 PClip.prototype.isSelected = function () { return this.selected; };
 // Speed and direction: 1 and forward until the QE item's setSpeed changes

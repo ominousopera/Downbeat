@@ -945,6 +945,42 @@
       _libInsert(item);
     }
 
+    // One log line for the fades of an insert (or of the second try).
+    function _libLogFades(fd, title) {
+      if (!fd) {
+        return;
+      }
+      var side = function (label, x) {
+        if (!x) { return ""; }
+        var note = "";
+        if (!x.asked) {
+          note = " (not added" + (x.why ? ": " + x.why : "") + ")";
+        } else if (x.why) {
+          note = " (" + x.why + ")";
+        }
+        return label + " " + x.transition + " " + x.frames + " frame(s)" + note;
+      };
+      log("Library: " + title + " - " + [side("in", fd.fadeIn), side("out", fd.fadeOut)].filter(Boolean).join(", ") +
+          (fd.error ? " (" + fd.error + ")" : "") + ".");
+      if (fd.addTransitionArgs || fd.clipSeen) {
+        log("Library: fade call as this host reports it - addTransition(" + (fd.addTransitionArgs || "unknown") + ")" +
+            (fd.clipSeen ? "; clip " + fd.clipSeen.type + " at " + fd.clipSeen.start + " s, " + fd.clipSeen.fps + " fps" : "") + ".");
+      }
+    }
+    // The insert options for just the fades Premiere refused (the
+    // transition was there, the call was turned down), or null.
+    function _libRefusedFades(fd, opts) {
+      if (!fd || !opts) {
+        return null;
+      }
+      var isRefused = function (x) { return !!(x && !x.asked && /refused/.test(x.why || "")); };
+      var again = { curveIn: opts.curveIn, curveOut: opts.curveOut, transitionIn: opts.transitionIn, transitionOut: opts.transitionOut };
+      var any = false;
+      if (isRefused(fd.fadeIn)) { again.fadeInSec = opts.fadeInSec; any = true; }
+      if (isRefused(fd.fadeOut)) { again.fadeOutSec = opts.fadeOutSec; any = true; }
+      return any ? again : null;
+    }
+
     function _libInsert(item, opts) {
       if (_libMissing(item.path)) {
         return;
@@ -984,38 +1020,43 @@
           if (typeof data.stretch === "number" && data.stretch !== 100) {
             log("Library: pitch / Reverse applied as Time Stretch " + data.stretch.toFixed(2) + "%.");
           }
-          if (data.fades) {
-            var fd = data.fades;
-            var side = function (label, x) {
-              if (!x) { return ""; }
-              var note = "";
-              if (!x.asked) {
-                note = " (not added" + (x.why ? ": " + x.why : "") + ")";
-              } else if (x.why) {
-                note = " (" + x.why + ")";
-              }
-              return label + " " + x.transition + " " + x.frames + " frame(s)" + note;
-            };
-            log("Library: fades as Premiere transitions - " + [side("in", fd.fadeIn), side("out", fd.fadeOut)].filter(Boolean).join(", ") +
-                (fd.error ? " (" + fd.error + ")" : "") + ".");
-            if (fd.addTransitionArgs || fd.clipSeen) {
-              log("Library: fade call as this host reports it - addTransition(" + (fd.addTransitionArgs || "unknown") + ")" +
-                  (fd.clipSeen ? "; clip " + fd.clipSeen.type + " at " + fd.clipSeen.start + " s, " + fd.clipSeen.fps + " fps" : "") + ".");
+          _libLogFades(data.fades, "fades as Premiere transitions");
+          var finish = function () {
+            // Fades were asked for and this host took neither of them: the
+            // sound is in, but it is dry, so say so in the panel instead of
+            // leaving it in the log only.
+            var fadesAsked = !!(opts && (Number(opts.fadeInSec) > 0 || Number(opts.fadeOutSec) > 0));
+            var fadesDone = !!(data.fades && ((data.fades.fadeIn && data.fades.fadeIn.asked) || (data.fades.fadeOut && data.fades.fadeOut.asked)));
+            if (fadesAsked && !fadesDone) {
+              setTranslatedText(libScanStatus, "library.insertedNoFades", { name: item.name, where: data.where });
+            } else {
+              setTranslatedText(libScanStatus, "library.inserted", { name: item.name, where: data.where });
             }
+            log("Library: inserted " + item.name + " at " + data.startSeconds.toFixed(2) + " s on " + data.where +
+                (data.imported ? " (imported into the Downbeat bin)" : " (already in the project)") + ".");
+          };
+          // A fade Premiere refused (the transition was found, the call
+          // turned down) is asked for once more in a call of its own, half
+          // a second later: QE does not always see a clip placed by the
+          // same script call yet.
+          var refused = _libRefusedFades(data.fades, opts);
+          if (!refused || typeof data.target !== "number") {
+            finish();
+            return null;
           }
-          // Fades were asked for and this host took neither of them: the
-          // sound is in, but it is dry, so say so in the panel instead of
-          // leaving it in the log only. Happens when the host offers no
-          // audio transition this code can find.
-          var fadesAsked = !!(opts && (Number(opts.fadeInSec) > 0 || Number(opts.fadeOutSec) > 0));
-          var fadesDone = !!(data.fades && ((data.fades.fadeIn && data.fades.fadeIn.asked) || (data.fades.fadeOut && data.fades.fadeOut.asked)));
-          if (fadesAsked && !fadesDone) {
-            setTranslatedText(libScanStatus, "library.insertedNoFades", { name: item.name, where: data.where });
-          } else {
-            setTranslatedText(libScanStatus, "library.inserted", { name: item.name, where: data.where });
-          }
-          log("Library: inserted " + item.name + " at " + data.startSeconds.toFixed(2) + " s on " + data.where +
-              (data.imported ? " (imported into the Downbeat bin)" : " (already in the project)") + ".");
+          return new Promise(function (resolve) { setTimeout(resolve, 500); })
+            .then(function () {
+              return evalJson("retryEdgeFades(" + data.target + ", " + data.startSeconds + ", " + _jsxJsonArg(refused) + ")");
+            })
+            .then(function (again) {
+              _libLogFades(again, "fades, second try in a call of its own");
+              if (again && again.fadeIn && refused.fadeInSec) { data.fades.fadeIn = again.fadeIn; }
+              if (again && again.fadeOut && refused.fadeOutSec) { data.fades.fadeOut = again.fadeOut; }
+            })
+            .catch(function (err) {
+              log("Library: the second try at the fades failed: " + (err && err.message ? err.message : String(err)));
+            })
+            .then(finish);
         })
         .catch(function (err) {
           var msg = err && err.message ? err.message : String(err);
