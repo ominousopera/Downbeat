@@ -129,9 +129,9 @@ const UPDATE_FILE = "js/update-check.js";
 tracked.filter(function (f) { return /^(js|worker)\/.*\.js$|^jsx\/.*\.jsx$/.test(f); }).forEach(function (f) {
   if (f === UPDATE_FILE) {
     const own = fs.readFileSync(path.join(ROOT, f), "utf8");
-    const hosts = own.match(/["']https?:\/\/[^"']*["']|host:\s*HOST|var HOST = ["'][^"']*["']/g) || [];
+    const hosts = own.match(/["']https?:\/\/[^"']*["']|host:\s*[A-Z_]*HOST\b|var [A-Z_]*HOST = ["'][^"']*["']/g) || [];
     hosts.forEach(function (h) {
-      if (!/ominousopera\/Downbeat|host:\s*HOST|var HOST = ["']api\.github\.com["']/.test(h)) {
+      if (!/ominousopera\/Downbeat|host:\s*[A-Z_]*HOST\b|var HOST = ["']api\.github\.com["']|var PAGE_HOST = ["']github\.com["']/.test(h)) {
         problems.push(f + ": talks to something other than this project's GitHub release record: " + h);
       }
     });

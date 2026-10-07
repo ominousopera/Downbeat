@@ -1336,6 +1336,15 @@
       if (!libPaneWave.getContext) {
         return;
       }
+      // The canvas must have exactly as many pixels as it is shown with:
+      // a layout change (the wide pane, another tab) without a window
+      // resize left it stretched by the browser, every line blurred and
+      // off by a few pixels. Measured on every draw, peaks redone on change.
+      var wantW = Math.max(50, Math.round((libPaneWave.clientWidth || 300) * (window.devicePixelRatio || 1)));
+      var wantH = Math.round((libPaneWave.clientHeight || 44) * (window.devicePixelRatio || 1));
+      if (libPaneWave.clientWidth && (libPaneWave.width !== wantW || libPaneWave.height !== wantH)) {
+        _libPaneComputePeaks();
+      }
       var g = libPaneWave.getContext("2d");
       if (!g) {
         return;
@@ -1356,11 +1365,14 @@
       var mid = h / 2;
       var hasFades = _libPlayer.fades().fadeIn > 0 || _libPlayer.fades().fadeOut > 0;
       var seg = _libPlayer.segment();
+      // The part's edges as whole pixels, the same for the bars, the gain
+      // curve and the handles, so nothing sits a pixel or two off another.
+      var xa = Math.round(seg.a / D * w), xb = Math.round(seg.b / D * w);
       for (var x = 0; x < w; x++) {
         var src = reverse ? w - 1 - x : x;
         var t = (x + 0.5) / w * D;
-        var gain = _libPlayer.gainAt(t);
-        var inside = t >= seg.a && t <= seg.b;
+        var inside = x >= xa && x < xb;
+        var gain = inside ? _libPlayer.gainAt(Math.min(seg.b, Math.max(seg.a, t))) : 0;
         var k = inside ? gain : 1;
         var top = mid - _libPanePeaks.max[src] * mid * k;
         var bottom = mid - _libPanePeaks.min[src] * mid * k;
@@ -1369,12 +1381,18 @@
       }
       if (hasFades) {
         g.strokeStyle = _libPaneColor("--accent", "#ff9f2e");
-        g.lineWidth = Math.max(1, dpr);
+        var lw = Math.max(1, Math.round(dpr));
+        g.lineWidth = lw;
+        // An odd line width drawn on a whole pixel smears over two: shift
+        // it by half a pixel so it lands on one.
+        var half = lw % 2 ? 0.5 : 0;
+        var yOf = function (gn) { return Math.round((1 - gn) * (h - lw) + lw / 2 - half) + half; };
         g.beginPath();
-        var x0 = Math.floor(seg.a / D * w), x1 = Math.ceil(seg.b / D * w);
-        for (var xx = x0; xx <= x1; xx++) {
-          var yy = (1 - _libPlayer.gainAt(Math.min(seg.b, Math.max(seg.a, xx / w * D)))) * (h - 2) + 1;
-          if (xx === x0) { g.moveTo(xx, yy); } else { g.lineTo(xx, yy); }
+        for (var xx = xa; xx <= xb; xx++) {
+          var tt = xx === xa ? seg.a : (xx === xb ? seg.b : (xx / w) * D);
+          var yy = yOf(_libPlayer.gainAt(Math.min(seg.b, Math.max(seg.a, tt))));
+          var px = Math.min(w - lw / 2, Math.max(lw / 2, xx - half));
+          if (xx === xa) { g.moveTo(px, yy); } else { g.lineTo(px, yy); }
         }
         g.stroke();
       }

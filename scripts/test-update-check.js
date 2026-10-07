@@ -90,6 +90,54 @@ function ask(kind, body) {
   a = await ask("error");
   check("a network error is passed on", a.err && /ENOTFOUND/.test(a.err.message));
 
+  // GitHub's API out of requests for this address (403 / 429): the release
+  // page's forward names the latest release instead.
+  function routed(apiStatus, pageAnswer) {
+    const calls = [];
+    return {
+      calls: calls,
+      get: function (options, onResponse) {
+        calls.push(options.host + options.path);
+        const req = new EventEmitter();
+        req.destroy = function () {};
+        setImmediate(function () {
+          const res = new EventEmitter();
+          res.resume = function () {};
+          res.setEncoding = function () {};
+          if (options.host === "api.github.com") {
+            res.statusCode = apiStatus;
+            res.headers = { "x-ratelimit-remaining": "0" };
+            onResponse(res);
+            res.emit("end");
+            return;
+          }
+          res.statusCode = pageAnswer.status;
+          res.headers = pageAnswer.location ? { location: pageAnswer.location } : {};
+          onResponse(res);
+          res.emit("end");
+        });
+        return req;
+      }
+    };
+  }
+  function askVia(h) {
+    return new Promise(function (resolve) { UC.fetchLatest(function (err, value) { resolve({ err: err, value: value }); }, h); });
+  }
+  let viaPage = routed(403, { status: 302, location: "https://github.com/ominousopera/Downbeat/releases/tag/v1.0.3" });
+  let pg = await askVia(viaPage);
+  check("an API out of requests (403): the release page's forward gives the version, the page and the packages",
+    !pg.err && pg.value.version === "1.0.3" && /releases\/tag\/v1\.0\.3$/.test(pg.value.url) &&
+    pg.value.files.win.url === "https://github.com/ominousopera/Downbeat/releases/download/v1.0.3/Downbeat-1.0.3-win.zxp" &&
+    pg.value.files.sums.url === "https://github.com/ominousopera/Downbeat/releases/download/v1.0.3/SHA256SUMS.txt" &&
+    viaPage.calls.join() === "api.github.com/repos/ominousopera/Downbeat/releases/latest,github.com/ominousopera/Downbeat/releases/latest",
+    JSON.stringify(pg.err ? pg.err.message : pg.value));
+  pg = await askVia(routed(429, { status: 302, location: "https://github.com/ominousopera/Downbeat/releases/tag/v1.0.3" }));
+  check("... and the same for 429", !pg.err && pg.value.version === "1.0.3");
+  pg = await askVia(routed(403, { status: 302, location: "https://evil.example/releases/tag/v9.9.9" }));
+  check("a forward that is not this project's release page is not believed", pg.err && /limit of checks/.test(pg.err.message) && /release page/.test(pg.err.message), pg.err && pg.err.message);
+  pg = await askVia(routed(404, { status: 302, location: "https://github.com/ominousopera/Downbeat/releases/tag/v1.0.3" }));
+  check("a plain 404 from the API is reported as is (no release yet), the page is not asked", pg.err && /404/.test(pg.err.message));
+
   // The package of a release: which files count, and the download
   const crypto = require("crypto");
   const BASE = "https://github.com/ominousopera/Downbeat/releases/download/v1.0.2/";
