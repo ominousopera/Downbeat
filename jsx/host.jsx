@@ -1192,22 +1192,63 @@ function _applyClipSpeed(sequence, target, startSeconds, speed, reverse, timelin
         } catch (reflectErr) {
             out.args = null;
         }
-        qeItem.setSpeed(speed, "", !!reverse, false, false);
-        var clip = _findClipStartingAt(sequence.audioTracks[target], startSeconds);
-        if (!clip) {
-            throw new Error("the clip moved when its speed was set");
-        }
-        var end = new Time();
-        end.seconds = startSeconds + timelineLength;
-        clip.end = end;
-        clip = _findClipStartingAt(sequence.audioTracks[target], startSeconds);
-        out.speed = typeof clip.getSpeed === "function" ? clip.getSpeed() : null;
-        out.reversed = typeof clip.isSpeedReversed === "function" ? !!clip.isSpeedReversed() : null;
-        out.length = clip.end.seconds - clip.start.seconds;
+        // Speed first, then the end set again from the length worked out
+        // here (Premiere can leave a re-sped clip at the wrong length). Some
+        // Premiere versions answer the new end of a reversed clip by
+        // re-timing it instead of trimming it, so the speed drifts; then the
+        // speed is set once more after the trim, and as a last way the end
+        // is set first and the speed after it. Each try is read back and
+        // named in out.trail for the log.
         var frame = 1 / Math.max(1, _getFrameRate(sequence));
-        out.ok = out.speed !== null && Math.abs(out.speed - speed) < 0.01 &&
-            Math.abs(out.length - timelineLength) <= Math.max(0.05, 1.5 * frame) &&
-            (out.reversed === null || out.reversed === !!reverse);
+        var track = sequence.audioTracks[target];
+        var readBack = function (label) {
+            var c = _findClipStartingAt(track, startSeconds);
+            if (!c) {
+                throw new Error("the clip moved when its speed was set");
+            }
+            out.speed = typeof c.getSpeed === "function" ? c.getSpeed() : null;
+            out.reversed = typeof c.isSpeedReversed === "function" ? !!c.isSpeedReversed() : null;
+            out.length = c.end.seconds - c.start.seconds;
+            out.ok = out.speed !== null && Math.abs(out.speed - speed) < 0.01 &&
+                Math.abs(out.length - timelineLength) <= Math.max(0.05, 1.5 * frame) &&
+                (out.reversed === null || out.reversed === !!reverse);
+            out.trail.push(label + ": speed " + out.speed + ", reversed " + out.reversed + ", length " + Number(out.length).toFixed(3) + (out.ok ? " - ok" : ""));
+            return c;
+        };
+        var setEnd = function () {
+            var c = _findClipStartingAt(track, startSeconds);
+            if (!c) {
+                throw new Error("the clip moved when its speed was set");
+            }
+            var end = new Time();
+            end.seconds = startSeconds + timelineLength;
+            c.end = end;
+        };
+        var setSpeedAgain = function () {
+            var fresh = _freshQeClipAt(target, startSeconds);
+            if (!fresh) {
+                throw new Error("the clip was not found again");
+            }
+            fresh.setSpeed(speed, "", !!reverse, false, false);
+        };
+        out.trail = [];
+        out.asked = { speed: speed, reversed: !!reverse, length: timelineLength };
+        qeItem.setSpeed(speed, "", !!reverse, false, false);
+        setEnd();
+        readBack("speed, then end");
+        if (!out.ok) {
+            setSpeedAgain();
+            readBack("speed again after the end");
+        }
+        if (!out.ok && Math.abs(out.speed - speed) < 0.01) {
+            setEnd();
+            readBack("end again");
+        }
+        if (!out.ok) {
+            setEnd();
+            setSpeedAgain();
+            readBack("end, then speed");
+        }
     } catch (e) {
         out.error = e.message ? e.message : e.toString();
     }

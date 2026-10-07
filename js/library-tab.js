@@ -1018,13 +1018,15 @@
           if (data.speedFailed) {
             var sr = data.speedResult || {};
             setTranslatedText(libScanStatus, "library.speedFailed", { name: item.name });
-            log("Library: the host did not apply the pitch / Reverse to " + item.name + " (speed " + sr.speed + ", reversed " +
-                sr.reversed + ", length " + sr.length + (sr.error ? ", " + sr.error : "") + ") - the clip was taken out again, nothing inserted.");
+            log("Library: the host did not apply the pitch / Reverse to " + item.name + " (asked speed " + (sr.asked ? sr.asked.speed : "?") +
+                ", reversed " + (sr.asked ? sr.asked.reversed : "?") + ", length " + (sr.asked ? Number(sr.asked.length).toFixed(3) : "?") +
+                "; tries: " + (sr.trail ? sr.trail.join(" | ") : "speed " + sr.speed + ", reversed " + sr.reversed + ", length " + sr.length) +
+                (sr.error ? "; " + sr.error : "") + ") - the clip was taken out again, nothing inserted.");
             return;
           }
           if (data.speed) {
             log("Library: applied pitch / Reverse on the clip (speed " + data.speed.speed + ", reversed " + data.speed.reversed +
-                ", " + Number(data.speed.length).toFixed(2) + " s).");
+                ", " + Number(data.speed.length).toFixed(2) + " s" + (data.speed.trail && data.speed.trail.length > 1 ? "; tries: " + data.speed.trail.join(" | ") : "") + ").");
           }
           if (typeof data.stretch === "number" && data.stretch !== 100) {
             log("Library: pitch / Reverse applied as Time Stretch " + data.stretch.toFixed(2) + "%.");
