@@ -358,9 +358,13 @@ The gear icon, top right:
   start (a "no" keeps Downbeat fully offline); change it here any time. When
   it is on, Downbeat asks GitHub once every three days for the number
   of the latest release (nothing about you is sent). If a newer version exists,
-  the gear shows a dot and this section shows a button that opens the release
-  page; you download and install the update yourself. **Check now** asks right
-  away.
+  the gear shows a dot and this section shows two buttons: **Download and
+  open the update** fetches the package for your computer from the release
+  (from GitHub only), checks it against the checksum published with it,
+  saves it in your Downloads folder and opens it in your ZXP installer, where
+  you confirm and then restart Premiere Pro or After Effects; and **Open the
+  release page**. If the checksum does not match, the file is deleted and
+  nothing is opened. **Check now** asks right away.
 - **Delete my data** — removes the settings, both libraries (the analyzed
   clips, and Music / SFX with their folders and analysis results) and any
   leftover temp files Downbeat saved in Documents/Downbeat, and nothing else —

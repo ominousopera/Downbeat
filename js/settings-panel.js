@@ -309,21 +309,67 @@
     // "Check now" is pressed), js/update-check.js asks GitHub for the latest
     // release number. The answer is remembered in the settings, so a newer
     // version is announced again on the next start without another request.
-    // Nothing is downloaded: the button opens the release page behind the
-    // usual link confirmation.
+    // The release page opens behind the usual link confirmation. The
+    // download button (only when the release carries a package for this
+    // computer) fetches the package, checks it against the checksum
+    // published with it, saves it in Downloads and opens it, so the user's
+    // ZXP installer takes over: Downbeat never installs anything itself.
     var UC = window.BeatMarkerUpdateCheck;
     var updateCheckCheckbox = document.getElementById("updateCheckCheckbox");
     var updateStatus = document.getElementById("updateStatus");
     var updateCheckNowBtn = document.getElementById("updateCheckNowBtn");
     var updateOpenBtn = document.getElementById("updateOpenBtn");
+    var updateDownloadBtn = document.getElementById("updateDownloadBtn");
     var settingsGearBtn = document.getElementById("settingsGearBtn");
     var _updateUrl = null;
+    var _updateLatest = null;
     var _updateBusy = false;
+    var _updateDownloading = false;
+    function _nodePlatform() {
+      try {
+        return window.cep_node.require("os").platform();
+      } catch (e) {
+        return null;
+      }
+    }
+    // Downloads, else the home folder when there is no such folder.
+    function _downloadsDir() {
+      var os = window.cep_node.require("os");
+      var fs = window.cep_node.require("fs");
+      var path = window.cep_node.require("path");
+      var dir = path.join(os.homedir(), "Downloads");
+      try {
+        if (fs.statSync(dir).isDirectory()) {
+          return dir;
+        }
+      } catch (e) {
+        /* no Downloads folder: fall through */
+      }
+      return os.homedir();
+    }
+    // Hands the saved package to the system, which opens it with whatever
+    // the user has for .zxp files (a ZXP installer). Detached, no shell: the
+    // path is passed as one argument.
+    function _openDownloadedFile(filePath) {
+      var cp = window.cep_node.require("child_process");
+      var platform = _nodePlatform();
+      var child = platform === "win32"
+        ? cp.spawn("explorer.exe", [filePath], { detached: true, stdio: "ignore" })
+        : cp.spawn("open", [filePath], { detached: true, stdio: "ignore" });
+      child.on("error", function () { /* reported by the status line below */ });
+      child.unref();
+    }
     function _showUpdateState(seen) {
       var current = getPluginVersion();
       var newer = !!(seen && UC.isNewer(seen.version, current));
       _updateUrl = newer ? seen.url : null;
+      _updateLatest = newer ? seen : null;
       updateOpenBtn.hidden = !newer;
+      var pkg = newer ? UC.packageFor(seen, _nodePlatform()) : null;
+      updateDownloadBtn.hidden = !pkg || _updateDownloading;
+      if (pkg) {
+        setTranslatedText(updateDownloadBtn, "settings.updateDownload", { size: Math.max(1, Math.round(pkg.size / (1024 * 1024))) });
+      }
       settingsGearBtn.classList.toggle("has-update", newer);
       if (newer) {
         setTranslatedText(updateStatus, "settings.updateNew", { latest: seen.version, version: current });
@@ -360,6 +406,38 @@
       }
     });
     updateCheckNowBtn.addEventListener("click", _runUpdateCheck);
+    updateDownloadBtn.addEventListener("click", function () {
+      if (_updateDownloading || !_updateLatest) {
+        return;
+      }
+      var latest = _updateLatest;
+      _updateDownloading = true;
+      updateDownloadBtn.hidden = true;
+      setTranslatedText(updateStatus, "settings.updateDownloading", { percent: "0" });
+      var lastShown = -1;
+      UC.downloadPackage(latest, {
+        platform: _nodePlatform(),
+        dir: _downloadsDir(),
+        modules: { open: _openDownloadedFile },
+        onProgress: function (fraction) {
+          var percent = Math.floor(fraction * 100);
+          if (percent !== lastShown) {
+            lastShown = percent;
+            setTranslatedText(updateStatus, "settings.updateDownloading", { percent: String(percent) });
+          }
+        }
+      }, function (err, saved) {
+        _updateDownloading = false;
+        _showUpdateState(latest);
+        if (err) {
+          log("Update download: " + err.message);
+          setTranslatedText(updateStatus, "settings.updateDownloadFailed", { error: err.message });
+          return;
+        }
+        log("Update download: saved and checked " + saved.path + " (sha256 " + saved.sha256 + ")" + (saved.openError ? "; opening it failed: " + saved.openError : "") + ".");
+        setTranslatedText(updateStatus, saved.openError ? "settings.updateDownloadedNoOpen" : "settings.updateDownloaded", { name: saved.name });
+      });
+    });
     updateOpenBtn.addEventListener("click", function () {
       if (_updateUrl) {
         _confirmAndOpenUrl(_updateUrl);

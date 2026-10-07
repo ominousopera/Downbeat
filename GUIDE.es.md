@@ -398,9 +398,13 @@ El icono del engranaje, arriba a la derecha:
   primer inicio (un «no» deja Downbeat totalmente sin conexión); aquí puedes
   cambiarlo. Si está activado, Downbeat pregunta a GitHub una vez cada tres días por el
   número de la última versión (no se envía nada sobre ti). Si hay una versión
-  más nueva, el engranaje muestra un punto y esta sección un botón que abre la
-  página de la versión; la descarga y la instalación las haces tú.
-  **Comprobar ahora** pregunta al momento.
+  más nueva, el engranaje muestra un punto y esta sección dos botones:
+  **Descargar y abrir la actualización** toma el paquete de tu ordenador de la
+  versión (solo desde GitHub), lo comprueba con la suma de control publicada
+  con ella, lo guarda en tu carpeta Descargas y lo abre en tu instalador de
+  ZXP, donde confirmas y luego reinicias Premiere Pro o After Effects; y
+  **Abrir la página de la versión**. Si la suma no coincide, el archivo se
+  borra y no se abre nada. **Comprobar ahora** pregunta al momento.
 - **Eliminar mis datos**: quita los ajustes, las dos bibliotecas (los
   clips analizados, y Música / SFX con sus carpetas y resultados) y los
   archivos temporales que hayan quedado y que Downbeat guardó en

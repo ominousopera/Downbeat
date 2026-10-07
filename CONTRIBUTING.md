@@ -20,7 +20,9 @@ Diagnostics > Copy log** puts the log on the clipboard; please paste it.
   `js/i18n.js` in all three languages (English first).
 - The panel must stay offline: no network calls, no telemetry. The one
   exception is the optional, off-by-default update notice in
-  `js/update-check.js`, which only reads this project's latest release number. Nothing writes into the extension folder (it would break the
+  `js/update-check.js`, which reads this project's latest release number and,
+  when the user presses the button, downloads that release's package and checks
+  it against the published checksum before opening it. Nothing writes into the extension folder (it would break the
   signature); saved data lives in `Documents/Downbeat`.
 - Never change or delete a user's audio file; sounds are inserted as the file
   itself, with pitch and reverse set on the clip.

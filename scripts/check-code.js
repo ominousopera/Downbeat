@@ -122,7 +122,9 @@ const NETWORK = [
 ];
 // The one exception: the optional update notice. Its file may use Node's
 // https and nothing else that goes online, and it may name only GitHub's
-// release record of this project.
+// release record of this project and that project's release downloads (a
+// download may be forwarded to GitHub's storage hosts; the file checks the
+// host of every hop itself and the test proves it).
 const UPDATE_FILE = "js/update-check.js";
 tracked.filter(function (f) { return /^(js|worker)\/.*\.js$|^jsx\/.*\.jsx$/.test(f); }).forEach(function (f) {
   if (f === UPDATE_FILE) {

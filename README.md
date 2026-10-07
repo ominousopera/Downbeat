@@ -308,8 +308,11 @@ analytics. The panel goes online only if you say yes to the one-time question at
 start, or switch on **Settings → Updates → Tell me when a new version is out**
 later (a "no" keeps it fully offline): then, once every three
 days, it asks GitHub for the number of the latest release and shows a link when
-a newer one exists. No data about you is sent (GitHub sees your IP address, as
-any website does), and nothing is installed by itself. Apart from that, the
+a newer one exists, with a button that downloads the update for you, checks it
+against the checksum published with the release and opens it in your ZXP
+installer (you confirm there; Downbeat never installs anything itself). No
+data about you is sent (GitHub sees your IP address, as
+any website does). Apart from that, the
 only web links are the feedback link and the release link, which open in your
 browser after a confirmation.
 </details>
@@ -403,7 +406,7 @@ developer sections further down this page.
 <summary><b>Privacy and security</b></summary>
 
 Everything runs on your computer. The panel makes no network calls except the
-optional update notice (your choice at the first start), and `scripts/check-code.js` fails the
+optional update notice and the download it offers (your choice at the first start), and `scripts/check-code.js` fails the
 build if any other code that could is added. Saved data
 (settings, track library, temporary files) lives in `Documents/Downbeat`,
 never inside the plugin's own folder. Report a vulnerability privately through
