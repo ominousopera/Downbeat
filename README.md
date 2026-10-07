@@ -413,6 +413,13 @@ never inside the plugin's own folder. Report a vulnerability privately through
 the repository's Security tab; see [`SECURITY.md`](SECURITY.md).
 </details>
 
+## Thanks
+
+Special thanks to **Ilya Rogulev**, who tested Downbeat on Windows and
+Premiere Pro and After Effects through every round of fixes: the folder
+dialogs, the fades and the reversed layers on Windows all got their answers
+from his logs.
+
 ## License
 
 AGPL-3.0, see [`LICENSE`](LICENSE). Third-party components:
