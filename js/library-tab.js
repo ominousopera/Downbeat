@@ -971,6 +971,10 @@
             "; fade members - QE clip: " + (fd.qeMembers ? fd.qeMembers.join(" ") || "none" : "?") +
             ", clip: " + (fd.clipMembers ? fd.clipMembers.join(" ") || "none" : "?") + ".");
       }
+      if (fd.transitionList !== undefined || fd.anyNameAnswers !== undefined) {
+        log("Library: audio transitions this host lists: " + (fd.transitionList || "none / unreadable") +
+            "; a made-up name " + (fd.anyNameAnswers === true ? "IS answered (the name lookup cannot be trusted here)" : fd.anyNameAnswers === false ? "is not answered" : "could not be asked") + ".");
+      }
     }
     // The insert options for just the fades Premiere refused (the
     // transition was there, the call was turned down), or null.

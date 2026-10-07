@@ -239,8 +239,17 @@ function makePremiereHost(opts) {
     qe: { project: {
       // opts.transitionNames: the names a Premiere in another language
       // offers (default: the English ones).
-      getAudioTransitionByName: function (name) { return (opts.transitionNames || ["Constant Power", "Constant Gain", "Exponential Fade"]).indexOf(name) !== -1 ? { name: name } : null; },
-      getAudioTransitionList: function () { return opts.transitionNames || ["Constant Power", "Constant Gain", "Exponential Fade"]; },
+      // opts.lookupAnswersAnything: the name lookup hands back a dud object
+      // for any name (addTransition refuses it); only the list's own entries
+      // are real.
+      getAudioTransitionByName: function (name) {
+        if (opts.lookupAnswersAnything) { return { name: name, dud: true }; }
+        return (opts.transitionNames || ["Constant Power", "Constant Gain", "Exponential Fade"]).indexOf(name) !== -1 ? { name: name } : null;
+      },
+      getAudioTransitionList: function () {
+        if (opts.lookupAnswersAnything) { return (opts.transitionNames || ["Constant Gain", "Constant Power", "Exponential Fade"]).map(function (n) { return { name: n, toString: function () { return n; } }; }); }
+        return opts.transitionNames || ["Constant Power", "Constant Gain", "Exponential Fade"];
+      },
       getActiveSequence: function () {
         return { getAudioTrackAt: function (i) {
           const track = sequence.audioTracks[i];
@@ -271,6 +280,7 @@ function makePremiereHost(opts) {
                 addTransition: function (tr, atStart, frames) {
                   opts._transitionCalls = (opts._transitionCalls || 0) + 1;
                   if (opts.refuseTransitions && opts._transitionCalls <= opts.refuseTransitions) { return false; }
+                  if (tr && tr.dud) { return false; }
                   (c.transitions = c.transitions || []).push({ name: tr.name, atStart: atStart, frames: frames }); return true; } };
             }
           };

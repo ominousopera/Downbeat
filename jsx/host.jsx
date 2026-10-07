@@ -786,9 +786,27 @@ var _TRANSITION_NAMES = {
     "Exponential Fade": ["Exponential Fade", "\u042d\u043a\u0441\u043f\u043e\u043d\u0435\u043d\u0446\u0438\u0430\u043b\u044c\u043d\u043e\u0435 \u0437\u0430\u0442\u0443\u0445\u0430\u043d\u0438\u0435", "\u042d\u043a\u0441\u043f\u043e\u043d\u0435\u043d\u0446\u0438\u0430\u043b\u044c\u043d\u044b\u0439 \u0441\u043f\u0430\u0434", "Fundido exponencial", "Exponentielles Ausblenden", "Fondu exponentiel", "\u30a8\u30af\u30b9\u30dd\u30cd\u30f3\u30b7\u30e3\u30eb\u30d5\u30a7\u30fc\u30c9", "Fade exponencial", "Dissolvenza esponenziale"]
 };
 function _findAudioTransition(name) {
-    var result = { transition: null, usedName: null, available: null, byPosition: false };
+    var result = { transition: null, usedName: null, available: null, byPosition: false, anyNameAnswers: null, listItems: null };
     var candidates = _TRANSITION_NAMES[name] || [name];
     var i;
+    // What this Premiere lists, and whether its name lookup answers even a
+    // name no transition has: a host whose lookup does that hands back
+    // something that is not a usable transition, and the list is the better
+    // source then.
+    try {
+        var shown = qe.project.getAudioTransitionList();
+        var shownNames = [];
+        for (var sk = 0; shown && sk < shown.length; sk++) { shownNames.push(String(shown[sk])); }
+        result.available = shownNames.join(", ");
+        result.listItems = shown;
+    } catch (listErr) {
+        result.available = null;
+    }
+    try {
+        result.anyNameAnswers = !!qe.project.getAudioTransitionByName("Downbeat probe - no such transition");
+    } catch (probeErr) {
+        result.anyNameAnswers = null;
+    }
     for (i = 0; i < candidates.length; i++) {
         var t = null;
         try { t = qe.project.getAudioTransitionByName(candidates[i]); } catch (e1) { t = null; }
@@ -898,6 +916,52 @@ function _addOneFade(qeItem, transition, atStart, frames, fps, placedClip) {
         }
     }
     return result;
+}
+
+// Transitions taken from Premiere's own list instead of by name: the
+// crossfade's entry (by a known name, else by its place - Constant Gain,
+// Constant Power, Exponential Fade in that order) looked up by its listed
+// name, and the list entry itself in case the list hands out usable
+// objects. Labels say which, for the log.
+function _transitionsFromList(found, name) {
+    var out = [];
+    var items = found.listItems;
+    if (!items || !items.length) {
+        return out;
+    }
+    // The entry with one of the crossfade's known names first; only when
+    // none matches, the one at its place in the list.
+    var candidates = _TRANSITION_NAMES[name] || [name];
+    var position = -1;
+    for (var c = 0; c < candidates.length && position < 0; c++) {
+        for (var n = 0; n < items.length; n++) {
+            if (String(items[n]).toLowerCase() === candidates[c].toLowerCase()) {
+                position = n;
+                break;
+            }
+        }
+    }
+    if (position < 0) {
+        if (name === "Constant Gain") { position = 0; }
+        if (name === "Constant Power") { position = 1; }
+        if (name === "Exponential Fade") { position = 2; }
+    }
+    if (position < 0 || position >= items.length) {
+        return out;
+    }
+    var listedName = String(items[position]);
+    try {
+        var byListedName = qe.project.getAudioTransitionByName(listedName);
+        if (byListedName) {
+            out.push({ transition: byListedName, name: listedName, label: "listed name \"" + listedName + "\"" });
+        }
+    } catch (e1) {
+        /* the entry itself is tried below */
+    }
+    if (typeof items[position] === "object") {
+        out.push({ transition: items[position], name: listedName, label: "list entry \"" + listedName + "\"" });
+    }
+    return out;
 }
 
 // The QE clip at startSeconds on audio track `target`, looked up again
@@ -1039,6 +1103,22 @@ function _addEdgeFades(sequence, target, startSeconds, opts) {
                             tried.trail.push("fresh clip lookup after a pause: " + (freshErr.message ? freshErr.message : String(freshErr)));
                         }
                     }
+                    if (!tried.ok) {
+                        var listed = _transitionsFromList(found, name);
+                        for (var li = 0; li < listed.length && !tried.ok; li++) {
+                            try {
+                                var listedAnswer = qeItem.addTransition(listed[li].transition, side[1], String(frames), "0", 0, true, false);
+                                tried.trail.push(listed[li].label + ": " + (listedAnswer ? "taken" : "refused"));
+                                if (listedAnswer) {
+                                    tried.ok = true;
+                                    tried.variant = listed[li].label;
+                                    shownName = listed[li].name;
+                                }
+                            } catch (listedErr) {
+                                tried.trail.push(listed[li].label + ": " + (listedErr.message ? listedErr.message : String(listedErr)));
+                            }
+                        }
+                    }
                     asked = tried.ok;
                     if (!asked) {
                         why = "Premiere refused the transition (" + tried.trail.join("; ") + ")";
@@ -1057,6 +1137,10 @@ function _addEdgeFades(sequence, target, startSeconds, opts) {
                 why = sideErr.message ? sideErr.message : String(sideErr);
             }
             out[side[0]] = { transition: shownName, frames: frames, asked: asked, why: why };
+            if (found) {
+                out.transitionList = found.available;
+                out.anyNameAnswers = found.anyNameAnswers;
+            }
         }
     } catch (e) {
         out.error = e.message ? e.message : e.toString();

@@ -85,18 +85,25 @@ try {
   r = JSON.parse(mocks.loadHost(pAlign.context).run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + js(({ fadeInSec: 0.2, transitionIn: "Constant Power" })) + ")"));
   check("... and one taken only with the transition aligned to the edge says so",
     r.ok && r.data.fades.fadeIn.asked === true && /alignment 1/.test(r.data.fades.fadeIn.why || ""), JSON.stringify(r.data && r.data.fades.fadeIn));
+  // A host whose name lookup answers any name with something unusable: the
+  // log says so, and the transition taken from the list's own entry works.
+  const pDud = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60, playheadSeconds: 40, audioTrackCount: 2, insertDurationSec: 5, lookupAnswersAnything: true });
+  r = JSON.parse(mocks.loadHost(pDud.context).run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + js(({ fadeInSec: 0.2, transitionIn: "Constant Power" })) + ")"));
+  check("A host whose lookup answers any name: reported, and the list's own entry is taken",
+    r.ok && r.data.fades.anyNameAnswers === true && r.data.fades.fadeIn.asked === true && /list entry "Constant Power"/.test(r.data.fades.fadeIn.why || "") &&
+    /Constant Gain, Constant Power, Exponential Fade/.test(r.data.fades.transitionList || ""), JSON.stringify(r.data && r.data.fades));
   const pRefAll = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60, playheadSeconds: 40, audioTrackCount: 2, insertDurationSec: 5, refuseTransitions: 99 });
   const phRefAll = mocks.loadHost(pRefAll.context);
   r = JSON.parse(phRefAll.run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + js(({ fadeInSec: 0.2, transitionIn: "Constant Power" })) + ")"));
   check("Premiere that refuses every form: not added, and the reason lists what each form answered",
     r.ok && r.data.fades.fadeIn.asked === false && /standard: refused.*clip selected: refused.*linked media on: refused.*length as a number: refused.*short form: refused.*timecode length: refused/.test(r.data.fades.fadeIn.why || ""),
     JSON.stringify(r.data && r.data.fades));
-  // A Premiere that refuses every form inside the insert call (eight forms
-  // and the fresh lookup, nine calls) but takes the
+  // A Premiere that refuses every form inside the insert call (eight forms,
+  // the fresh lookup and the listed name: ten calls) but takes the
   // fade in a call of its own: the insert reports the refusal (with the
   // fresh lookup in the trail) and the track it used, and retryEdgeFades
   // then adds the fade to the same clip.
-  const pLate = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60, playheadSeconds: 40, audioTrackCount: 2, insertDurationSec: 5, refuseTransitions: 9 });
+  const pLate = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60, playheadSeconds: 40, audioTrackCount: 2, insertDurationSec: 5, refuseTransitions: 10 });
   const phLate = mocks.loadHost(pLate.context);
   r = JSON.parse(phLate.run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + js(({ fadeInSec: 0.2, transitionIn: "Constant Power" })) + ")"));
   check("Premiere that refuses inside the insert: the answer says refused, lists the fresh lookup too, and names the track",
