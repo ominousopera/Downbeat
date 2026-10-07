@@ -248,6 +248,23 @@ try {
   L = a.comp.layers[0];
   check("After Effects: Reverse is a negative stretch, anchored so the layer still shows source 3 s back to 1 s from the current time",
     r.ok && Math.abs(L.stretch + 100 * f) < 1e-6 && Math.abs(L.startTime - (50 + 3 * f)) < 1e-6 && L.inPoint === 50 && Math.abs(L.outPoint - (50 + 2 * f)) < 1e-6, JSON.stringify(r.data || r.error));
+  check("... and the layer is asked whether it really plays there: in / out as set",
+    r.ok && /in \/ out as set/.test(r.data.reverseLayout || ""), r.data && r.data.reverseLayout);
+  // A host that counts a reversed layer's in point as the later time: the
+  // in / out as set leave nothing playing, so they are set the other way
+  // round, and the layer then plays source 3 s back to 1 s.
+  const aeRev = mocks.makeAeHost({ mediaPath: "/music/song.mp3", durationSec: 60, compTime: 50, insertDurationSec: 5 });
+  aeRev.comp.reversedInOut = true;
+  r = JSON.parse(mocks.loadHost(aeRev.context).run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + js(({ inSec: 1, outSec: 3, speed: rate, reverse: true, fadeInSec: 0.2, fadeOutSec: 0.3, curveIn: 0, curveOut: 0 })) + ")"));
+  const RL = aeRev.comp.layers[0];
+  const rk = RL.levels ? RL.levels.keys : [];
+  check("... and its fades still start at the layer's first second and end at its last",
+    rk.length === 18 && Math.abs(rk[0].t - 50) < 1e-6 && rk[0].v[0] === -96 && Math.abs(rk[rk.length - 1].t - (50 + 2 * f)) < 1e-6 && rk[rk.length - 1].v[0] === -96,
+    JSON.stringify(rk.map(function (k) { return [Number(k.t.toFixed(3)), k.v[0]]; })));
+  check("After Effects counting a reversed in point as the later time: in / out swapped, and it plays the part",
+    r.ok && !r.data.speedFailed && /in \/ out swapped/.test(r.data.reverseLayout || "") && Math.abs(RL.inPoint - (50 + 2 * f)) < 1e-6 && RL.outPoint === 50 &&
+    RL.activeAtTime(50.05) && RL.activeAtTime(50 + 2 * f - 0.05) && Math.abs(RL.sourceTime(50) - 3) < 1e-6,
+    JSON.stringify(r.data || r.error));
 } finally {
   fs.rmSync(dir, { recursive: true, force: true }); // throwaway fixture made above
 }

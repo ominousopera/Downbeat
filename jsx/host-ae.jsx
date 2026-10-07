@@ -461,6 +461,29 @@ function dbAeGetMarkersDataForSelectedClip() {
     });
 }
 
+// Whether a reversed layer really plays source outSec..inSec over comp
+// startSeconds..endSeconds: active just inside both ends, and the source
+// time there as expected (within two frames). `known` is false when this
+// After Effects offers neither activeAtTime nor sourceTime to ask.
+function _dbAeCheckReversed(layer, startSeconds, endSeconds, inSec, outSec, fps) {
+    var out = { ok: false, known: false, seen: "" };
+    if (typeof layer.activeAtTime !== "function" || typeof layer.sourceTime !== "function") {
+        return out;
+    }
+    out.known = true;
+    var eps = 1 / Math.max(1, fps);
+    var tol = 2 / Math.max(1, fps) * Math.max(1, Math.abs(layer.stretch) / 100);
+    var t0 = startSeconds + eps;
+    var t1 = endSeconds - eps;
+    var a0 = !!layer.activeAtTime(t0);
+    var a1 = !!layer.activeAtTime(t1);
+    var s0 = Number(layer.sourceTime(t0));
+    var s1 = Number(layer.sourceTime(t1));
+    out.seen = "active " + a0 + "/" + a1 + ", source " + s0.toFixed(3) + "->" + s1.toFixed(3) + " s, in " + Number(layer.inPoint).toFixed(3) + ", out " + Number(layer.outPoint).toFixed(3);
+    out.ok = a0 && a1 && Math.abs(s0 - outSec) <= tol + 0.01 && Math.abs(s1 - inSec) <= tol + 0.01;
+    return out;
+}
+
 // Equal-power fade gain at position x (0..1) of a fade, bent by curve
 // (-100..100); mirrors fadeGain in js/lib-preview.js.
 function _dbAeFadeGain(x, rising, curve) {
@@ -517,6 +540,7 @@ function dbAeInsertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
         }
         // Set to "speedFailed" or "trimFailed" when the layer did not come out as asked.
         var failure = null;
+        var reverseLayout = null; // what the reversed layer's check saw (for the log)
         var layer = _dbAeWithUndo("Downbeat: insert sound", function () {
             if (!item) {
                 item = app.project.importFile(new ImportOptions(file));
@@ -558,6 +582,24 @@ function dbAeInsertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
                     added.inPoint = startSeconds;
                     added.outPoint = startSeconds + (outSec - inSec) * factor;
                     wantOut = startSeconds + (outSec - inSec) * factor;
+                    // A reversed layer: whether the part really plays is
+                    // asked from the layer itself (active at both ends of
+                    // the part, the right source time at each), since its
+                    // in / out can read back as set while the layer plays
+                    // nothing there. If not, the in and out are set the
+                    // other way round and asked again.
+                    if (reverse) {
+                        reverseLayout = _dbAeCheckReversed(added, startSeconds, wantOut, inSec, outSec, comp.frameRate || 25);
+                        if (!reverseLayout.ok) {
+                            added.inPoint = wantOut;
+                            added.outPoint = startSeconds;
+                            var swapped = _dbAeCheckReversed(added, startSeconds, wantOut, inSec, outSec, comp.frameRate || 25);
+                            swapped.tried = "in / out swapped (after: " + reverseLayout.seen + ")";
+                            reverseLayout = swapped;
+                        } else {
+                            reverseLayout.tried = "in / out as set";
+                        }
+                    }
                 } else {
                     added.startTime = startSeconds - inSec;
                     if (inSec > 0 || outSec !== null) {
@@ -575,8 +617,13 @@ function dbAeInsertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
                 var tol = Math.max(0.05, 2 / (comp.frameRate || 25));
                 if (sped && Math.abs(added.stretch - wantStretch) > 0.01) {
                     failure = "speedFailed";
+                } else if (reverseLayout && reverseLayout.known) {
+                    if (!reverseLayout.ok) {
+                        failure = "speedFailed";
+                    }
                 } else if ((inSec > 0 || outSec !== null || sped) &&
-                        (Math.abs(added.inPoint - startSeconds) > tol || (wantOut !== null && Math.abs(added.outPoint - wantOut) > tol))) {
+                        (Math.abs(Math.min(added.inPoint, added.outPoint) - startSeconds) > tol ||
+                         (wantOut !== null && Math.abs(Math.max(added.inPoint, added.outPoint) - wantOut) > tol))) {
                     failure = sped ? "speedFailed" : "trimFailed";
                 }
             }
@@ -589,15 +636,19 @@ function dbAeInsertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
             if (fadeIn > 0 || fadeOut > 0) {
                 var levels = added.property("ADBE Audio Group").property("ADBE Audio Levels");
                 var steps = [0, 0.1, 0.2, 0.35, 0.5, 0.65, 0.8, 0.9, 1];
+                // The layer's first and last comp seconds whichever way its
+                // in / out are counted (a reversed layer may hold them swapped).
+                var layerFrom = Math.min(added.inPoint, added.outPoint);
+                var layerTo = Math.max(added.inPoint, added.outPoint);
                 var toDb = function (g) { return g <= 0 ? -96 : Math.max(-96, 20 * Math.log(g) / Math.LN10); };
                 for (var k = 0; k < steps.length; k++) {
                     if (fadeIn > 0) {
                         var dbIn = toDb(_dbAeFadeGain(steps[k], true, opts.curveIn));
-                        levels.setValueAtTime(added.inPoint + steps[k] * fadeIn, [dbIn, dbIn]);
+                        levels.setValueAtTime(layerFrom + steps[k] * fadeIn, [dbIn, dbIn]);
                     }
                     if (fadeOut > 0) {
                         var dbOut = toDb(_dbAeFadeGain(steps[k], false, opts.curveOut));
-                        levels.setValueAtTime(added.outPoint - fadeOut + steps[k] * fadeOut, [dbOut, dbOut]);
+                        levels.setValueAtTime(layerTo - fadeOut + steps[k] * fadeOut, [dbOut, dbOut]);
                     }
                 }
             }
@@ -613,13 +664,15 @@ function dbAeInsertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
         if (failure) {
             var failed = { where: comp.name, stretch: null };
             failed[failure] = true;
-            failed.speedResult = { speed: (opts && Number(opts.speed) > 0 ? Number(opts.speed) : 1), error: "After Effects could not apply the speed or the trim." };
+            failed.speedResult = { speed: (opts && Number(opts.speed) > 0 ? Number(opts.speed) : 1),
+                error: "After Effects could not apply the speed or the trim." + (reverseLayout && reverseLayout.known ? " Reversed layer: " + reverseLayout.tried + "; " + reverseLayout.seen : "") };
             return failed;
         }
         // `where` is the composition: the panel says "Inserted {name} on
         // {where}", and the layer's own name is the file's.
         return { where: comp.name, layerName: layer.name, startSeconds: startSeconds, imported: imported,
             trimmed: !!opts && (Number(opts.inSec) > 0 || Number(opts.outSec) > 0), inPoint: layer.inPoint, outPoint: layer.outPoint,
-            stretch: layer.stretch, muted: !!toMute && toMute.audioEnabled === false };
+            stretch: layer.stretch, muted: !!toMute && toMute.audioEnabled === false,
+            reverseLayout: reverseLayout && reverseLayout.known ? reverseLayout.tried + "; " + reverseLayout.seen : null };
     });
 }

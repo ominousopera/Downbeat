@@ -1029,7 +1029,8 @@
                 ", " + Number(data.speed.length).toFixed(2) + " s" + (data.speed.trail && data.speed.trail.length > 1 ? "; tries: " + data.speed.trail.join(" | ") : "") + ").");
           }
           if (typeof data.stretch === "number" && data.stretch !== 100) {
-            log("Library: pitch / Reverse applied as Time Stretch " + data.stretch.toFixed(2) + "%.");
+            log("Library: pitch / Reverse applied as Time Stretch " + data.stretch.toFixed(2) + "%" +
+                (data.reverseLayout ? " (reversed layer: " + data.reverseLayout + ")" : "") + ".");
           }
           _libLogFades(data.fades, "fades as Premiere transitions");
           var finish = function () {

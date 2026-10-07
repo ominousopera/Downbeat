@@ -54,6 +54,15 @@ function Layer(comp, opts) {
 }
 Object.defineProperty(Layer.prototype, "index", { get: function () { return this.comp.layers.indexOf(this) + 1; } });
 Layer.prototype.remove = function () { this.comp.layers.splice(this.comp.layers.indexOf(this), 1); };
+// Source time at a comp time: startTime + source x stretch / 100.
+Layer.prototype.sourceTime = function (t) { return (t - this.startTime) * 100 / this.stretch; };
+// Active between in and out. With comp.reversedInOut (a host that counts a
+// reversed layer's in point as the LATER time), a reversed layer is only
+// active from its out point to its in point.
+Layer.prototype.activeAtTime = function (t) {
+  if (this.comp.reversedInOut && this.stretch < 0) { return t >= this.outPoint && t < this.inPoint; }
+  return t >= this.inPoint && t < this.outPoint;
+};
 // Like After Effects: this layer goes directly above `other` in the stack.
 Layer.prototype.moveBefore = function (other) {
   const layers = this.comp.layers;
