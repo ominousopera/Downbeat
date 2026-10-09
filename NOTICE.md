@@ -341,3 +341,9 @@ permission of Adobe.
 `jsx/json2.js` is declared public domain in its own header (Douglas
 Crockford). The Universal Category System data in `js/ucs-data.js` is a
 public-domain initiative (see its entry above).
+
+## Generated audio
+
+The metronome synthesizer uses the detected beat grid and built-in arithmetic;
+it adds no third-party library or audio asset. Its WAV files are local and
+written to the finished-audio destination selected in Settings.

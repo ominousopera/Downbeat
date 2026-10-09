@@ -14,7 +14,6 @@ const vm = require("vm");
 const ROOT = process.env.DOWNBEAT_ROOT || path.join(__dirname, "..");
 const hostAe = fs.readFileSync(path.join(ROOT, "jsx", "host-ae.jsx"), "utf8");
 const host = fs.readFileSync(path.join(ROOT, "jsx", "host.jsx"), "utf8");
-
 let failures = 0;
 function check(label, cond, detail) {
   if (cond) { console.log("ok   " + label + (detail ? " - " + detail : "")); }
@@ -32,7 +31,6 @@ hostAe.split("\n").forEach(function (line, i) {
 });
 check("host-ae.jsx uses only what ExtendScript (ES3) has", es3Problems.length === 0, es3Problems.slice(0, 3).join("; "));
 const { MarkerValue, ScaleProp, CompItem, Layer } = require("./host-mocks.js");
-
 let undoDepth = 0;
 const audioFile = { file: { fsName: "/music/song.mp3" }, footageMissing: false };
 const videoFile = { file: { fsName: "/video/clip.mp4" }, footageMissing: false };
@@ -44,9 +42,8 @@ function freshComp() {
   comp.layers.push(new Layer(comp, { name: "clip.mp4", startTime: 0, inPoint: 0, outPoint: 60, hasVideo: true, source: videoFile }));
   return comp;
 }
-
 const context = {
-  JSON: JSON, Math: Math, Number: Number, String: String, isNaN: isNaN, Error: Error,
+  JSON: JSON, Math: Math, Number: Number, String: String, isNaN: isNaN, isFinite: isFinite, Error: Error,
   MarkerValue: MarkerValue, CompItem: CompItem,
   BridgeTalk: { appName: "aftereffects" },
   app: {
@@ -58,10 +55,8 @@ const context = {
 };
 vm.createContext(context);
 vm.runInContext(hostAe + "\n" + host.replace(/^#include .*$/mg, ""), context, { filename: "host.jsx" });
-
 function call(src) { return JSON.parse(vm.runInContext(src, context)); }
 function js(v) { return JSON.stringify(JSON.stringify(v)); }
-
 let comp = freshComp();
 context.app.project.activeItem = comp;
 const song = comp.layers[0];
@@ -72,7 +67,6 @@ check("the selected audio layer is read as a clip: start, in and out in the pane
   r.ok && r.data.clipStartSeconds === 12 && r.data.inPointSeconds === 2 && r.data.outPointSeconds === 30 &&
   r.data.frameRate === 25 && r.data.mediaPath === "/music/song.mp3" && r.data.host === "ae",
   JSON.stringify(r.data || r.error));
-
 song.selected = false;
 r = call("getSelectedAudioInfo()");
 check("nothing selected is a clear error", !r.ok && /Nothing selected/.test(r.error), r.error);
@@ -83,10 +77,23 @@ song.selected = true;
 r = call("getSelectedAudioInfo()");
 check("audio + video layers selected: the audio one is used", r.ok && r.data.layerName === "song.mp3");
 clip.selected = false;
-
-song.stretch = 50;
+for (const stretch of [50, 200, 123.4]) {
+  song.stretch = stretch;
+  r = call("getSelectedAudioInfo()");
+  const factor = stretch / 100;
+  check("constant Stretch " + stretch + "% reports source bounds and speed", r.ok &&
+    Math.abs(r.data.inPointSeconds - 2 / factor) < 1e-9 && Math.abs(r.data.outPointSeconds - 30 / factor) < 1e-9 &&
+    Math.abs(r.data.speed - 1 / factor) < 1e-9, JSON.stringify(r.data || r.error));
+  const sourceTime = 5 / factor;
+  r = call("createClipMarkers(" + js([sourceTime]) + ", " + js(["D"]) + ")");
+  check("Stretch " + stretch + "% maps a source marker to comp 15 seconds", r.ok && song.markers.keys.length === 1 && Math.abs(song.markers.keys[0].t - 15) < 1e-9);
+  r = call("getMarkersDataForSelectedClip()");
+  check("Stretch " + stretch + "% copies the marker back in source seconds", r.ok && Math.abs(r.data.clipMarkers[0].localSeconds - sourceTime) < 1e-9);
+  song.markers.keys = [];
+}
+song.stretch = -100;
 r = call("getSelectedAudioInfo()");
-check("a time-stretched layer is refused, not given misplaced markers", !r.ok && /time-stretched/.test(r.error), r.error);
+check("reverse Stretch is refused with its actual limitation", !r.ok && /reversed/.test(r.error), r.error);
 song.stretch = 100;
 song.timeRemapEnabled = true;
 r = call("getSelectedAudioInfo()");
@@ -145,14 +152,12 @@ const selectedAudio = comp.layers.filter(function (l) { return l.selected && l.h
 check("after splitting only the earliest piece stays selected, as in Premiere",
   selectedAudio.length === 1 && selectedAudio[0].inPoint === 12 && selectedAudio[0].outPoint === 15,
   selectedAudio.length + " selected: " + selectedAudio.map(function (l) { return l.inPoint + "-" + l.outPoint; }).join(", "));
-
 check("no undo group left open anywhere", undoDepth === 0, "depth " + undoDepth);
 // Premiere still goes its own way.
 context.BridgeTalk.appName = "premierepro";
 context.app.project.activeSequence = null;
 r = call("getSelectedAudioInfo()");
 check("in Premiere the Premiere half answers", !r.ok && /No active sequence/.test(r.error), r.error);
-
 if (failures) {
   console.error("\n" + failures + " After Effects host check(s) failed");
   process.exit(1);

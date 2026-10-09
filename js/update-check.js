@@ -9,7 +9,6 @@
 // it, so the user's ZXP installer takes it from there.
 (function (global) {
   "use strict";
-
   var HOST = "api.github.com";
   var PATH = "/repos/ominousopera/Downbeat/releases/latest";
   var RELEASES_URL = "https://github.com/ominousopera/Downbeat/releases/latest";
@@ -19,14 +18,12 @@
   var INTERVAL_MS = 3 * 24 * 60 * 60 * 1000;
   var TIMEOUT_MS = 10000;
   var MAX_BYTES = 1024 * 1024;
-
   // "v1.2.3" or "1.2.3" -> [1, 2, 3]; anything else (a pre-release suffix, a
   // missing part) -> null, so a malformed answer is never taken for a version.
   function parseVersion(text) {
     var m = /^v?(\d{1,4})\.(\d{1,4})\.(\d{1,4})$/.exec(String(text || "").trim());
     return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null;
   }
-
   function isNewer(latest, current) {
     var a = parseVersion(latest);
     var b = parseVersion(current);
@@ -40,7 +37,6 @@
     }
     return false;
   }
-
   // Due when there was no check yet, the last one is older than the interval,
   // or the clock went backwards.
   function isDue(lastCheckMs, nowMs) {
@@ -49,14 +45,12 @@
     }
     return nowMs < lastCheckMs || nowMs - lastCheckMs >= INTERVAL_MS;
   }
-
   // The release page to open: the one GitHub names when it belongs to this
   // project, else the project's own latest-release page.
   function pageFor(record) {
     var url = record && typeof record.html_url === "string" ? record.html_url : "";
     return url.indexOf(PAGE_PREFIX) === 0 ? url : RELEASES_URL;
   }
-
   // callback(err, { version, url }). `httpsModule` is Node's https, taken
   // from the panel's Node context unless a test passes a stand-in.
   function fetchLatest(callback, httpsModule) {
@@ -86,7 +80,6 @@
       callback(err, value);
     });
   }
-
   // The latest release from the project's release page: GitHub forwards
   // /releases/latest to /releases/tag/<tag>, and the forward is all that is
   // read. The packages are named the way every release names them, without
@@ -133,7 +126,6 @@
       done(e, null);
     }
   }
-
   function fetchFromApi(https, callback) {
     var finished = false;
     function done(err, value) {
@@ -192,16 +184,13 @@
       done(e, null);
     }
   }
-
   // ---- the package of a release ---------------------------------------
-
   var ASSET_PREFIX = "https://github.com/ominousopera/Downbeat/releases/download/";
   var MAX_PACKAGE_BYTES = 400 * 1024 * 1024;
   var MAX_SUMS_BYTES = 64 * 1024;
   var MAX_REDIRECTS = 5;
   var DOWNLOAD_IDLE_MS = 30000;
   var SUMS_NAME = "SHA256SUMS.txt";
-
   // What the release holds that an update needs: the two packages and the
   // checksum list, each only when GitHub names it under this project's
   // release downloads and under the exact file name a release of this
@@ -230,14 +219,12 @@
     }
     return out;
   }
-
   // "mac" or "win" for Node's process.platform; null on anything else.
   function platformKey(nodePlatform) {
     if (nodePlatform === "darwin") { return "mac"; }
     if (nodePlatform === "win32") { return "win"; }
     return null;
   }
-
   // The package for this computer from the answer saved by fetchLatest, or
   // null when the release has none (an older answer, another system).
   function packageFor(latest, nodePlatform) {
@@ -245,7 +232,6 @@
     var files = latest && latest.files;
     return key && files && files[key] ? files[key] : null;
   }
-
   // A line "<64 hex>  <name>" (or "<hex> *<name>") for `name` in the text of
   // a checksum list; null when it is not there.
   function sumFor(text, name) {
@@ -258,13 +244,11 @@
     }
     return null;
   }
-
   // Only GitHub's own hosts may serve a file: the release page host and the
   // storage hosts it forwards downloads to.
   function isGithubFileHost(host) {
     return host === "github.com" || /^[a-z0-9-]+(\.[a-z0-9-]+)*\.githubusercontent\.com$/.test(host);
   }
-
   // GET `urlText` over https, following GitHub's forwards. Calls
   // onResponse(res) for the final 200 answer, or onFail(err). Every hop must
   // be https on a GitHub host.
@@ -311,7 +295,6 @@
     req.on("error", function (e) { onFail(e); });
     return req;
   }
-
   // Small text file (the checksum list) into a string.
   function fetchText(https, urlText, maxBytes, callback) {
     var finished = false;
@@ -335,7 +318,6 @@
       res.on("error", function (e) { done(e, null); });
     }, function (e) { done(e, null); }, 0);
   }
-
   // Downloads the package for this computer, checks it, saves it as
   // <dir>/<name> and opens it. `latest` is the answer saved by fetchLatest.
   // opts: { platform, dir, onProgress(fraction), modules: { https, fs, path,
@@ -381,7 +363,6 @@
       }
       var finalPath = pathMod.join(opts.dir, name);
       partPath = finalPath + ".part";
-
       var getExpected = function (next) {
         if (pkg.sha256) {
           next(null, pkg.sha256);
@@ -398,7 +379,6 @@
           next(sum ? null : new Error("the checksum list does not name the package"), sum);
         });
       };
-
       getExpected(function (expectErr, expected) {
         if (expectErr) { done(expectErr, null); return; }
         var hash = crypto.createHash("sha256");
@@ -461,14 +441,16 @@
                 return;
               }
               partPath = null;
-              var opened = null;
-              try {
-                if (typeof m.open === "function") { m.open(finalPath); }
-              } catch (e) {
-                opened = e;
-              }
               finished = true;
-              callback(null, { path: finalPath, name: name, sha256: got, openError: opened ? (opened.message || String(opened)) : null });
+              function finishOpen(error) {
+                callback(null, { path: finalPath, name: name, sha256: got, openError: error ? (error.message || String(error)) : null });
+              }
+              try {
+                Promise.resolve(typeof m.open === "function" ? m.open(finalPath) : null)
+                  .then(function () { finishOpen(null); }, finishOpen);
+              } catch (e) {
+                finishOpen(e);
+              }
             });
           });
         }, function (e) { clearTimeout(idle); done(e, null); }, 0);
@@ -477,7 +459,6 @@
       done(e, null);
     }
   }
-
   global.BeatMarkerUpdateCheck = {
     parseVersion: parseVersion,
     isNewer: isNewer,

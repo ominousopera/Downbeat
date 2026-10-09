@@ -31,7 +31,6 @@
       }
     ]
   };
-
   function _findTrackOrThrow(cuesheet, trackId) {
     for (var i = 0; i < cuesheet.tracks.length; i++) {
       if (cuesheet.tracks[i].id === trackId) {
@@ -46,7 +45,6 @@
   // Returns { times, labels, droppedCount }.
   function mapEventsToSequenceSeconds(cuesheet, clipInfo, trackId) {
     var track = _findTrackOrThrow(cuesheet, trackId);
-
     var times = [];
     var labels = [];
     var droppedCount = 0;
@@ -64,7 +62,6 @@
       times.push(sequenceSeconds);
       labels.push(track.events[j].label || null);
     }
-
     return { times: times, labels: labels, droppedCount: droppedCount };
   }
   // EVEN OUT. Beat This! reports beats on a 20 ms frame grid, so a detected
@@ -184,7 +181,6 @@
   // clip markers live in source time. Returns { times, labels, droppedCount }.
   function filterEventsInClipRange(cuesheet, clipInfo, trackId) {
     var track = _findTrackOrThrow(cuesheet, trackId);
-
     var times = [];
     var labels = [];
     var droppedCount = 0;
@@ -197,7 +193,6 @@
       times.push(t);
       labels.push(track.events[j].label || null);
     }
-
     return { times: times, labels: labels, droppedCount: droppedCount };
   }
   // Builds the "Simple" mode track: one "D" event per downbeat. Uses
@@ -207,12 +202,20 @@
   // downbeats without re-running analysis.
   function buildDownbeatsTrack(beatsArray, confidence, phase, explicitTimes) {
     var events = [];
-    if (explicitTimes && explicitTimes.length) {
+    function isTimes(value) {
+      return Array.isArray(value) || (typeof ArrayBuffer !== "undefined" &&
+        ArrayBuffer.isView(value) && typeof value.length === "number");
+    }
+    if (isTimes(explicitTimes) && explicitTimes.length) {
       for (var e = 0; e < explicitTimes.length; e++) {
         events.push({ t: explicitTimes[e], conf: confidence, label: "D" });
       }
       return { id: "downbeats", type: "impulse", events: events };
     }
+    if (!isTimes(beatsArray)) {
+      return { id: "downbeats", type: "impulse", events: events };
+    }
+    phase = typeof phase === "number" && isFinite(phase) && phase >= 0 && phase <= 3 && Math.floor(phase) === phase ? phase : 0;
     for (var i = phase; i < beatsArray.length; i += 4) {
       events.push({ t: beatsArray[i], conf: confidence, label: "D" });
     }
@@ -392,7 +395,6 @@
     }
     return { id: "beats-labeled", type: "impulse", events: events };
   }
-
   global.BeatMarkerCuesheet = {
     TEST_CUESHEET: TEST_CUESHEET,
     mapEventsToSequenceSeconds: mapEventsToSequenceSeconds,

@@ -6,6 +6,7 @@ Bug reports, translations and focused pull requests are welcome.
 **Reporting a bug:** open an issue with the Downbeat version, host app and
 version, operating system, what you did and what happened. **Settings >
 Diagnostics > Copy log** puts the log on the clipboard; please paste it.
+Review the log for local file paths before posting it publicly.
 
 **Before a pull request**
 
@@ -24,7 +25,8 @@ Diagnostics > Copy log** puts the log on the clipboard; please paste it.
   when the user presses the button, downloads that release's package and checks
   it against the published checksum before opening it. Nothing writes into
   the extension folder (it would break the signature); saved data lives in
-  `Documents/Downbeat`.
+  `Documents/Downbeat`. Generated metronome WAVs use the selected Finished
+  audio destination and are kept when panel data is deleted.
 - Never change or delete a user's audio file; sounds are inserted as the file
   itself, with pitch and reverse set on the clip.
 - Third-party code is pinned by hand and recorded with its hash in

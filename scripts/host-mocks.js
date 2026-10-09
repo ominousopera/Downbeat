@@ -28,13 +28,11 @@ MarkerProp.prototype.nearestKeyIndex = function (t) {
 };
 MarkerProp.prototype.keyValue = function (i) { return this.keys[i - 1].v; };
 MarkerProp.prototype.removeKey = function (i) { this.keys.splice(i - 1, 1); };
-
 function ScaleProp(dims) { this.value = dims === 3 ? [100, 100, 100] : [100, 100]; this.canVaryOverTime = true; this.keys = []; }
 ScaleProp.prototype.setValuesAtTimes = function (times, values) {
   for (let i = 0; i < times.length; i++) { this.keys.push({ t: times[i], v: values[i] }); }
 };
 ScaleProp.prototype.setValueAtTime = function (t, v) { this.keys.push({ t: t, v: v }); };
-
 function CompItem(opts) {
   this.name = opts.name || "Comp 1";
   this.frameRate = opts.frameRate || 25;
@@ -45,7 +43,6 @@ function CompItem(opts) {
 Object.defineProperty(CompItem.prototype, "numLayers", { get: function () { return this.layers.length; } });
 Object.defineProperty(CompItem.prototype, "selectedLayers", { get: function () { return this.layers.filter(function (l) { return l.selected; }); } });
 CompItem.prototype.layer = function (i) { return this.layers[i - 1]; };
-
 function Layer(comp, opts) {
   Object.assign(this, { stretch: 100, timeRemapEnabled: false, hasAudio: false, hasVideo: false, selected: false, source: null }, opts);
   this.comp = comp;
@@ -69,6 +66,11 @@ Layer.prototype.moveBefore = function (other) {
   layers.splice(layers.indexOf(this), 1);
   layers.splice(layers.indexOf(other), 0, this);
 };
+Layer.prototype.moveAfter = function (other) {
+  const layers = this.comp.layers;
+  layers.splice(layers.indexOf(this), 1);
+  layers.splice(layers.indexOf(other) + 1, 0, this);
+};
 Layer.prototype.property = function (name) {
   if (name === "Marker") { return this.markers; }
   const self = this;
@@ -88,7 +90,6 @@ Layer.prototype.duplicate = function () {
   this.comp.layers.splice(this.comp.layers.indexOf(this), 0, copy);
   return copy;
 };
-
 function FootageItem(file) { this.file = file; this.name = path.basename(file.fsName); this.parentFolder = null; }
 function FolderItem(name) { this.name = name; }
 function ImportOptions(file) { this.file = file; }
@@ -160,7 +161,6 @@ MarkerCollection.prototype.getFirstMarker = function () { return this.list[0]; }
 MarkerCollection.prototype.getNextMarker = function (m) { return this.list[this.list.indexOf(m) + 1]; };
 MarkerCollection.prototype.deleteMarker = function (m) { this.list.splice(this.list.indexOf(m), 1); };
 Object.defineProperty(MarkerCollection.prototype, "numMarkers", { get: function () { return this.list.length; } });
-
 function PClip(projectItem, start, end, inPoint, selected) {
   this.name = projectItem.name;
   this.projectItem = projectItem;
@@ -332,7 +332,6 @@ function loadHost(hostContext) {
     }
   };
 }
-
 module.exports = {
   MarkerValue: MarkerValue, MarkerProp: MarkerProp, ScaleProp: ScaleProp, CompItem: CompItem, Layer: Layer,
   FootageItem: FootageItem, FolderItem: FolderItem,

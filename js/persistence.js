@@ -9,7 +9,6 @@
 // resolves correctly.
 (function (global) {
   "use strict";
-
   var FILE_NAME = "library.json";
   var DATA_FOLDER_NAME = "Downbeat";
   var cachedDir = null;
@@ -44,11 +43,11 @@
   // Otherwise it refuses outright. The pattern must match the names
   // the panel gives its worker handoff files.
   var OWN_TEMP_FILE_PATTERN = /^((samples|beatthis|skey|library)-[0-9]+-[0-9]+\.raw|library-[0-9]+-[0-9]+\.json)$/;
-
   function _pathKind(fs, path) {
     var stat;
     try {
-      stat = fs.lstatSync(path); // lstat: describes a symlink itself, never what it points to
+      stat = fs.lstatSync(path);
+    // lstat: describes a symlink itself, never what it points to
     } catch (e) {
       if (e.code === "ENOENT") {
         return "missing";
@@ -76,7 +75,6 @@
     var parts = normalized.split("/").filter(function (p) { return p && !/^[A-Za-z]:$/.test(p); });
     return isAbsolute && parts.length >= 1;
   }
-
   function _listOwnFiles(csInterface, includeDataFiles) {
     var fs = window.cep_node.require("fs");
     var documentsDir = csInterface.getSystemPath(SystemPath.MY_DOCUMENTS);
@@ -92,12 +90,12 @@
     if (dataDirKind !== "dir") {
       throw new Error("Refusing to delete anything: " + dataDir + " is not a plain folder (it is a " + dataDirKind + ").");
     }
-
     var ownDataNames = [FILE_NAME, SETTINGS_FILE_NAME, SOUND_LIBRARY_FILE_NAME];
     var names = fs.readdirSync(dataDir);
     for (var i = 0; i < names.length; i++) {
       if (names[i] === "tmp") {
-        continue; // looked at on its own below
+        continue;
+      // looked at on its own below
       }
       var full = dataDir + "/" + names[i];
       if (includeDataFiles && ownDataNames.indexOf(names[i]) !== -1 && _pathKind(fs, full) === "file") {
@@ -106,7 +104,6 @@
         listing.kept.push(full);
       }
     }
-
     var tmpDir = dataDir + "/tmp";
     var tmpKind = _pathKind(fs, tmpDir);
     if (tmpKind === "dir") {
@@ -120,11 +117,11 @@
         }
       }
     } else if (tmpKind !== "missing") {
-      listing.kept.push(tmpDir); // a tmp that is a link or a file is not ours to look into
+      listing.kept.push(tmpDir);
+    // a tmp that is a link or a file is not ours to look into
     }
     return listing;
   }
-
   function _deleteListedFiles(fs, files) {
     var deleted = [];
     var failed = [];
@@ -206,7 +203,6 @@
       var dir = _getDataDir(csInterface);
       fs.mkdirSync(dir, { recursive: true });
       var filePath = dir + "/" + FILE_NAME;
-
       var stripped = [];
       for (var i = 0; i < entries.length; i++) {
         var e = entries[i];
@@ -223,10 +219,9 @@
           phase: e.phase,
           downbeatTimes: e.downbeatTimes || null,
           material: e.material || null
-          // clipInfo is omitted on purpose (see above).
+        // clipInfo is omitted on purpose (see above).
         });
       }
-
       fs.writeFileSync(filePath, JSON.stringify(stripped, null, 2), "utf8");
       return { ok: true, path: filePath, count: stripped.length };
     } catch (e) {
@@ -259,7 +254,6 @@
   // completed, ...) in a small separate file next to library.json. Same
   // directory and plain-JSON format as the library.
   var SETTINGS_FILE_NAME = "settings.json";
-
   function saveSettings(csInterface, settings) {
     try {
       if (!window.cep_node) {
@@ -276,16 +270,15 @@
       try {
         fs.chmodSync(filePath, 0o600);
       } catch (chmodErr) {
-        // Best-effort: never fail a settings save over permissions, and some
-        // filesystems (network drives, FAT/exFAT mounts) have no Unix
-        // permission bits.
+      // Best-effort: never fail a settings save over permissions, and some
+      // filesystems (network drives, FAT/exFAT mounts) have no Unix
+      // permission bits.
       }
       return { ok: true, path: filePath };
     } catch (e) {
       return { ok: false, error: e.message ? e.message : String(e) };
     }
   }
-
   function loadSettings(csInterface) {
     try {
       if (!window.cep_node) {
@@ -308,7 +301,6 @@
   // the timeline-clip library keeps its format. Paths of the user's audio
   // files are stored; the files themselves are never touched.
   var SOUND_LIBRARY_FILE_NAME = "sound-library.json";
-
   function saveSoundLibrary(csInterface, state) {
     try {
       if (!window.cep_node) {
@@ -324,7 +316,6 @@
       return { ok: false, error: e.message ? e.message : String(e) };
     }
   }
-
   function loadSoundLibrary(csInterface) {
     try {
       if (!window.cep_node) {
@@ -340,8 +331,8 @@
       return { ok: false, error: e.message ? e.message : String(e) };
     }
   }
-
   global.BeatMarkerPersistence = {
+    getDataDir: _getDataDir,
     save: save,
     load: load,
     saveSoundLibrary: saveSoundLibrary,

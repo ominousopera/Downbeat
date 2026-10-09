@@ -39,10 +39,12 @@
     var beatClickToggleBtn = document.getElementById("beatClickToggleBtn");
     var beatClickTime = document.getElementById("beatClickTime");
     var beatClickEnableCheckbox = document.getElementById("beatClickEnableCheckbox");
-
-    var _beatClickTimes = []; // current track's downbeat times, audio-local seconds
-    var _beatClickWaveformPeaks = null; // Float32Array, one 0..1 peak per horizontal pixel
-    var _beatClickBandPeaks = null; // { low, mid, high }, same shape, one per frequency band
+    var _beatClickTimes = [];
+    // current track's downbeat times, audio-local seconds
+    var _beatClickWaveformPeaks = null;
+    // Float32Array, one 0..1 peak per horizontal pixel
+    var _beatClickBandPeaks = null;
+    // { low, mid, high }, same shape, one per frequency band
     // 1 = fit the whole track in view; higher = zoomed in.
     // _beatClickPanSeconds is the file time at the LEFT edge of the current
     // view; _beatClickVisibleWindow() clamps it into range.
@@ -54,14 +56,18 @@
     var BEAT_CLICK_DEFAULT_ZOOM = 5;
     var _beatClickAudioContext = null;
     var _beatClickSourceNode = null;
-    var _beatClickTrackGain = null; // volume of the track itself, independent of the click
-    var _beatClickGain = null; // volume of the synthesized click, independent of the track
-    var _beatClickBuffer = null; // one short synthesized click, reused for every trigger
+    var _beatClickTrackGain = null;
+    // volume of the track itself, independent of the click
+    var _beatClickGain = null;
+    // volume of the synthesized click, independent of the track
+    var _beatClickBuffer = null;
+    // one short synthesized click, reused for every trigger
     var _beatClickScheduleTimer = null;
     // Scheduled but not yet fired click nodes, so pause can cancel them (Web
     // Audio scheduling continues independently of the <audio> element).
     var _beatClickPendingNodes = [];
-    var _beatClickFiredKeys = {}; // beat time -> true, so a beat already triggered this playthrough isn't retriggered on the next scheduler tick
+    var _beatClickFiredKeys = {};
+    // beat time -> true, so a beat already triggered this playthrough isn't retriggered on the next scheduler tick
     var _beatClickAnimFrame = null;
     // A short, clean metronome click synthesized on the fly instead of a
     // bundled audio asset: a single fundamental with a touch of its 2nd
@@ -73,12 +79,15 @@
       var frameCount = Math.max(1, Math.floor(sampleRate * durationSeconds));
       var buffer = context.createBuffer(1, frameCount, sampleRate);
       var data = buffer.getChannelData(0);
-      var freq = 1500; // a classic, clean, cut-through-a-mix click pitch
+      var freq = 1500;
+      // a classic, clean, cut-through-a-mix click pitch
       for (var i = 0; i < frameCount; i++) {
         var t = i / sampleRate;
-        var envelope = Math.exp(-t * 300); // fast, clean decay - silent well before the buffer ends, so no cutoff pop
+        var envelope = Math.exp(-t * 300);
+        // fast, clean decay - silent well before the buffer ends, so no cutoff pop
         var fundamental = Math.sin(2 * Math.PI * freq * t);
-        var overtone = Math.sin(2 * Math.PI * freq * 2 * t) * 0.25; // a little upper harmonic for definition, not a second distinct pitch
+        var overtone = Math.sin(2 * Math.PI * freq * 2 * t) * 0.25;
+        // a little upper harmonic for definition, not a second distinct pitch
         data[i] = (fundamental + overtone) * envelope * 0.9;
       }
       return buffer;
@@ -104,7 +113,6 @@
         _beatClickAudioContext.resume();
       }
     }
-
     beatClickTrackVolumeInput.addEventListener("input", function () {
       if (_beatClickTrackGain) {
         _beatClickTrackGain.gain.value = (parseFloat(beatClickTrackVolumeInput.value) || 0) / 100;
@@ -118,23 +126,22 @@
     // Band edges for the low / mid / high colors of the waveform.
     var WAVEFORM_LOW_CUTOFF_HZ = 250;
     var WAVEFORM_HIGH_CUTOFF_HZ = 4000;
-
     function _splitFrequencyBands(samples, sampleRate) {
       var n = samples.length;
       var low = new Float32Array(n);
       var high = new Float32Array(n);
       var dt = 1 / sampleRate;
-
       var rcLow = 1 / (2 * Math.PI * WAVEFORM_LOW_CUTOFF_HZ);
-      var alphaLow = dt / (rcLow + dt); // one-pole low-pass
+      var alphaLow = dt / (rcLow + dt);
+      // one-pole low-pass
       var lowPrev = 0;
       for (var i = 0; i < n; i++) {
         lowPrev = lowPrev + alphaLow * (samples[i] - lowPrev);
         low[i] = lowPrev;
       }
-
       var rcHigh = 1 / (2 * Math.PI * WAVEFORM_HIGH_CUTOFF_HZ);
-      var alphaHigh = rcHigh / (rcHigh + dt); // one-pole high-pass
+      var alphaHigh = rcHigh / (rcHigh + dt);
+      // one-pole high-pass
       var highPrev = 0;
       var xPrev = 0;
       for (var j = 0; j < n; j++) {
@@ -148,7 +155,6 @@
       for (var k = 0; k < n; k++) {
         mid[k] = samples[k] - low[k] - high[k];
       }
-
       return { low: low, mid: mid, high: high };
     }
     function _computeBandPeaks(bands, bucketCount) {
@@ -186,7 +192,6 @@
       }
       return { low: low, mid: mid, high: high };
     }
-
     function _computeWaveformPeaks(samples, bucketCount) {
       if (!samples || !samples.length || bucketCount <= 0) {
         return new Float32Array(0);
@@ -217,6 +222,30 @@
     // This track's mono samples, kept only to re-bucket the waveform on zoom, pan and resize.
     var _beatClickCurrentSamples = null;
     var _beatClickCurrentBands = null;
+    var _beatClickCurrentSamplesPath = null;
+    var _beatClickSamplesRequest = null;
+    var _beatClickPreviewGeneration = 0;
+    function _loadPreviewSamples(path) {
+      if (ctx.lastDecodedSamplesPath() === path && ctx.lastDecodedSamples()) {
+        return Promise.resolve(ctx.lastDecodedSamples());
+      }
+      if (_beatClickCurrentSamplesPath === path && _beatClickCurrentSamples) {
+        return Promise.resolve(_beatClickCurrentSamples);
+      }
+      if (_beatClickSamplesRequest && _beatClickSamplesRequest.path === path) {
+        return _beatClickSamplesRequest.promise;
+      }
+      var request = { path: path };
+      request.promise = window.BeatMarkerAudio.decodeFileToMono44100(path).then(function (decoded) {
+        if (_beatClickSamplesRequest === request) { _beatClickSamplesRequest = null; }
+        return decoded.samples;
+      }, function (err) {
+        if (_beatClickSamplesRequest === request) { _beatClickSamplesRequest = null; }
+        throw err;
+      });
+      _beatClickSamplesRequest = request;
+      return request.promise;
+    }
     function _beatClickVisibleWindow() {
       var duration = beatClickAudio.duration || 0;
       var visibleDuration = duration / _beatClickZoom;
@@ -251,7 +280,6 @@
       _updateBeatClickZoomUI();
       _drawBeatClickWaveform();
     }
-
     function _updateBeatClickZoomUI() {
       var win = _beatClickVisibleWindow();
       beatClickZoomLabel.textContent = _beatClickZoom <= 1.001 ? "" : (_beatClickZoom.toFixed(1) + "x");
@@ -264,7 +292,6 @@
         beatClickPanInput.value = String(win.start);
       }
     }
-
     function _setBeatClickZoom(newZoom, anchorSeconds) {
       var duration = beatClickAudio.duration || 0;
       if (duration <= 0) {
@@ -273,7 +300,8 @@
       newZoom = Math.max(BEAT_CLICK_ZOOM_MIN, Math.min(BEAT_CLICK_ZOOM_MAX, newZoom));
       if (anchorSeconds === undefined) {
         var win = _beatClickVisibleWindow();
-        anchorSeconds = win.start + win.duration / 2; // keep the CENTER of the current view anchored when zooming via the buttons
+        anchorSeconds = win.start + win.duration / 2;
+      // keep the CENTER of the current view anchored when zooming via the buttons
       }
       _beatClickZoom = newZoom;
       var newVisibleDuration = duration / _beatClickZoom;
@@ -281,7 +309,6 @@
       _rebuildBeatClickWaveformForView();
       _noteManualBeatClickView();
     }
-
     beatClickZoomInBtn.addEventListener("click", function () { _setBeatClickZoom(_beatClickZoom * BEAT_CLICK_ZOOM_STEP); });
     beatClickZoomOutBtn.addEventListener("click", function () { _setBeatClickZoom(_beatClickZoom / BEAT_CLICK_ZOOM_STEP); });
     beatClickZoomFitBtn.addEventListener("click", function () { _beatClickPanSeconds = 0; _setBeatClickZoom(BEAT_CLICK_ZOOM_MIN, 0); });
@@ -290,7 +317,6 @@
       _rebuildBeatClickWaveformForView();
       _noteManualBeatClickView();
     });
-
     // Waveform bars + beat tick marks + a moving playhead, all redrawn
     // together on each call; cheap enough at the panel's size to redraw on
     // every animation frame during playback.
@@ -308,7 +334,8 @@
         canvas.width = targetW;
         canvas.height = targetH;
         _rebuildBeatClickWaveformForView();
-        return; // _rebuildBeatClickWaveformForView() already re-calls this function
+        return;
+      // _rebuildBeatClickWaveformForView() already re-calls this function
       }
       var ctx2d = canvas.getContext("2d");
       ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -322,9 +349,12 @@
         var bands = _beatClickBandPeaks;
         var bandCount = Math.min(bands.low.length, Math.round(cssWidth));
         var bandColors = [
-          { arr: bands.low, color: "rgba(88, 140, 224, 0.55)" }, // low - blue
-          { arr: bands.mid, color: "rgba(224, 163, 57, 0.55)" }, // mid - amber
-          { arr: bands.high, color: "rgba(234, 231, 225, 0.5)" } // high - bright cream
+          { arr: bands.low, color: "rgba(88, 140, 224, 0.55)" },
+          // low - blue
+          { arr: bands.mid, color: "rgba(224, 163, 57, 0.55)" },
+          // mid - amber
+          { arr: bands.high, color: "rgba(234, 231, 225, 0.5)" }
+        // high - bright cream
         ];
         for (var bi = 0; bi < bandColors.length; bi++) {
           ctx2d.fillStyle = bandColors[bi].color;
@@ -338,7 +368,8 @@
         }
       } else if (_beatClickWaveformPeaks && _beatClickWaveformPeaks.length) {
         var mid = cssHeight / 2;
-        ctx2d.fillStyle = "rgba(224, 163, 57, 0.5)"; // accent color at reduced alpha
+        ctx2d.fillStyle = "rgba(224, 163, 57, 0.5)";
+        // accent color at reduced alpha
         var peaks = _beatClickWaveformPeaks;
         var barCount = Math.min(peaks.length, Math.round(cssWidth));
         for (var x2 = 0; x2 < barCount; x2++) {
@@ -347,25 +378,26 @@
           ctx2d.fillRect(x2, mid - h2, 1, h2 * 2);
         }
       }
-
       var win = _beatClickVisibleWindow();
       if (win.duration > 0 && _beatClickTimes.length) {
-        ctx2d.fillStyle = "#ff9f2e"; // downbeat ticks in orange
+        ctx2d.fillStyle = "#ff9f2e";
+        // downbeat ticks in orange
         for (var i = 0; i < _beatClickTimes.length; i++) {
           var t = _beatClickTimes[i];
           if (t < win.start || t > win.end) {
-            continue; // only draw ticks actually in the current view
+            continue;
+          // only draw ticks actually in the current view
           }
           var tx = ((t - win.start) / win.duration) * cssWidth;
           ctx2d.fillRect(tx, 0, 1, cssHeight);
         }
       }
-
       if (win.duration > 0) {
         var currentT = beatClickAudio.currentTime;
         if (currentT >= win.start && currentT <= win.end) {
           var px = ((currentT - win.start) / win.duration) * cssWidth;
-          ctx2d.fillStyle = "#e8e6e1"; // the playhead in white, distinct from the orange ticks
+          ctx2d.fillStyle = "#e8e6e1";
+          // the playhead in white, distinct from the orange ticks
           ctx2d.fillRect(Math.max(0, px - 1), 0, 2, cssHeight);
         }
       }
@@ -400,7 +432,6 @@
         _rebuildBeatClickWaveformForView();
       }
     }
-
     function _beatClickAnimTick() {
       _followBeatClickPlayhead();
       _drawBeatClickWaveform();
@@ -410,7 +441,6 @@
         _beatClickAnimFrame = null;
       }
     }
-
     function _seekFromWaveformEvent(evt) {
       var win = _beatClickVisibleWindow();
       if (win.duration <= 0) {
@@ -465,25 +495,21 @@
       _rebuildBeatClickWaveformForView();
       _noteManualBeatClickView();
     }, { passive: false });
-
     function _stopScheduledBeatClicks() {
       for (var i = 0; i < _beatClickPendingNodes.length; i++) {
         try { _beatClickPendingNodes[i].stop(); } catch (e) { /* node already stopped */ }
       }
       _beatClickPendingNodes = [];
     }
-
     function _resetBeatClickPlaythrough() {
       _beatClickFiredKeys = {};
       _stopScheduledBeatClicks();
     }
-
     function _stopBeatClickScheduler() {
       clearInterval(_beatClickScheduleTimer);
       _beatClickScheduleTimer = null;
       _stopScheduledBeatClicks();
     }
-
     function _startBeatClickScheduler() {
       var LOOKAHEAD_SECONDS = 0.15;
       var TICK_MS = 30;
@@ -513,10 +539,10 @@
         }
       }, TICK_MS);
     }
-
     beatClickAudio.addEventListener("loadedmetadata", function () {
       beatClickTime.textContent = _formatPlayerTime(beatClickAudio.currentTime) + " / " + _formatPlayerTime(beatClickAudio.duration);
-      _rebuildBeatClickWaveformForView(); // the duration is known only now
+      _rebuildBeatClickWaveformForView();
+    // the duration is known only now
     });
     beatClickAudio.addEventListener("timeupdate", function () {
       beatClickTime.textContent = _formatPlayerTime(beatClickAudio.currentTime) + " / " + _formatPlayerTime(beatClickAudio.duration);
@@ -527,7 +553,8 @@
     beatClickAudio.addEventListener("play", function () {
       _ensureBeatClickAudioGraph();
       beatClickToggleBtn.textContent = "‖";
-      _beatClickFollow = true; // Play always shows where it plays
+      _beatClickFollow = true;
+      // Play always shows where it plays
       _startBeatClickScheduler();
       if (!_beatClickAnimFrame) {
         _beatClickAnimFrame = requestAnimationFrame(_beatClickAnimTick);
@@ -582,15 +609,16 @@
         log("The file name looks like a music video's soundtrack - check the intro and the ending of the result.");
       }
     }
-
     function _refreshBeatClickPreview() {
       // The same "is there a real analysis" condition decides whether the
       // half/double tempo-correction row (retempoRow) is visible; it is
       // evaluated here so every call site that changes lastAnalysis gets it.
+      var generation = ++_beatClickPreviewGeneration;
       retempoRow.style.display = (ctx.lastAnalysis() && ctx.lastAnalysis().beatsArray && ctx.lastAnalysis().beatsArray.length) ? "" : "none";
       _updateMusicVideoNote();
       if (!ctx.lastAnalysis() || !ctx.lastAnalysis().beatsArray || !ctx.lastAnalysis().beatsArray.length) {
-        _hideBeatClickPreview(); // also pauses and cancels scheduled clicks
+        _hideBeatClickPreview();
+        // also pauses and cancels scheduled clicks
         return;
       }
       if (!beatClickAudio.paused) {
@@ -601,9 +629,10 @@
       _resetBeatClickPlaythrough();
       var previewPath = ctx.lastAnalysis().audioPath;
       if (/\.aiff?$/i.test(previewPath)) {
-        _loadAiffPlayback(previewPath).then(function (aiff) {
-          if (!ctx.lastAnalysis() || ctx.lastAnalysis().audioPath !== previewPath) {
-            return; // another clip was selected meanwhile
+        _loadAiffPlayback(previewPath, generation).then(function (aiff) {
+          if (generation !== _beatClickPreviewGeneration || !ctx.lastAnalysis() || ctx.lastAnalysis().audioPath !== previewPath) {
+            return;
+          // another clip was selected meanwhile
           }
           if (beatClickAudio.getAttribute("src") !== aiff.url) {
             beatClickAudio.src = aiff.url;
@@ -614,7 +643,9 @@
             _rebuildBeatClickWaveformForView();
           }
         }, function (err) {
-          log("Preview: could not prepare this AIFF for playback: " + (err && err.message ? err.message : err));
+          if (generation === _beatClickPreviewGeneration) {
+            log("Preview: could not prepare this AIFF for playback: " + (err && err.message ? err.message : err));
+          }
         });
       } else {
         var newSrc = "file://" + previewPath;
@@ -622,7 +653,9 @@
           beatClickAudio.src = newSrc;
         }
       }
-      _beatClickCurrentSamples = (ctx.lastDecodedSamplesPath() === ctx.lastAnalysis().audioPath) ? ctx.lastDecodedSamples() : null;
+      var retainedSamples = _beatClickCurrentSamplesPath === previewPath ? _beatClickCurrentSamples : null;
+      _beatClickCurrentSamples = ctx.lastDecodedSamplesPath() === previewPath ? ctx.lastDecodedSamples() : retainedSamples;
+      _beatClickCurrentSamplesPath = previewPath;
       _beatClickCurrentBands = _beatClickCurrentSamples
         ? _splitFrequencyBands(_beatClickCurrentSamples, window.BeatMarkerAudio.TARGET_SAMPLE_RATE)
         : null;
@@ -638,13 +671,27 @@
       _beatClickZoom = Math.min(BEAT_CLICK_DEFAULT_ZOOM, BEAT_CLICK_ZOOM_MAX);
       _beatClickPanSeconds = 0;
       _rebuildBeatClickWaveformForView();
+      if (!_beatClickCurrentSamples) {
+        _loadPreviewSamples(previewPath).then(function (samples) {
+          if (generation !== _beatClickPreviewGeneration || !ctx.lastAnalysis() || ctx.lastAnalysis().audioPath !== previewPath) {
+            return;
+          }
+          _beatClickCurrentSamples = samples;
+          _beatClickCurrentBands = _splitFrequencyBands(samples, window.BeatMarkerAudio.TARGET_SAMPLE_RATE);
+          _rebuildBeatClickWaveformForView();
+        }, function (err) {
+          if (generation === _beatClickPreviewGeneration) {
+            log("Preview: could not read the waveform: " + (err && err.message ? err.message : err));
+          }
+        });
+      }
     }
-
     // The <audio> element of the panel's browser cannot play AIFF. For an AIFF
     // file the preview plays a WAV made in memory from the samples the panel
     // already decoded (mono, 16-bit, 44.1 kHz). It exists only for playback
     // and is never written to disk.
-    var _beatClickAiff = null; // { path, url, samples }
+    var _beatClickAiff = null;
+    // { path, url, samples }
     function _encodeWav16(samples, rate) {
       var n = samples.length;
       var buf = new ArrayBuffer(44 + n * 2);
@@ -673,13 +720,15 @@
       }
       return new Blob([buf], { type: "audio/wav" });
     }
-    function _loadAiffPlayback(path) {
+    function _loadAiffPlayback(path, generation) {
       if (_beatClickAiff && _beatClickAiff.path === path) {
         return Promise.resolve(_beatClickAiff);
       }
-      var decoded = ctx.lastDecodedSamplesPath() === path ? Promise.resolve(ctx.lastDecodedSamples()) :
-        window.BeatMarkerAudio.decodeFileToMono44100(path).then(function (d) { return d.samples; });
+      var decoded = _loadPreviewSamples(path);
       return decoded.then(function (samples) {
+        if (generation !== _beatClickPreviewGeneration) {
+          return null;
+        }
         if (_beatClickAiff) {
           URL.revokeObjectURL(_beatClickAiff.url);
         }
@@ -688,8 +737,8 @@
         return _beatClickAiff;
       });
     }
-
     function _hideBeatClickPreview() {
+      _beatClickPreviewGeneration++;
       musicVideoNote.hidden = true;
       if (!beatClickAudio.paused) {
         beatClickAudio.pause();
@@ -702,6 +751,9 @@
       _beatClickTimes = [];
       _beatClickWaveformPeaks = null;
       _beatClickCurrentSamples = null;
+      _beatClickCurrentSamplesPath = null;
+      _beatClickCurrentBands = null;
+      _beatClickBandPeaks = null;
       _beatClickZoom = BEAT_CLICK_ZOOM_MIN;
       _beatClickPanSeconds = 0;
       _setAnalyzeTabHasAnalysis(false);
@@ -712,12 +764,10 @@
       beatClickVolumeRow.style.display = "none";
       beatClickToggleRow.style.display = "none";
     }
-
     return {
       refresh: _refreshBeatClickPreview,
       hide: _hideBeatClickPreview
     };
   }
-
   global.BeatMarkerBeatPreview = { create: create };
 })(window);

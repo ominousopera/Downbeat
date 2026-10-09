@@ -78,6 +78,22 @@
     <hr>
 
     <div class="row">
+      <span class="panel-title" data-i18n="output.title">Finished audio</span>
+    </div>
+    <div class="row">
+      <select id="audioOutputModeSelect">
+        <option value="documents" data-i18n="output.documents">Documents / Downbeat / processed</option>
+        <option value="project" data-i18n="output.project">Beside the saved project</option>
+        <option value="custom" data-i18n="output.custom">Choose a folder</option>
+      </select>
+    </div>
+    <div class="row">
+      <button id="audioOutputFolderBtn" type="button" class="ghost settings-full-btn" data-i18n="output.choose" hidden>Choose folder…</button>
+    </div>
+    <p id="audioOutputPath" class="hint"></p>
+    <p class="hint" data-i18n="output.hint">Only finished audio uses this folder. Settings, libraries and temporary files stay in Documents/Downbeat.</p>
+    <hr>
+    <div class="row">
       <button id="deleteDataBtn" type="button" class="ghost settings-full-btn" data-i18n="settings.deleteData">Delete my data</button>
     </div>
     <div class="row" style="margin-top:6px">
@@ -395,6 +411,11 @@
     <button id="clearMarkersBtn" type="button" class="ghost" data-i18n="analyze.clearShort">Clear</button>
     <button id="markerToolsToggleBtn" type="button" class="ghost" aria-expanded="false" data-i18n="analyze.toolsShort">Tools</button>
   </div>
+  <div class="row">
+    <button id="metronomeBtn" type="button" class="g-link" data-i18n="metronome.add">Add metronome track</button>
+    <span id="metronomeStatus" class="hint"></span>
+  </div>
+  <p class="hint" data-i18n="metronome.hint">All beats, with accented downbeats. Creates a WAV and places it under the selected music. Choose its folder in Settings.</p>
 
   <!-- Marker tools: Copy / paste. -->
   <section class="g-sec" id="markerToolsSection" hidden>
@@ -738,6 +759,8 @@
   <script src="js/settings-panel.js"></script>
   <script src="js/library-tab.js"></script>
   <script src="js/beat-preview.js"></script>
+  <script src="js/audio-output.js"></script>
+  <script src="js/metronome.js"></script>
   <script src="js/self-test.js"></script>
   <script src="js/main.js"></script>
 </body>

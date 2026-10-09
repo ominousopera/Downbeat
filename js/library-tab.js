@@ -42,12 +42,14 @@
     var libBpmInput = document.getElementById("libBpmInput");
     var libBpmTolInput = document.getElementById("libBpmTolInput");
     var libHalfDoubleCheckbox = document.getElementById("libHalfDoubleCheckbox");
-    var libBpmRow = document.getElementById("libBpmRow"); // Music only
+    var libBpmRow = document.getElementById("libBpmRow");
+    // Music only
     var libMatchClipBtn = document.getElementById("libMatchClipBtn");
     var libResetFiltersBtn = document.getElementById("libResetFiltersBtn");
     var libResultCount = document.getElementById("libResultCount");
     var libPreviewAudio = document.getElementById("libPreviewAudio");
-    var LIB_MAX_ROWS = 300; // more rows than this makes the panel sluggish; the count says how many matched
+    var LIB_MAX_ROWS = 300;
+    // more rows than this makes the panel sluggish; the count says how many matched
     // With a key chosen the user wants every match, not just the first 300: a
     // key already narrows a large library to a manageable list, so the list
     // goes up to this, added in one fragment.
@@ -59,9 +61,11 @@
     var libPitchedOnlyCheckbox = document.getElementById("libPitchedOnlyCheckbox");
     var libPitchedOnlyLabel = document.getElementById("libPitchedOnlyLabel");
     var LIB_MORE_STEP = 300;
-    var libExtraRows = 0; // added by "Show N more"; any filter change resets it
+    var libExtraRows = 0;
+    // added by "Show N more"; any filter change resets it
     var libSelectedPath = null;
-    var _libShown = []; // [{ item, row, play }] in list order
+    var _libShown = [];
+    // [{ item, row, play }] in list order
     var _libMatches = [];
     var _libItemCount = 0;
     var libSection = "music";
@@ -85,7 +89,6 @@
       renderLibrarySortSelect();
       renderLibrary();
     }
-
     // File and folder dialogs. CEP's own dialog first: it is parented to
     // Premiere, so on Windows it opens in front and does not tie up the
     // host script engine (the ExtendScript dialog opened behind Premiere
@@ -126,7 +129,6 @@
       }
       return evalJson("pickSaveFile(" + _jsxStringArg(suggestedName) + ", " + _jsxStringArg(title) + ")");
     }
-
     function persistSoundLibrary() {
       var result = window.BeatMarkerPersistence.saveSoundLibrary(ctx.csInterface(), SL.getState());
       if (!result.ok) {
@@ -163,13 +165,13 @@
       }
       return out;
     }
-
     function _libCriteria() {
       return {
         text: libSearchInput.value,
         camelot: libKeySelect.value || null,
         keyMode: libKeyModeSelect.value,
-        bpm: libSection === "sfx" ? "" : libBpmInput.value, // no tempo filter for sound effects
+        bpm: libSection === "sfx" ? "" : libBpmInput.value,
+        // no tempo filter for sound effects
         tolPct: libBpmTolInput.value,
         halfDouble: libHalfDoubleCheckbox.checked,
         sort: libSortSelect.value || "best",
@@ -179,7 +181,8 @@
     }
     // "best" keeps SL.search's order (exact key, closest tempo, name).
     function _libSort(list, how) {
-      var last = 1e12; // no value sorts after every real one
+      var last = 1e12;
+      // no value sorts after every real one
       function byName(a, b) { return String(a.name).localeCompare(String(b.name)); }
       if (how === "name") {
         return list.slice().sort(byName);
@@ -203,7 +206,6 @@
       }
       return item.bpm;
     }
-
     function _libFileUrl(path) {
       var p = String(path).replace(/\\/g, "/");
       if (/^[A-Za-z]:\//.test(p)) {
@@ -217,7 +219,8 @@
     // or closes it, it is open for up to 3 folders and folded beyond; after
     // that their choice is kept (settings.libraryFoldersOpen).
     var libFoldersToggleBtn = document.getElementById("libFoldersToggleBtn");
-    var libFoldersOpen = null; // null = automatic, see above
+    var libFoldersOpen = null;
+    // null = automatic, see above
     function _libFoldersShown(count) {
       return libFoldersOpen === null ? count <= 3 : libFoldersOpen;
     }
@@ -249,7 +252,6 @@
       }
       return false;
     }
-
     function renderLibraryFolders() {
       libFolderList.textContent = "";
       var folders = SL.getFolders(libSection);
@@ -377,7 +379,8 @@
         try {
           _libExistsCache[path] = window.cep_node.require("fs").existsSync(path);
         } catch (e) {
-          _libExistsCache[path] = true; // cannot tell - let the host decide
+          _libExistsCache[path] = true;
+        // cannot tell - let the host decide
         }
       }
       return _libExistsCache[path];
@@ -392,7 +395,6 @@
       renderLibrary(true);
       return true;
     }
-
     function _libRow(item) {
       var row = document.createElement("div");
       row.className = "lib-row" + (libPlayingPath === item.path ? " is-playing" : "") + (libSelectedPath === item.path ? " is-selected" : "");
@@ -416,8 +418,10 @@
       var meta = document.createElement("div");
       meta.className = "lib-row-meta";
       var parts = [];
-      var keyPart = -1; // index of the key in parts, if any
-      var confPart = -1; // index of the key's "agreed / uncertain" word in parts, if any
+      var keyPart = -1;
+      // index of the key in parts, if any
+      var confPart = -1;
+      // index of the key's "agreed / uncertain" word in parts, if any
       var missing = !_libFileThere(item.path);
       if (missing) {
         row.classList.add("is-missing");
@@ -440,7 +444,8 @@
           parts.push(bpm.toFixed(1) + " BPM");
         }
         if (item.camelot && !SL.hasPitch(item)) {
-          parts.push(I18n.t("library.noPitch")); // a sound with no pitch: its detected "key" is noise
+          parts.push(I18n.t("library.noPitch"));
+        // a sound with no pitch: its detected "key" is noise
         } else if (item.camelot) {
           keyPart = parts.length;
           var friendly = window.BeatMarkerCamelot.fromCamelotCode(item.camelot);
@@ -505,7 +510,8 @@
       if (!item.fromTimeline) {
         var fav = document.createElement("button");
         fav.type = "button";
-        fav.className = "ghost lib-fav" + (item.fav ? " is-on" : ""); // the star is drawn by CSS
+        fav.className = "ghost lib-fav" + (item.fav ? " is-on" : "");
+        // the star is drawn by CSS
         fav.setAttribute("aria-pressed", item.fav ? "true" : "false");
         fav.title = I18n.t(item.fav ? "library.favRemove" : "library.favAdd");
         fav.addEventListener("click", function (evt) {
@@ -552,7 +558,8 @@
       }
       var tab = document.getElementById("tabContentLibrary");
       if (tab && typeof tab.contains === "function" && evt && evt.target && !tab.contains(evt.target)) {
-        return; // Settings, dialogs: not the list's business
+        return;
+      // Settings, dialogs: not the list's business
       }
       setTimeout(function () { _libFocusKeys(); }, 0);
     });
@@ -567,7 +574,6 @@
       }
       _libFocusKeys();
     }
-
     function _libToggleFavorite(item, btn) {
       var on = !item.fav;
       if (!SL.setFavorite(item.path, on)) {
@@ -592,7 +598,6 @@
         e.play.textContent = playing ? "‖" : "▶";
       }
     }
-
     function _libShownIndex(path) {
       for (var i = 0; i < _libShown.length; i++) {
         if (_libShown[i].item.path === path) {
@@ -601,7 +606,6 @@
       }
       return -1;
     }
-
     function _libSelect(path, scroll) {
       libSelectedPath = path;
       _libUpdateRowStates();
@@ -689,7 +693,6 @@
       renderLibrary();
       _libShowSearchExpansions();
     });
-
     // Re-filters and repaints the list. keepRows: leave "Show N more" as it
     // is; every other call starts from the first page.
     function renderLibrary(keepRows) {
@@ -707,19 +710,18 @@
       }
       renderLibraryFolders();
       libRescanBtn.hidden = libScan.running || SL.getFolders(libSection).length === 0;
-      var waiting = SL.counts(libSection).pending + SL.outdatedCount(libSection); // outdated: analyzed by an older method, redone by Start scan
+      var waiting = SL.counts(libSection).pending + SL.outdatedCount(libSection);
+      // outdated: analyzed by an older method, redone by Start scan
       setTranslatedText(libRescanBtn, waiting > 0 ? "library.rescanCount" : "library.rescan", { count: waiting });
       libRescanBtn.classList.toggle("primary", waiting > 0);
       libRescanBtn.classList.toggle("ghost", waiting === 0);
       libAddFolderBtn.disabled = libScan.running;
-
       var current = _libCurrentMatches();
       var items = current.items;
       var matches = current.matches;
       _libMatches = matches;
       _libItemCount = items.length;
       _libShown = [];
-
       libraryDisplay.textContent = "";
       if (items.length === 0) {
         libraryDisplay.classList.add("is-empty");
@@ -736,7 +738,6 @@
       libraryDisplay.classList.remove("is-empty");
       _libAppendRows();
     }
-
     function _libMaxRows() {
       return (_libCriteria().camelot ? LIB_MAX_ROWS_WITH_KEY : LIB_MAX_ROWS) + libExtraRows;
     }
@@ -782,7 +783,6 @@
       });
       libSortSelect.value = choices.indexOf(current) !== -1 ? current : "best";
     }
-
     function renderLibraryKeySelect() {
       var current = libKeySelect.value;
       libKeySelect.textContent = "";
@@ -802,7 +802,6 @@
       }
       libKeySelect.value = current || "";
     }
-
     function _libSetSection(section) {
       libSection = section;
       persistSettings({ librarySection: section });
@@ -835,7 +834,8 @@
     // works as a switch: on while the key / BPM filters still hold what it
     // put there; a second click clears them; changing either by hand turns it
     // off.
-    var _libMatched = null; // { camelot, bpm } as Match clip set them
+    var _libMatched = null;
+    // { camelot, bpm } as Match clip set them
     function _libUpdateMatchState() {
       var on = !!_libMatched && libKeySelect.value === _libMatched.camelot &&
         libKeyModeSelect.value === "compatible" && libBpmInput.value === _libMatched.bpm;
@@ -890,7 +890,6 @@
       persistSettings({ libraryFolderScope: _libScope });
       renderLibrary();
     });
-
     function _libTogglePreview(path) {
       if (_libMissing(path)) {
         return;
@@ -944,7 +943,6 @@
       }
       _libInsert(item);
     }
-
     // One log line for the fades of an insert (or of the second try).
     function _libLogFades(fd, title) {
       if (!fd) {
@@ -989,7 +987,6 @@
       if (isRefused(fd.fadeOut)) { again.fadeOutSec = opts.fadeOutSec; any = true; }
       return any ? again : null;
     }
-
     function _libInsert(item, opts) {
       if (_libMissing(item.path)) {
         return;
@@ -1003,7 +1000,9 @@
         _libPaneRefresh();
       }
       showBusy("busy.default");
-      evalJson("insertAudioAtPlayhead(" + _jsxJsonArg(item.path) + ", " + (item.durationSec || 0) +
+      var duration = typeof item.durationSec === "number" && isFinite(item.durationSec) && item.durationSec >= 0
+        ? item.durationSec : 0;
+      evalJson("insertAudioAtPlayhead(" + _jsxJsonArg(item.path) + ", " + duration +
                (opts ? ", " + _jsxJsonArg(opts) : "") + ")")
         .then(function (data) {
           // No copy ever stands in: when the host could not trim, pitch or
@@ -1110,16 +1109,20 @@
     // A decoded file is held whole (float samples): over this, the pane says
     // so and ▶ is not offered (a 10-minute 96 kHz stereo WAV is ~460 MB).
     var LIB_PANE_MAX_DECODED_BYTES = 300 * 1024 * 1024;
-    var _libPaneItem = null; // the item shown (loaded or loading)
-    var _libPaneReady = false; // its sound is decoded and loaded
+    var _libPaneItem = null;
+    // the item shown (loaded or loading)
+    var _libPaneReady = false;
+    // its sound is decoded and loaded
     var _libPaneToken = 0;
     var _libPaneSelectTimer = null;
-    var _libPanePeaks = null; // { min, max } for the canvas width, file order
+    var _libPanePeaks = null;
+    // { min, max } for the canvas width, file order
     var _libPaneRaf = null;
-    var _libPaneLoading = null; // the load in progress, a Promise
-    var _libPaneCannot = {}; // path -> true: the pane could not load it; ▶ uses the plain preview
+    var _libPaneLoading = null;
+    // the load in progress, a Promise
+    var _libPaneCannot = {};
+    // path -> true: the pane could not load it; ▶ uses the plain preview
     var _libPaneWasPlaying = false;
-
     function _libPaneFindItem(path) {
       for (var i = 0; i < _libShown.length; i++) {
         if (_libShown[i].item.path === path) {
@@ -1128,7 +1131,6 @@
       }
       return null;
     }
-
     function _libPaneNote(key, vars) {
       if (!key) {
         libPaneNote.hidden = true;
@@ -1158,8 +1160,8 @@
           if (!(e instanceof reader.UnsupportedWav) || ext !== "wav") {
             return Promise.reject(e);
           }
-          // A WAV the reader does not support (compressed, ...): fall through
-          // to the browser's decoder below.
+        // A WAV the reader does not support (compressed, ...): fall through
+        // to the browser's decoder below.
         }
       }
       var size = 0;
@@ -1189,7 +1191,8 @@
       if (!item || !clip) {
         return null;
       }
-      var target = parseInt(clipCode, 10) + itemCode.slice(-1); // the clip's number, the sound's mode
+      var target = parseInt(clipCode, 10) + itemCode.slice(-1);
+      // the clip's number, the sound's mode
       var shift = window.BeatMarkerPitch.shiftBetween(itemCode, target);
       return shift ? shift.shortest : null;
     }
@@ -1204,7 +1207,6 @@
         _libPlayer.setPitch(Math.max(-LP.PITCH_LIMIT, Math.min(LP.PITCH_LIMIT, st)));
       }
     }
-
     function _libPaneLoad(item) {
       var token = ++_libPaneToken;
       _libPlayer.stop();
@@ -1291,7 +1293,8 @@
         if (_libPlayer.isPlaying()) {
           _libPlayer.pause();
         } else {
-          libPreviewAudio.pause(); // the plain preview, if it was playing another file
+          libPreviewAudio.pause();
+          // the plain preview, if it was playing another file
           _libPlayer.play();
         }
         _libPaneRefresh();
@@ -1307,14 +1310,12 @@
         start();
       }
     }
-
     function _libPaneComputePeaks() {
       var width = Math.max(50, Math.round((libPaneWave.clientWidth || 300) * (window.devicePixelRatio || 1)));
       libPaneWave.width = width;
       libPaneWave.height = Math.round((libPaneWave.clientHeight || 44) * (window.devicePixelRatio || 1));
       _libPanePeaks = _libPaneReady ? LP.peaks(_libPlayer.channels(), width) : null;
     }
-
     function _libPaneColor(name, fallback) {
       try {
         var v = getComputedStyle(document.body).getPropertyValue(name);
@@ -1323,7 +1324,8 @@
         return fallback;
       }
     }
-    var LIB_PANE_HANDLE = 6; // size of the fade handles on the waveform, css px
+    var LIB_PANE_HANDLE = 6;
+    // size of the fade handles on the waveform, css px
     function _libPaneHandles() {
       var D = _libPlayer.duration();
       if (!D) {
@@ -1429,7 +1431,6 @@
       g.fillStyle = _libPaneColor("--text", "#e8e6e1");
       g.fillRect(Math.min(w - 1, Math.round(playedX)), 0, Math.max(1, Math.round(dpr)), h);
     }
-
     function _libPaneSelectionText() {
       var region = _libPlayer.region();
       var f = _libPlayer.fades();
@@ -1509,7 +1510,8 @@
       _libPaneDraw();
       if (playing !== _libPaneWasPlaying) {
         _libPaneWasPlaying = playing;
-        _libUpdateRowStates(); // row icons only when it starts or stops - not every frame
+        _libUpdateRowStates();
+      // row icons only when it starts or stops - not every frame
       }
       if (playing && !_libPaneRaf && typeof requestAnimationFrame === "function") {
         _libPaneRaf = requestAnimationFrame(function () {
@@ -1518,7 +1520,6 @@
         });
       }
     }
-
     if (_libPlayer) {
       _libPlayer.onEnded(_libPaneRefresh);
       _libPlayer.setVolume(Number(libPaneVolume.value) / 100);
@@ -1788,12 +1789,12 @@
         }
       }
     });
-
     libAddFolderBtn.addEventListener("click", function () {
       _pickFolderDialog()
         .then(function (picked) {
           if (!picked.directory) {
-            return; // cancelled
+            return;
+          // cancelled
           }
           if (!SL.addFolder(libSection, picked.directory)) {
             setTranslatedText(libScanStatus, "library.folderAlready");
@@ -1820,7 +1821,8 @@
     var libScanDetail = document.getElementById("libScanDetail");
     var libScanEta = document.getElementById("libScanEta");
     var libScanCancelBtn = document.getElementById("libScanCancelBtn");
-    var libScanChildren = []; // running worker processes, for Cancel
+    var libScanChildren = [];
+    // running worker processes, for Cancel
     libScanCancelBtn.addEventListener("click", function () {
       libScan.stop = true;
       libScanCancelBtn.disabled = true;
@@ -1842,7 +1844,6 @@
       }
       return I18n.t("library.etaHours", { h: Math.floor(secLeft / 3600), m: Math.round((secLeft % 3600) / 60) });
     }
-
     function _libShowScanProgress(startedAt) {
       var pct = libScan.total ? Math.floor(100 * libScan.done / libScan.total) : 0;
       libScanBarFill.style.width = pct + "%";
@@ -1998,7 +1999,8 @@
               var range = SL.excerptRange(durationSec, section);
               var part = decoded.samples.subarray(Math.floor(range.startSec * rate), Math.floor((range.startSec + range.lengthSec) * rate));
               var raw = tmpDir + "/library-" + Date.now() + "-" + Math.floor(Math.random() * 1e6) + ".raw";
-              fs.writeFileSync(raw, part); // Node writes exactly the view's bytes
+              fs.writeFileSync(raw, part);
+              // Node writes exactly the view's bytes
               tmpFiles.push(raw);
               items.push({ path: path, raw: raw, material: section, bpm: range.wantBpm, durationSec: durationSec });
             })
@@ -2029,13 +2031,15 @@
             if (!results[i] || !results[i].ok) {
               libScan.failed++;
             } else {
-              SL.applyNameTags(it.path); // whatever the name does say wins over detection
+              SL.applyNameTags(it.path);
+            // whatever the name does say wins over detection
             }
             libScan.done++;
           });
         }, function (err) {
           if (libScan.stop) {
-            return; // killed by Cancel: these files stay pending for the next scan
+            return;
+          // killed by Cancel: these files stay pending for the next scan
           }
           items.forEach(function (it) {
             SL.setResult(it.path, { ok: false, error: err && err.message ? err.message : String(err) });
@@ -2171,7 +2175,8 @@
       _pickSaveFileDialog("downbeat-library-copy.json", I18n.t("library.backupSave"))
         .then(function (picked) {
           if (!picked.path) {
-            return; // cancelled
+            return;
+          // cancelled
           }
           var backup = { format: BACKUP_FORMAT, version: 1, savedAt: new Date().toISOString(),
                          soundLibrary: SL.getState(), trackLibrary: tracks };
@@ -2184,7 +2189,6 @@
           setTranslatedText(libraryAdminStatus, "library.backupFailed", { error: err && err.message ? err.message : String(err) });
         });
     });
-
     document.getElementById("loadLibraryBackupBtn").addEventListener("click", function () {
       if (libScan.running) {
         setTranslatedText(libraryAdminStatus, "library.busyScanning");
@@ -2193,7 +2197,8 @@
       _pickOpenFileDialog(I18n.t("library.backupPick"))
         .then(function (picked) {
           if (!picked.path) {
-            return; // cancelled
+            return;
+          // cancelled
           }
           var backup;
           try {
@@ -2247,7 +2252,6 @@
         _libPlayer.setVolume(settings.libPreviewVolume / 100);
       }
     }
-
     return {
       renderLibrary: renderLibrary,
       renderLibraryKeySelect: renderLibraryKeySelect,
@@ -2258,6 +2262,5 @@
       applySettings: applySettings
     };
   }
-
   global.BeatMarkerLibraryTab = { create: create };
 })(window);

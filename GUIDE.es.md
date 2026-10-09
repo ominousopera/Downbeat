@@ -406,6 +406,9 @@ El icono del engranaje, arriba a la derecha:
   ZXP, donde confirmas y luego reinicias Premiere Pro o After Effects; y
   **Abrir la página de la versión**. Si la suma no coincide, el archivo se
   borra y no se abre nada. **Comprobar ahora** pregunta al momento.
+  En macOS debe estar instalado ZXP Installer. Si no se puede abrir,
+  el paquete verificado permanece en Descargas para instalarlo manualmente.
+  En Windows se usa la asociación de archivos ZXP del sistema.
 - **Eliminar mis datos**: quita los ajustes, las dos bibliotecas (los
   clips analizados, y Música / SFX con sus carpetas y resultados) y los
   archivos temporales que hayan quedado y que Downbeat guardó en
@@ -436,9 +439,9 @@ con una capa en lugar de un clip:
   tiempo: After Effects no tiene Show Audio Time Units, y su cursor y
   Split Layer funcionan en fotogramas enteros, así que aquí no hay ajuste
   de Precisión (ni Desplazar).
-- La capa debe reproducirse a velocidad normal: Stretch 100% y sin Time
-  Remap. Si no, Downbeat lo dice en vez de colocar marcadores en el sitio
-  equivocado.
+- Se admite Time Stretch positivo y constante: el análisis lee el audio
+  original y los marcadores se ajustan a la capa. Se rechazan el Stretch
+  negativo y Time Remap, que requieren otro mapeo temporal.
 - Los colores de los marcadores usan los colores de etiqueta de After
   Effects: D verde, b azul. Un marcador de After Effects tiene un solo
   texto, que muestra la etiqueta corta; la explicación más larga que
@@ -513,3 +516,24 @@ Sí a las dos. Downbeat es software libre bajo la GNU AGPL-3.0 (Ajustes →
 Licencia tiene el texto completo), que te permite usarlo, estudiarlo,
 compartirlo y cambiarlo. El código fuente completo está en GitHub,
 y los archivos del plugin instalado son código normal y legible.
+
+### Audio del metrónomo
+
+Después del análisis, **Añadir pista de metrónomo** crea un WAV mono de
+44,1 kHz con los tiempos de la cuadrícula actual y acentos en los tiempos
+fuertes. Incluye la fase, los ajustes de cuadrícula, el recorte y la velocidad
+constante. Empieza con la música, no con el cabezal. En After Effects añade
+una capa justo debajo de la música. En Premiere necesita una pista de audio
+desbloqueada debajo de la música con espacio para todo el WAV; añade una
+si hace falta. La música sigue sonando. Si falla la inserción, se muestra
+la ruta del WAV guardado. El límite es de 30 minutos.
+
+**Ajustes → Archivos de audio terminados** permite elegir
+Documentos/Downbeat/processed, Downbeat/processed junto al proyecto guardado
+o una carpeta personalizada. Guarda el proyecto antes de usar la segunda
+opción. Solo afecta a WAV nuevos: no mueve ni sobrescribe archivos. Los
+ajustes, bibliotecas y temporales siguen en Documentos/Downbeat. Eliminar
+los datos del panel conserva los WAV. Pitch y Reverse cambian parámetros
+del clip y no generan copias de audio.
+
+El registro incluye rutas locales. Revísalo antes de compartirlo públicamente.

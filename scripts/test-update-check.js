@@ -9,14 +9,12 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { EventEmitter } = require("events");
-
 const ROOT = path.join(__dirname, "..");
 let failures = 0;
 function check(label, cond, detail) {
   if (cond) { console.log("ok   " + label + (detail ? " - " + detail : "")); }
   else { failures++; console.error("FAIL " + label + (detail ? " - " + detail : "")); }
 }
-
 const DOCS = fs.mkdtempSync(path.join(os.tmpdir(), "downbeat-update-"));
 const DATA = path.join(DOCS, "Downbeat");
 fs.mkdirSync(DATA, { recursive: true });
@@ -24,22 +22,18 @@ fs.writeFileSync(path.join(DATA, "settings.json"), JSON.stringify({ language: "e
 const panel = require("./panel-harness.js").bootPanel({ docsDir: DOCS, realTimeouts: true });
 const UC = window.BeatMarkerUpdateCheck;
 const r = panel.registry;
-
 // Versions
 check("v1.0.1 and 1.0.1 are read", JSON.stringify(UC.parseVersion("v1.0.1")) === "[1,0,1]" && JSON.stringify(UC.parseVersion("1.0.1")) === "[1,0,1]");
 check("a pre-release or a half version is not a version", UC.parseVersion("v1.0.1-beta") === null && UC.parseVersion("1.0") === null && UC.parseVersion("") === null && UC.parseVersion(null) === null);
 check("1.0.2 is newer than 1.0.1, 1.10.0 than 1.9.9, 2.0.0 than 1.99.99", UC.isNewer("1.0.2", "1.0.1") && UC.isNewer("1.10.0", "1.9.9") && UC.isNewer("2.0.0", "1.99.99"));
 check("the same or an older version is not newer", !UC.isNewer("1.0.1", "1.0.1") && !UC.isNewer("1.0.0", "1.0.1") && !UC.isNewer("garbage", "1.0.1") && !UC.isNewer("1.0.2", "unknown (x)"));
-
 // Rhythm
 const DAY = 24 * 3600 * 1000;
 check("a check is due with none before, after three days, or when the clock went back", UC.isDue(undefined, 1e12) && UC.isDue(1e12 - 3 * DAY, 1e12) && UC.isDue(1e12 + 5, 1e12));
 check("not due within three days", !UC.isDue(1e12 - 2 * DAY, 1e12));
-
 // The release page: GitHub's own link for this project, else the fixed one
 check("the release link from GitHub is used when it belongs to this project", UC.pageFor({ html_url: "https://github.com/ominousopera/Downbeat/releases/tag/v1.0.2" }) === "https://github.com/ominousopera/Downbeat/releases/tag/v1.0.2");
 check("a link to anywhere else is replaced by the project's latest-release page", UC.pageFor({ html_url: "https://evil.example/x" }) === UC.RELEASES_URL && UC.pageFor({}) === UC.RELEASES_URL);
-
 // The request, against a stand-in for https
 function fakeHttps(kind, body) {
   const calls = [];
@@ -70,7 +64,6 @@ function ask(kind, body) {
     UC.fetchLatest(function (err, value) { resolve({ err: err, value: value, calls: h.calls }); }, h);
   });
 }
-
 (async function () {
   let a = await ask("ok", JSON.stringify({ tag_name: "v1.0.2", html_url: "https://github.com/ominousopera/Downbeat/releases/tag/v1.0.2" }));
   check("a good answer gives the version and the page", !a.err && a.value.version === "1.0.2" && /releases\/tag\/v1\.0\.2$/.test(a.value.url));
@@ -89,7 +82,6 @@ function ask(kind, body) {
   check("no answer in time is an error", a.err && /no answer/.test(a.err.message));
   a = await ask("error");
   check("a network error is passed on", a.err && /ENOTFOUND/.test(a.err.message));
-
   // GitHub's API out of requests for this address (403 / 429): the release
   // page's forward names the latest release instead.
   function routed(apiStatus, pageAnswer) {
@@ -137,7 +129,6 @@ function ask(kind, body) {
   check("a forward that is not this project's release page is not believed", pg.err && /limit of checks/.test(pg.err.message) && /release page/.test(pg.err.message), pg.err && pg.err.message);
   pg = await askVia(routed(404, { status: 302, location: "https://github.com/ominousopera/Downbeat/releases/tag/v1.0.3" }));
   check("a plain 404 from the API is reported as is (no release yet), the page is not asked", pg.err && /404/.test(pg.err.message));
-
   // The package of a release: which files count, and the download
   const crypto = require("crypto");
   const BASE = "https://github.com/ominousopera/Downbeat/releases/download/v1.0.2/";
@@ -162,7 +153,6 @@ function ask(kind, body) {
   check("only GitHub's own hosts may serve a file",
     UC.isGithubFileHost("github.com") && UC.isGithubFileHost("release-assets.githubusercontent.com") && !UC.isGithubFileHost("evilgithubusercontent.com") && !UC.isGithubFileHost("github.com.evil.example") && !UC.isGithubFileHost("example.com"));
   check("a checksum list is read by file name", UC.sumFor(PKG_SHA + "  Downbeat-1.0.2-mac.zxp\n" + "b".repeat(64) + " *Downbeat-1.0.2-win.zxp\n", "Downbeat-1.0.2-win.zxp") === "b".repeat(64) && UC.sumFor("nothing", "x") === null);
-
   // A stand-in for GitHub: a table of address -> answer
   function fakeSite(table) {
     const log = [];
@@ -213,7 +203,6 @@ function ask(kind, body) {
     !d.err && d.value.name === "Downbeat-1.0.2-win.zxp" && fs.readFileSync(path.join(d.dir, d.value.name)).equals(PKG) && d.opened === path.join(d.dir, d.value.name) && d.progress === 1 && d.value.sha256 === PKG_SHA,
     d.err && d.err.message);
   check("no half-written file is left", fs.readdirSync(d.dir).join(",") === "Downbeat-1.0.2-win.zxp");
-
   const sumsFiles = JSON.parse(JSON.stringify(files));
   const macSite = fakeSite({
     "github.com/ominousopera/Downbeat/releases/download/v1.0.2/SHA256SUMS.txt": { body: Buffer.from("deadbeef  other\n" + PKG_SHA + "  Downbeat-1.0.2-mac.zxp\n") },
@@ -221,18 +210,15 @@ function ask(kind, body) {
   });
   d = await download({ files: sumsFiles }, "darwin", macSite);
   check("without a digest the checksum is read from SHA256SUMS.txt", !d.err && d.value.sha256 === PKG_SHA && d.opened, d.err && d.err.message);
-
   const tampered = fakeSite({
     "github.com/ominousopera/Downbeat/releases/download/v1.0.2/Downbeat-1.0.2-win.zxp": { body: Buffer.from("not the same bytes at all!!!!!!!!!!!!!!!!!!!!") }
   });
   const sized = JSON.parse(JSON.stringify(files)); sized.win.size = 0;
   d = await download({ files: sized }, "win32", tampered);
   check("a file that does not match its checksum is deleted and never opened", d.err && /checksum/.test(d.err.message) && d.opened === null && fs.readdirSync(d.dir).length === 0, d.err && d.err.message);
-
   const noSums = JSON.parse(JSON.stringify(files)); delete noSums.sums;
   d = await download({ files: noSums }, "darwin", goodSite());
   check("with no published checksum nothing is downloaded at all", d.err && /no checksum/.test(d.err.message) && fs.readdirSync(d.dir).length === 0 && d.opened === null, d.err && d.err.message);
-
   const evil = fakeSite({
     "github.com/ominousopera/Downbeat/releases/download/v1.0.2/Downbeat-1.0.2-win.zxp": { status: 302, location: "https://evil.example/x" }
   });
@@ -243,7 +229,6 @@ function ask(kind, body) {
   });
   d = await download({ files: files }, "win32", plain);
   check("a forward to plain http is refused", d.err && /not on GitHub/.test(d.err.message) && d.opened === null, d.err && d.err.message);
-
   const big = JSON.parse(JSON.stringify(files)); big.win.size = 500 * 1024 * 1024;
   d = await download({ files: big }, "win32", goodSite());
   check("a package announced as far too large is not fetched", d.err && /larger/.test(d.err.message), d.err && d.err.message);
@@ -253,8 +238,9 @@ function ask(kind, body) {
   check("a missing file (404) is an error and leaves nothing", d.err && /404/.test(d.err.message) && fs.readdirSync(d.dir).length === 0, d.err && d.err.message);
   d = await download({ files: files }, "win32", goodSite(), { open: function () { throw new Error("no application"); } });
   check("a package that downloaded but would not open is kept and the failure is reported", !d.err && d.value.openError === "no application" && fs.existsSync(d.value.path), d.err && d.err.message);
-
   // The panel: off by default, nothing asked
+  d = await download({ files: files }, "win32", goodSite(), { open: function () { return Promise.reject(new Error("system handoff failed")); } });
+  check("an asynchronous handoff failure keeps the verified package and reports the error", !d.err && d.value.openError === "system handoff failed" && fs.existsSync(d.value.path));
   let requests = 0;
   let nextAnswer = { err: null, value: { version: "9.9.9", url: "https://github.com/ominousopera/Downbeat/releases/tag/v9.9.9" } };
   UC.fetchLatest = function (cb) { requests++; setImmediate(function () { cb(nextAnswer.err, nextAnswer.value); }); };
@@ -282,6 +268,27 @@ function ask(kind, body) {
   await new Promise(function (res) { setTimeout(res, 20); });
   check("pressing it downloads that release's package into a folder, then says what to do next",
     downloadAsked && downloadAsked.latest.version === "9.9.9" && /Downloads$|^\//.test(downloadAsked.dir) && /Confirm in your ZXP installer/.test(r.updateStatus.textContent), r.updateStatus.textContent);
+  const originalRequire = window.cep_node.require;
+  let handoff;
+  window.cep_node.require = function (name) {
+    if (name !== "child_process") { return originalRequire(name); }
+    return { spawn: function (command, args, options) {
+      handoff = { command: command, args: args, options: options };
+      const child = new EventEmitter(); child.unref = function () {};
+      setImmediate(function () { child.emit("spawn"); child.emit("close", 0); });
+      return child;
+    } };
+  };
+  UC.downloadPackage = function (latest, opts, cb) {
+    const file = path.join(opts.dir, "verified.zxp");
+    opts.modules.open(file).then(function () { cb(null, { path: file, name: "verified.zxp", sha256: "a".repeat(64), openError: null }); });
+  };
+  r.updateDownloadBtn._fire("click");
+  await new Promise(function (res) { setTimeout(res, 20); });
+  check("macOS targets ZXP Installer independently of the file association, without a shell",
+    process.platform !== "darwin" || (handoff.command === "open" && handoff.args[0] === "-b" &&
+      handoff.args[1] === "com.aescripts.ZXP-Installer" && /verified\.zxp$/.test(handoff.args[2]) && !handoff.options.shell));
+  window.cep_node.require = originalRequire;
   UC.downloadPackage = function (latest, opts, cb) { setImmediate(function () { cb(new Error("the downloaded file does not match its published checksum - it was deleted"), null); }); };
   r.updateDownloadBtn._fire("click");
   await new Promise(function (res) { setTimeout(res, 20); });
@@ -301,8 +308,7 @@ function ask(kind, body) {
   r.updateCheckCheckbox._fire("change");
   saved = JSON.parse(fs.readFileSync(path.join(DATA, "settings.json"), "utf8"));
   check("switching it off stops everything: saved off, no request, Check now hidden", saved.updateCheck === false && requests === before && r.updateCheckNowBtn.hidden === true);
-
   fs.rmSync(DOCS, { recursive: true, force: true });
   if (failures) { console.error("\n" + failures + " check(s) failed"); process.exit(1); }
-  console.log("\nthe update notice is off by default, asks GitHub only when switched on, and only shows a link");
+  console.log("\nthe update notice is opt-in and verifies packages before opening them");
 })();

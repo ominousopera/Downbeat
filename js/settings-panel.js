@@ -16,7 +16,6 @@
     var hideBusy = ctx.hideBusy;
     var persistSettings = ctx.persistSettings;
     var _library = ctx.library;
-
     function copyTextFallback(text) {
       var textarea = document.createElement("textarea");
       textarea.value = text;
@@ -52,7 +51,6 @@
         copyLogBtn.classList.remove("is-done", "is-failed");
       }, 2000);
     }
-
     copyLogBtn.addEventListener("click", function () {
       var text = logEl.textContent;
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -164,7 +162,8 @@
       while (i < lines.length) {
         var line = lines[i];
         if (!line.trim()) { i++; continue; }
-        if (/^\s*```/.test(line)) { // fenced block (NOTICE.md's hash lists): shown as-is
+        if (/^\s*```/.test(line)) {
+          // fenced block (NOTICE.md's hash lists): shown as-is
           var code = [];
           i++;
           while (i < lines.length && !/^\s*```/.test(lines[i])) {
@@ -190,7 +189,8 @@
           var first = true;
           while (i < lines.length && isTableRow(lines[i])) {
             var cells = lines[i].trim().replace(/^\||\|$/g, "").split("|");
-            if (!/^[\s:|-]+$/.test(lines[i])) { // skip the |---| separator row
+            if (!/^[\s:|-]+$/.test(lines[i])) {
+              // skip the |---| separator row
               var tr = document.createElement("tr");
               cells.forEach(function (c) {
                 var td = document.createElement(first ? "th" : "td");
@@ -237,9 +237,9 @@
     }
     document.getElementById("textViewerCloseBtn").addEventListener("click", _closeTextViewer);
     textViewerOverlay.addEventListener("click", function (evt) {
-      if (evt.target === textViewerOverlay) { _closeTextViewer(); } // backdrop click only, not clicks inside the card
+      if (evt.target === textViewerOverlay) { _closeTextViewer(); }
+    // backdrop click only, not clicks inside the card
     });
-
     function _showTextFileOrError(title, relativeName) {
       try {
         _showTextViewer(title, _readExtensionTextFile(relativeName), /\.md$/.test(relativeName));
@@ -343,21 +343,30 @@
           return dir;
         }
       } catch (e) {
-        /* no Downloads folder: fall through */
+      /* no Downloads folder: fall through */
       }
       return os.homedir();
     }
-    // Hands the saved package to the system, which opens it with whatever
-    // the user has for .zxp files (a ZXP installer). Detached, no shell: the
-    // path is passed as one argument.
+    // Select ZXP Installer explicitly on macOS rather than trusting a file
+    // association. The verified file is kept if OS handoff fails.
     function _openDownloadedFile(filePath) {
-      var cp = window.cep_node.require("child_process");
-      var platform = _nodePlatform();
-      var child = platform === "win32"
-        ? cp.spawn("explorer.exe", [filePath], { detached: true, stdio: "ignore" })
-        : cp.spawn("open", [filePath], { detached: true, stdio: "ignore" });
-      child.on("error", function () { /* reported by the status line below */ });
-      child.unref();
+      return new Promise(function (resolve, reject) {
+        var cp = window.cep_node.require("child_process");
+        var platform = _nodePlatform();
+        var child = platform === "win32"
+          ? cp.spawn("explorer.exe", [filePath], { detached: true, stdio: "ignore" })
+          : cp.spawn("open", ["-b", "com.aescripts.ZXP-Installer", filePath], { detached: true, stdio: "ignore" });
+        child.on("error", reject);
+        if (platform === "win32") {
+          child.on("spawn", resolve);
+        } else {
+          child.on("close", function (code) {
+            if (code === 0) { resolve(); }
+            else { reject(new Error("the system could not open the package (exit " + code + ")")); }
+          });
+        }
+        child.unref();
+      });
     }
     function _showUpdateState(seen) {
       var current = getPluginVersion();
@@ -443,8 +452,42 @@
         _confirmAndOpenUrl(_updateUrl);
       }
     });
+    var audioOutputMode = document.getElementById("audioOutputModeSelect");
+    var audioOutputFolderBtn = document.getElementById("audioOutputFolderBtn");
+    var audioOutputPath = document.getElementById("audioOutputPath");
+    function showAudioOutput(settings) {
+      var mode = /^(documents|project|custom)$/.test(settings.audioOutputMode) ? settings.audioOutputMode : "documents";
+      audioOutputMode.value = mode;
+      audioOutputFolderBtn.hidden = mode !== "custom";
+      if (mode === "custom" && settings.audioOutputFolder) {
+        audioOutputPath.removeAttribute("data-i18n");
+        audioOutputPath.textContent = settings.audioOutputFolder;
+      } else {
+        setTranslatedText(audioOutputPath, mode === "project" ? "output.projectHint" : (mode === "custom" ? "output.folderMissing" : "output.documents"));
+      }
+    }
+    function chooseAudioOutput() {
+      return ctx.bridge().evalJson("pickOutputFolder(" + ctx.bridge().jsxJsonArg(I18n.t("output.choose")) + ")")
+        .then(function (picked) {
+          if (picked.directory) {
+            persistSettings({ audioOutputMode: "custom", audioOutputFolder: picked.directory });
+          }
+          showAudioOutput(ctx.initialSettings());
+        }).catch(function (err) {
+          showAudioOutput(ctx.initialSettings());
+          log("Audio output folder: " + (err.message || String(err)));
+        });
+    }
+    audioOutputMode.addEventListener("change", function () {
+      var mode = audioOutputMode.value;
+      if (mode === "custom" && !ctx.initialSettings().audioOutputFolder) { chooseAudioOutput(); return; }
+      if (/^(documents|project|custom)$/.test(mode)) { persistSettings({ audioOutputMode: mode }); }
+      showAudioOutput(ctx.initialSettings());
+    });
+    audioOutputFolderBtn.addEventListener("click", chooseAudioOutput);
     // Called by main.js once the saved settings are loaded.
     function applySettings(settings) {
+      showAudioOutput(settings);
       var on = settings.updateCheck === true;
       updateCheckCheckbox.checked = on;
       updateCheckNowBtn.hidden = !on;
@@ -456,7 +499,6 @@
         _runUpdateCheck();
       }
     }
-
     // DELETE MY DATA (Settings). Every safety rule lives in
     // js/persistence.js's _listOwnFiles() - this handler only shows the user
     // the exact list of files first, and refuses while an analysis still has
@@ -516,13 +558,11 @@
       _library.resetAfterDeleteData();
       _showDeleteDataDialog(I18n.t("settings.deleteDataDone", { count: deleted.length }), false);
     });
-
     return {
       closeSettingsPanel: closeSettingsPanel,
       getPluginVersion: getPluginVersion,
       applySettings: applySettings
     };
   }
-
   global.BeatMarkerSettingsPanel = { create: create };
 })(window);

@@ -16,7 +16,6 @@
 // main.js reaches them through the functions next to each create() call.
 (function () {
   "use strict";
-
   var statusEl = document.getElementById("status");
   var logEl = document.getElementById("log");
   var I18n = window.BeatMarkerI18n;
@@ -39,12 +38,12 @@
   function _localKeyName(key, scale) {
     return key + " " + I18n.t(scale === "minor" ? "key.scaleMinor" : "key.scaleMajor");
   }
-
   function _retranslateTexts() {
     for (var i = 0; i < _translatedTexts.length; i++) {
       var r = _translatedTexts[i];
       if (r.el.textContent !== r.text) {
-        continue; // written to by something else since - not ours to restore
+        continue;
+      // written to by something else since - not ours to restore
       }
       r.text = I18n.t(r.key, r.vars);
       r.el.textContent = r.text;
@@ -72,18 +71,19 @@
   function hideBusy() {
     _busyDepth = Math.max(0, _busyDepth - 1);
     if (_busyDepth > 0) {
-      return; // at least one other operation is still in flight - keep the overlay up
+      return;
+    // at least one other operation is still in flight - keep the overlay up
     }
     clearTimeout(busyStuckTimer);
     busyOverlay.hidden = true;
     busyOverlay.classList.remove("is-stuck");
   }
   busyDismissBtn.addEventListener("click", function () {
-    _busyDepth = 0; // explicit user override - force-clear regardless of how many operations are believed to still be in flight
+    _busyDepth = 0;
+    // explicit user override - force-clear regardless of how many operations are believed to still be in flight
     hideBusy();
     log("WARNING: busy overlay dismissed manually after taking a long time - the underlying operation may still be running in the background and could still finish or fail later.");
   });
-
   function log(message) {
     var line = "[" + new Date().toLocaleTimeString() + "] " + message;
     console.log(line);
@@ -102,12 +102,10 @@
           "clip/range you actually meant to use and try again.");
     }
   }
-
   function basename(path) {
     var parts = path.split(/[\\/]/);
     return parts[parts.length - 1];
   }
-
   function _formatPlayerTime(seconds) {
     if (!isFinite(seconds) || seconds < 0) { seconds = 0; }
     var total = Math.floor(seconds);
@@ -122,8 +120,8 @@
       log("WARNING: could not save the track library to disk: " + result.error);
     }
   }
-
-  var activeTabId = "analyze"; // kept by switchTab(); the Library keys only act on the Library tab
+  var activeTabId = "analyze";
+  // kept by switchTab(); the Library keys only act on the Library tab
   // LIBRARY TAB: js/library-tab.js - the Music / SFX sections, folders and
   // scan, search, the list, the preview pane and In key. It reads what
   // main.js owns through the getters below; main.js reaches it through the
@@ -192,7 +190,6 @@
   function getPluginVersion() {
     return _settingsPanel.getPluginVersion.apply(null, arguments);
   }
-
   var csInterface = new CSInterface();
   // Host and worker calls (js/bridge.js) - made first, before anything that
   // might reach the host.
@@ -208,10 +205,11 @@
   if (window.BeatMarkerSfxSearch) {
     window.BeatMarkerSfxSearch.setSynonyms(initialSettings.librarySynonyms !== false);
   }
-  _library.applySettings(initialSettings); // folder scope, preview volume
-  _settingsPanel.applySettings(initialSettings); // the update notice
+  _library.applySettings(initialSettings);
+  // folder scope, preview volume
+  _settingsPanel.applySettings(initialSettings);
+  // the update notice
   var isFirstRun = !loadedSettings.existed;
-
   function persistSettings(overrides) {
     var merged = {};
     for (var existingKey in initialSettings) {
@@ -234,13 +232,15 @@
       log("WARNING: could not save settings to disk: " + result.error);
     }
   }
-
   var isPanelReady = false;
   function refreshDynamicTranslations() {
     _retranslateTexts();
-    populatePitchSelects(); // option labels carry translated scale names
-    renderLibraryKeySelect(); // same
-    renderLibrarySortSelect(); // same
+    populatePitchSelects();
+    // option labels carry translated scale names
+    renderLibraryKeySelect();
+    // same
+    renderLibrarySortSelect();
+    // same
     renderLibrary();
     renderKeyResult();
     if (isPanelReady) {
@@ -248,7 +248,6 @@
     }
     _rebuildSelectionStatus();
   }
-
   function setActiveLanguageButtons(lang) {
     var buttons = document.querySelectorAll(".lang-btn");
     for (var i = 0; i < buttons.length; i++) {
@@ -264,7 +263,6 @@
       persistSettings({ language: lang });
     }
   }
-
   (function () {
     // Button labels are the native name of each language (in its own script,
     // not translated), set here from I18n.LANGUAGE_NAMES so index.html itself
@@ -279,7 +277,6 @@
       });
     }
   })();
-
   var initialLanguage = initialSettings.language && I18n.LANGUAGES.indexOf(initialSettings.language) !== -1
     ? initialSettings.language
     : "en";
@@ -307,7 +304,8 @@
       rgb = null;
     }
     var useHost = !!rgb && (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255 <= 0.4;
-    var bg = useHost ? rgb : [14, 14, 14]; // the panel's own near-black otherwise
+    var bg = useHost ? rgb : [14, 14, 14];
+    // the panel's own near-black otherwise
     if (useHost) {
       var shade = function (d) {
         return "rgb(" + rgb.map(function (v) { return Math.max(0, Math.min(255, v + d)); }).join(", ") + ")";
@@ -400,7 +398,8 @@
       tabButtons[j].classList.toggle("is-active", tabButtons[j].getAttribute("data-tab") === tabId);
     }
     if (!alreadyActive) {
-      window.scrollTo(0, 0); // each newly-selected tab starts at its own top, not wherever the previous tab happened to be scrolled to
+      window.scrollTo(0, 0);
+    // each newly-selected tab starts at its own top, not wherever the previous tab happened to be scrolled to
     }
   }
   (function () {
@@ -410,16 +409,19 @@
       });
     }
   })();
-  switchTab("analyze"); // default tab on every load; deliberately not persisted
+  switchTab("analyze");
+  // default tab on every load; deliberately not persisted
   window.BeatMarkerTabs = { switchTab: switchTab };
-
-  statusEl.removeAttribute("data-i18n"); // from here on "ready" is tracked via isPanelReady/refreshDynamicTranslations, not the generic static pass
+  statusEl.removeAttribute("data-i18n");
+  // from here on "ready" is tracked via isPanelReady/refreshDynamicTranslations, not the generic static pass
   isPanelReady = true;
   setTranslatedText(statusEl, "status.ready");
   statusEl.classList.add("is-ready");
   window.BeatMarkerWheel.renderWheel(document.getElementById("camelotWheel"), null);
-  renderLibrary(); // sets the translated empty-state text - otherwise a fresh install (no library.json yet) shows the raw English HTML fallback until the first Analyze/Detect key
-  window.BeatMarkerSelect.enhanceAll(); // drawn dropdowns over every <select> - see js/ui-select.js
+  renderLibrary();
+  // sets the translated empty-state text - otherwise a fresh install (no library.json yet) shows the raw English HTML fallback until the first Analyze/Detect key
+  window.BeatMarkerSelect.enhanceAll();
+  // drawn dropdowns over every <select> - see js/ui-select.js
   log("panel loaded");
   log("Downbeat version: " + getPluginVersion());
   log("host app: " + csInterface.getHostEnvironment().appName + " " + csInterface.getHostEnvironment().appVersion);
@@ -436,7 +438,6 @@
       persistSettings({ onboardingCompleted: true });
     });
   });
-
   // One question, asked once: whether to switch on the update notice. Asked
   // on the first run (after the language) and once for anyone who has not
   // answered yet, e.g. after updating from a version without the notice.
@@ -477,7 +478,6 @@
   } else {
     askAboutUpdateNotice(function () {});
   }
-
   (function sweepLeftoverTempFiles() {
     var result = window.BeatMarkerPersistence.clearLeftoverTempFiles(csInterface);
     if (!result.ok) {
@@ -486,7 +486,6 @@
       log("Removed " + result.removed + " leftover temp file(s) from an interrupted analysis.");
     }
   })();
-
   (function loadPersistedLibrary() {
     var result = window.BeatMarkerPersistence.load(csInterface);
     if (!result.ok) {
@@ -558,7 +557,8 @@
         result.camelot = decision.camelot;
         result.key = skey.key;
         result.scale = skey.scale;
-        result.strength = null; // KeyExtractor's strength described the vote, not this answer
+        result.strength = null;
+      // KeyExtractor's strength described the vote, not this answer
       }
       return result;
     });
@@ -579,7 +579,6 @@
     }
     return samples;
   }
-
   // Isolates essentia.js and the subprocess machinery from real-file
   // read/decode: needs no clip selection, and runs a synthesized 60 s /
   // 120 BPM click track through the same runAnalyzeWorker("beats", ...) that
@@ -613,7 +612,6 @@
         hideBusy();
       });
   });
-
   var getInfoBtn = document.getElementById("getInfoBtn");
   getInfoBtn.addEventListener("click", function () {
     getInfoBtn.disabled = true;
@@ -705,8 +703,10 @@
   var _activeOperationGeneration = 0;
   // Cached after a successful analysis so the phase-shift buttons can
   // re-derive "downbeats" and re-place markers without re-running essentia.
-  var lastAnalysis = null; // { beatsArray, confidence, clipInfo, audioPath }
-  var lastDecodedSamples = null; // Float32Array @ 44100Hz from the most recent Analyze/Detect key decode - reused by the beat-click preview and phase re-picks
+  var lastAnalysis = null;
+  // { beatsArray, confidence, clipInfo, audioPath }
+  var lastDecodedSamples = null;
+  // Float32Array @ 44100Hz from the most recent Analyze/Detect key decode - reused by the beat-click preview and phase re-picks
   var lastDecodedSamplesPath = null;
   var phaseDisplay = document.getElementById("phaseDisplay");
   var bpmDisplay = document.getElementById("bpmDisplay");
@@ -715,7 +715,6 @@
   var heardTempoHint = document.getElementById("heardTempoHint");
   var heardKeyRow = document.getElementById("heardKeyRow");
   var heardKeyHint = document.getElementById("heardKeyHint");
-
   // "Plays at ... on the timeline". The panel measures the FILE, but
   // Premiere plays the clip at the clip's own speed, and speed carries
   // pitch with it like a sampler, so neither the tempo nor the key shown
@@ -892,7 +891,6 @@
     }
     return { minTempo: minT, maxTempo: maxT };
   }
-
   var RETEMPO_AUTOCORRECT_MARGIN = 1.1;
   function _tryAutoCorrectHalfTempo(bpm, monoSamples, audioPath) {
     return Promise.all([
@@ -1046,8 +1044,8 @@
   // This! times sit on a 20 ms grid, up to 10 ms off the beat each. A typed
   // BPM's grid is even already.
   var _lastEvenOut = null;
-  function buildDownbeatsCuesheet(phase) {
-    var mode = getSelectedCutMode();
+  function buildDownbeatsCuesheet(phase, modeOverride, clipOverride) {
+    var mode = modeOverride || getSelectedCutMode();
     // Both modes use lastAnalysis.downbeatTimes when present (Beat This!
     // applied), so the detailed mode puts its D markers on exactly the
     // downbeats the simple mode does. It is null for essentia-only analyses,
@@ -1073,7 +1071,7 @@
       if (allEven) {
         events.forEach(function (ev, i) { if (ev.label !== "D") { newT[i] = allEven.times[i]; } });
       }
-      var ci = lastAnalysis.clipInfo || {};
+      var ci = clipOverride || lastAnalysis.clipInfo || {};
       var inPt = typeof ci.inPointSeconds === "number" ? ci.inPointSeconds : 0;
       var outPt = typeof ci.outPointSeconds === "number" ? ci.outPointSeconds : Infinity;
       var shifts = [];
@@ -1106,7 +1104,6 @@
       });
     }
     downbeatsTrack = { id: "downbeats", type: "impulse", events: events };
-
     return {
       version: "1.0",
       source: "essentia",
@@ -1114,7 +1111,15 @@
       bpm: null,
       tracks: [downbeatsTrack]
     };
-  }  // Where the host put the first markers, next to what was asked - shows
+  }
+  // Render the selected analysis grid as a separate audio track.
+  window.BeatMarkerMetronome.create({
+    I18n: I18n, log: log, setText: setTranslatedText, showBusy: showBusy, hideBusy: hideBusy,
+    analysis: function () { return lastAnalysis; }, settings: function () { return initialSettings; },
+    getClipInfo: getClipInfo, evalJson: evalJson, jsxJsonArg: _jsxJsonArg,
+    csInterface: csInterface, cuesheet: buildDownbeatsCuesheet
+  });
+  // Where the host put the first markers, next to what was asked - shows
   // whether marker times are rounded to video frames.
   function _logStoredMarkerTimes(data) {
     if (!data.stored || !data.stored.length) {
@@ -1129,7 +1134,6 @@
         (rounded ? " - the host moved them" + (fps ? " (a frame is " + (1000 / fps).toFixed(1) + " ms at " + fps + " fps)" : "") + "."
                  : " - exact, not rounded to frames."));
   }
-
   function placeDownbeatsAtPhase(phase) {
     var cuesheet = buildDownbeatsCuesheet(phase);
     var nudgeMs = _nudgeMsFor(lastAnalysis.audioPath);
@@ -1141,7 +1145,6 @@
           " markers moved onto the track's tempo line (by " + _lastEvenOut.medianShiftMs.toFixed(1) + " ms typically, " +
           _lastEvenOut.maxShiftMs.toFixed(1) + " ms at most) - the detector reports beats in 20 ms steps.");
     }
-
     var downbeatsTrack = cuesheet.tracks[0];
     var target = getMarkerTarget();
     var markerType = target === "sequence" ? "timeline" : "clip";
@@ -1229,7 +1232,6 @@
       });
   });
   var analyzeBtn = document.getElementById("analyzeBtn");
-
   analyzeBtn.addEventListener("click", function () {
     _analyzeSelectedClip();
   });
@@ -1239,7 +1241,6 @@
     var myGeneration = ++_activeOperationGeneration;
     var clipInfoForPlacement = null;
     var monoSamplesForOnsets = null;
-
     return getClipInfo()
       .then(function (clipInfo) {
         clipInfoForPlacement = clipInfo;
@@ -1255,7 +1256,8 @@
             decoded.samples.length + " mono samples at 44100Hz.");
         monoSamplesForOnsets = decoded.samples;
         if (myGeneration === _activeOperationGeneration) {
-          lastDecodedSamples = decoded.samples; // reused later without a re-decode
+          lastDecodedSamples = decoded.samples;
+          // reused later without a re-decode
           lastDecodedSamplesPath = clipInfoForPlacement.mediaPath;
         }
         log("Initializing essentia.js, running RhythmExtractor2013 + BeatsLoudness (this may take a moment)...");
@@ -1287,21 +1289,22 @@
         }
         renderLibrary();
         persistLibrary();
-
         if (myGeneration !== _activeOperationGeneration) {
           log("Analyze: a newer Analyze/Detect key was started before this one finished - " +
               "cached its result, but not showing it since a different clip is now selected.");
           return;
         }
-
         lastAnalysis = {
           beatsArray: analysis.beatsArray,
           confidence: analysis.confidence,
           clipInfo: clipInfoForPlacement,
           audioPath: clipInfoForPlacement.mediaPath,
-          phase: analysis.phase, // the combined pick (normalized bass and chord scores blended, see js/analyze.js)
-          phaseMarginRatio: analysis.phaseMarginRatio, // margin of the blended pick
-          phaseSource: analysis.phaseSource, // "bass" (chord cue unavailable) or "blend" (both cues combined)
+          phase: analysis.phase,
+          // the combined pick (normalized bass and chord scores blended, see js/analyze.js)
+          phaseMarginRatio: analysis.phaseMarginRatio,
+          // margin of the blended pick
+          phaseSource: analysis.phaseSource,
+          // "bass" (chord cue unavailable) or "blend" (both cues combined)
           bassPhase: analysis.bassPhase,
           bassPhaseMarginRatio: analysis.bassPhaseMarginRatio,
           chordPhase: analysis.chordPhase,
@@ -1318,7 +1321,8 @@
         _updatePhaseUncertainHint(analysis.phaseMarginRatio);
         _updatePhaseAgreementHint(analysis);
         _updateGridConfidenceHint(analysis.confidence);
-        _updateRetempoLikelyHint(analysis.cuesheet.bpm, null); // neutral text until/unless the onset pass below (if it runs) upgrades it
+        _updateRetempoLikelyHint(analysis.cuesheet.bpm, null);
+        // neutral text until/unless the onset pass below (if it runs) upgrades it
         _refreshBeatClickPreview();
         // Onsets feed the half-time hint above when the detected BPM falls in
         // RETEMPO_HINT_BPM_LOW..HIGH.
@@ -1341,7 +1345,8 @@
           var onsetResult = results[0];
           var confB = results[1];
           if (myGeneration !== _activeOperationGeneration) {
-            return; // superseded while the onset pass was running - lastAnalysis now belongs to a newer generation, don't write onto it
+            return;
+          // superseded while the onset pass was running - lastAnalysis now belongs to a newer generation, don't write onto it
           }
           {
             var confRatio = (confB !== null && analysis.confidence > 0) ? (confB / analysis.confidence) : null;
@@ -1421,11 +1426,11 @@
     _updatePhaseAgreementHint(lastAnalysis);
     _updateGridConfidenceHint(lastAnalysis.confidence);
     _refreshBeatClickPreview();
-
     window.BeatMarkerLibrary.upsertAnalysis(
       audioPath, basename(audioPath),
       {
-        bpm: parseFloat(bpmDisplay.textContent), // unchanged by Beat This! - essentia stays the tempo source
+        bpm: parseFloat(bpmDisplay.textContent),
+        // unchanged by Beat This! - essentia stays the tempo source
         beatsArray: lastAnalysis.beatsArray,
         confidence: lastAnalysis.confidence,
         phase: lastAnalysis.phase,
@@ -1449,7 +1454,6 @@
     var preSnapshot = _snapshotBeatFields(analysis);
     var samples44100 = lastDecodedSamples;
     log("Running alternative beat detector (Beat This!)" + (automatic ? " as part of Analyze" : "") + "...");
-
     return window.BeatMarkerAudio.resampleMono(samples44100, window.BeatMarkerAudio.TARGET_SAMPLE_RATE, 22050)
       .then(function (samples22050) {
         return runBeatThisWorker(samples22050);
@@ -1529,7 +1533,6 @@
           chordChangeEvents: [],
           tempoChangeRegions: merged.tempoChangeRegions
         }, audioPath, clipInfo);
-
         log("Alternative analysis applied: " + merged.newBeats.length + " beats, " +
             merged.downbeatTimes.length + " native downbeats" +
             (merged.halfTimeCorrected ? " (half-time grid corrected)" : "") + ".");
@@ -1554,7 +1557,6 @@
         return false;
       });
   }
-
   beatThisBtn.addEventListener("click", function () {
     if (!lastAnalysis || !lastDecodedSamples || lastDecodedSamplesPath !== lastAnalysis.audioPath) {
       log("Try alternative analysis: no current decoded audio for this clip (re-run Analyze first).");
@@ -1568,7 +1570,8 @@
     if (lastAnalysis.beatThisApplied && lastAnalysis._preBeatThisSnapshot) {
       var restored = lastAnalysis._preBeatThisSnapshot;
       lastAnalysis.beatThisApplied = false;
-      lastAnalysis.beatThisReverted = true; // keeps the row up so it can be re-applied
+      lastAnalysis.beatThisReverted = true;
+      // keeps the row up so it can be re-applied
       lastAnalysis._preBeatThisSnapshot = null;
       // Invalidated, not restored/merged; the user can always re-run retempo
       // fresh if they still want it.
@@ -1577,7 +1580,6 @@
       log("Reverted to the original analysis: " + lastAnalysis.beatsArray.length + " beats, phase " + lastAnalysis.phase + ".");
       return;
     }
-
     beatThisBtn.disabled = true;
     gridRefinedBtn.disabled = gridBasicBtn.disabled = true;
     showBusy("busy.default");
@@ -1619,9 +1621,9 @@
     _updatePhaseUncertainHint(lastAnalysis ? lastAnalysis.phaseMarginRatio : null);
     _updatePhaseAgreementHint(lastAnalysis);
     _updateGridConfidenceHint(lastAnalysis ? lastAnalysis.confidence : null);
-    _updateRetempoLikelyHint(null, null); // no cached onset rate to re-check against: neutral
+    _updateRetempoLikelyHint(null, null);
+    // no cached onset rate to re-check against: neutral
     _refreshBeatClickPreview();
-
     var mediaPath = snap.clipInfo.mediaPath;
     if (snap.libraryFields) {
       window.BeatMarkerLibrary.upsertAnalysis(mediaPath, basename(mediaPath), snap.libraryFields);
@@ -1633,12 +1635,10 @@
     }
     renderLibrary();
     persistLibrary();
-
     log(snap.lastAnalysis
       ? "Set BPM reverted - restored the previous analysis (" + snap.bpmText + " BPM, " + snap.lastAnalysis.beatsArray.length + " beats)."
       : "Set BPM reverted - back to no analysis for this clip.");
   }
-
   manualBpmBtn.addEventListener("click", function () {
     // Second click while a manual BPM grid is showing undoes it instead of
     // re-applying - same one-click-undo shape as beatThisBtn above.
@@ -1646,7 +1646,6 @@
       _restoreManualBpmSnapshot(lastAnalysis._preManualBpmSnapshot);
       return;
     }
-
     var bpm = parseFloat(manualBpmInput.value);
     if (!(bpm > 0) || bpm > 999) {
       log("Set BPM: enter a BPM between 0 and 999.");
@@ -1655,7 +1654,6 @@
     manualBpmBtn.disabled = true;
     showBusy("busy.default");
     var myGeneration = ++_activeOperationGeneration;
-
     getClipInfo()
       .then(function (clipInfo) {
         if (myGeneration !== _activeOperationGeneration) {
@@ -1678,7 +1676,6 @@
           } : null,
           libraryHadOtherData: !!(libraryEntryBefore && libraryEntryBefore.camelot)
         };
-
         var beatInterval = 60 / bpm;
         var padSeconds = MANUAL_BPM_GRID_PAD_BEATS * beatInterval;
         var gridStart = Math.max(0, clipInfo.inPointSeconds - padSeconds);
@@ -1687,7 +1684,6 @@
         for (var t = gridStart; t <= gridEnd; t += beatInterval) {
           beatsArray.push(t);
         }
-
         lastAnalysis = {
           beatsArray: beatsArray,
           confidence: 1.0,
@@ -1706,13 +1702,13 @@
         beatCountDisplay.textContent = String(beatsArray.length);
         _updatePhaseUncertainHint(null);
         _updatePhaseAgreementHint(null);
-        _updateGridConfidenceHint(null); // manual/synthetic grid, no real detection confidence to show
+        _updateGridConfidenceHint(null);
+        // manual/synthetic grid, no real detection confidence to show
         _updateRetempoLikelyHint(null, null);
         _refreshBeatClickPreview();
         log("BPM set manually to " + bpm.toFixed(2) + " - generated " + beatsArray.length +
             " synthetic beat markers (not detected from audio). Use the \"1\" buttons if the " +
             "\"one\" doesn't line up, then Place markers when ready. Click \"" + window.BeatMarkerI18n.t("analyze.revertManualBpmBtn") + "\" above to undo.");
-
         var upsertResult = window.BeatMarkerLibrary.upsertAnalysis(
           clipInfo.mediaPath, basename(clipInfo.mediaPath),
           { bpm: bpm, beatsArray: beatsArray, confidence: 1.0, phase: 0, clipInfo: clipInfo }
@@ -1760,7 +1756,6 @@
   function _applyRecomputedBeatsAnalysis(analysis, logPrefix) {
     var oldPhase = lastAnalysis.phase;
     var oldPhaseMarginRatio = lastAnalysis.phaseMarginRatio;
-
     lastAnalysis.beatsArray = analysis.beatsArray;
     lastAnalysis.downbeatTimes = null;
     lastAnalysis.confidence = analysis.confidence;
@@ -1778,7 +1773,6 @@
     // Onsets are not recomputed here (it would need another worker call).
     lastAnalysis.onsetsArray = null;
     _forgetPhaseShift();
-
     var newBpm = analysis.cuesheet.bpm;
     _updatePhaseShiftUi();
     _setBpmText(newBpm.toFixed(2));
@@ -1801,7 +1795,6 @@
           "old phase and sounded right, you may want to re-place with phase " + oldPhase +
           " using the \"1\" buttons (1 2 3 4) instead of this new pick.");
     }
-
     var upsertResult = window.BeatMarkerLibrary.upsertAnalysis(
       lastAnalysis.audioPath, basename(lastAnalysis.audioPath),
       { bpm: newBpm, beatsArray: analysis.beatsArray, confidence: analysis.confidence, phase: analysis.phase,
@@ -1893,7 +1886,6 @@
   // snapshot is invalidated if Beat This! is applied or reverted in between.
   function _retempoViaRecompute(factor, currentBpm) {
     var reverseFactor = factor === 2 ? 0.5 : 2;
-
     var pending = lastAnalysis._preRetempoSnapshot;
     if (pending && pending.reverseFactor === factor) {
       lastAnalysis._preRetempoSnapshot = null;
@@ -1903,10 +1895,8 @@
           "resemble it - this reverses the previous " + (factor === 2 ? "½×" : "2×") + " click.");
       return;
     }
-
     var preSnapshot = _snapshotRetempoFields();
     var preBpmText = bpmDisplay.textContent;
-
     var tempoWindow = _forcedTempoWindow(currentBpm, factor);
     log("Tempo re-derive (" + (factor === 2 ? "faster" : "slower") + "): re-running essentia constrained to " +
         tempoWindow.minTempo + "-" + tempoWindow.maxTempo + " BPM (not a plain ×2/÷2 of the old grid)...");
@@ -1930,7 +1920,6 @@
         hideBusy();
       });
   }
-
   function _retempo(factor) {
     if (!lastAnalysis || !lastAnalysis.beatsArray || lastAnalysis.beatsArray.length < 2) {
       log("½×/2× tempo: run Analyze or Set BPM first.");
@@ -1945,7 +1934,6 @@
     }
     _retempoNaive(factor);
   }
-
   function _retempoNaive(factor) {
     var beats = lastAnalysis.beatsArray;
     var newBeats;
@@ -1973,14 +1961,12 @@
         return;
       }
     }
-
     var spacings = [];
     for (var s = 1; s < newBeats.length; s++) {
       spacings.push(newBeats[s] - newBeats[s - 1]);
     }
     var meanInterval = spacings.reduce(function (a, b) { return a + b; }, 0) / spacings.length;
     var newBpm = meanInterval > 0 ? 60 / meanInterval : 0;
-
     lastAnalysis.beatsArray = newBeats;
     lastAnalysis.downbeatTimes = null;
     lastAnalysis.phase = 0;
@@ -1988,19 +1974,19 @@
     lastAnalysis.chordPhaseAvailable = false;
     lastAnalysis.phaseAgreement = "unknown";
     _forgetPhaseShift();
-
     _updatePhaseShiftUi();
     _setBpmText(newBpm.toFixed(2));
     beatCountDisplay.textContent = String(newBeats.length);
     _updatePhaseUncertainHint(null);
     _updatePhaseAgreementHint(null);
-    _updateGridConfidenceHint(null); // naive rescale has no fresh confidence measurement for the new synthetic grid
-    _updateRetempoLikelyHint(null, null); // no onsetRate cached to re-check against the new bpm - neutral until the next full Analyze, better than a stale warning based on the bpm just changed away from
+    _updateGridConfidenceHint(null);
+    // naive rescale has no fresh confidence measurement for the new synthetic grid
+    _updateRetempoLikelyHint(null, null);
+    // no onsetRate cached to re-check against the new bpm - neutral until the next full Analyze, better than a stale warning based on the bpm just changed away from
     _refreshBeatClickPreview();
     log("Tempo re-derived (" + (factor === 2 ? "doubled" : "halved") + "): now " + newBpm.toFixed(2) +
         " BPM, " + newBeats.length + " beats. Downbeat phase was reset - pick the real \"one\" with the 1 2 3 4 buttons.");
   }
-
   retempoHalfBtn.addEventListener("click", function () { _retempo(0.5); });
   retempoDoubleBtn.addEventListener("click", function () { _retempo(2); });
   // The "1" buttons (1 2 3 4) show how far the user moved the "1" from
@@ -2029,7 +2015,8 @@
   }
   function _updateNudgeUi() {
     if (!nudgeNumber) {
-      return; // called by _updatePhaseShiftUi before this part of boot ran
+      return;
+    // called by _updatePhaseShiftUi before this part of boot ran
     }
     var ms = lastAnalysis ? _nudgeMsFor(lastAnalysis.audioPath) : 0;
     nudgeNumber.textContent = (ms > 0 ? "+" : ms < 0 ? "\u2212" : "") + Math.abs(ms);
@@ -2047,7 +2034,8 @@
     for (var k in _nudgeByPath) { if (Object.prototype.hasOwnProperty.call(_nudgeByPath, k)) { copy[k] = _nudgeByPath[k]; } }
     if (ms) { copy[path] = ms; } else { delete copy[path]; }
     var keys = Object.keys(copy);
-    if (keys.length > 300) { delete copy[keys[0]]; } // oldest first; a few hundred tracks is plenty
+    if (keys.length > 300) { delete copy[keys[0]]; }
+    // oldest first; a few hundred tracks is plenty
     _nudgeByPath = copy;
     persistSettings({ markerNudgeMs: copy });
     _updateNudgeUi();
@@ -2104,7 +2092,7 @@
     // delta. `phase` itself is left unchanged: buildDownbeatsCuesheet()
     // ignores it whenever downbeatTimes is present, so re-placing at the same
     // `lastAnalysis.phase` picks up the shifted array.
-    if (lastAnalysis.downbeatTimes && lastAnalysis.downbeatTimes.length && getSelectedCutMode() !== "detailed") {
+    if (lastAnalysis.downbeatTimes && lastAnalysis.downbeatTimes.length) {
       lastAnalysis.downbeatTimes = window.BeatMarkerCuesheet.shiftDownbeatTimes(
         lastAnalysis.downbeatTimes, lastAnalysis.beatsArray, delta
       );
@@ -2157,7 +2145,8 @@
   var cutDownbeatsBtn = document.getElementById("cutDownbeatsBtn");
   // Exposes the outcome for the self-test to grade; the handler itself only
   // logs it.
-  var _lastCutDownbeatsResult = null; // { ok, requested, cut, droppedCount } or { ok:false, error }
+  var _lastCutDownbeatsResult = null;
+  // { ok, requested, cut, droppedCount } or { ok:false, error }
   cutDownbeatsBtn.addEventListener("click", function () {
     if (!lastAnalysis) {
       log("Cut at downbeats: run Analyze selected audio first.");
@@ -2229,12 +2218,12 @@
   var pasteMarkersBtn = document.getElementById("pasteMarkersBtn");
   var copyMarkersStatus = document.getElementById("copyMarkersStatus");
   var removeAfterCopyCheckbox = document.getElementById("removeAfterCopyCheckbox");
-  var _copiedMarkers = null; // { clipName, sequenceMarkers: [{localSeconds,label}], clipMarkers: [{localSeconds,label}] }
+  var _copiedMarkers = null;
+  // { clipName, sequenceMarkers: [{localSeconds,label}], clipMarkers: [{localSeconds,label}] }
   function _flashCopyMarkersStatus(message) {
     copyMarkersStatus.textContent = message;
     setTimeout(function () { copyMarkersStatus.textContent = ""; }, 4000);
   }
-
   copyMarkersBtn.addEventListener("click", function () {
     copyMarkersBtn.disabled = true;
     showBusy("busy.default");
@@ -2268,7 +2257,6 @@
         hideBusy();
       });
   });
-
   pasteMarkersBtn.addEventListener("click", function () {
     if (!_copiedMarkers) {
       _flashCopyMarkersStatus(I18n.t("analyze.pasteMarkersNothing"));
@@ -2289,7 +2277,8 @@
         var clipLabels = [];
         for (var j = 0; j < _copiedMarkers.clipMarkers.length; j++) {
           var cm = _copiedMarkers.clipMarkers[j];
-          clipTimes.push(cm.localSeconds); // already source-relative, no clip start offset
+          clipTimes.push(cm.localSeconds);
+          // already source-relative, no clip start offset
           clipLabels.push(cm.label);
         }
         var chain = Promise.resolve();
@@ -2327,7 +2316,8 @@
   // works on any selected clip, music or sound effect (an effect with no
   // clear tonality gets a low `strength`, which is not an error), using the
   // same decode pipeline as beat analysis.
-  var lastKeyResult = null; // { key, scale, strength, camelot, mediaPath, manual, material, corroborated, runnerUp, perProfile, ... }
+  var lastKeyResult = null;
+  // { key, scale, strength, camelot, mediaPath, manual, material, corroborated, runnerUp, perProfile, ... }
   var keyResultDisplay = document.getElementById("keyResultDisplay");
   var compatibleKeysRow = document.getElementById("compatibleKeysRow");
   var compatibleKeysDisplay = document.getElementById("compatibleKeysDisplay");
@@ -2344,7 +2334,6 @@
   var pitchUnitsEl = document.getElementById("pitchUnits");
   var pitchAltEl = document.getElementById("pitchAlt");
   var pitchNoteEl = document.getElementById("pitchNote");
-
   function populatePitchSelects() {
     var previousFrom = pitchFromSelect.value;
     var previousTo = pitchToSelect.value;
@@ -2376,7 +2365,6 @@
     var text = I18n.t(key, vars);
     return text === key ? I18n.t("key.pitchSemitones_other", vars) : text;
   }
-
   function _pitchTempoBpm() {
     if (!lastKeyResult || !lastKeyResult.mediaPath) {
       return null;
@@ -2384,12 +2372,10 @@
     var entry = window.BeatMarkerLibrary.get(lastKeyResult.mediaPath);
     return (entry && typeof entry.bpm === "number" && entry.bpm > 0) ? entry.bpm : null;
   }
-
   function _keyNameOf(code) {
     var name = window.BeatMarkerCamelot.fromCamelotCode(code);
     return name ? _localKeyName(name.key, name.scale) : code;
   }
-
   var pitchApplyBtn = document.getElementById("pitchApplyBtn");
   var pitchApplyStatus = document.getElementById("pitchApplyStatus");
   function renderPitch() {
@@ -2404,7 +2390,6 @@
       pitchNoteEl.textContent = "";
       return;
     }
-
     var p = plan.primary;
     pitchSemitonesEl.textContent = _formatSemitones(p.semitones);
     if (p.semitones === 0) {
@@ -2492,7 +2477,8 @@
         renderPitch();
       });
   });
-  renderPitch(); // replaces the markup's placeholder before any key is known
+  renderPitch();
+  // replaces the markup's placeholder before any key is known
   function renderKeyResult() {
     if (!lastKeyResult) {
       keyResultDisplay.textContent = "-";
@@ -2555,7 +2541,6 @@
       keyAgreementRow.style.display = "none";
     }
   }
-
   function _describeKeyConfidence(r) {
     if (!r || r.manual || !r.perProfile) {
       return null;
@@ -2614,7 +2599,6 @@
   keyMaterialMusicBtn.addEventListener("click", function () { applyKeyMaterial("music"); });
   keyMaterialSfxBtn.addEventListener("click", function () { applyKeyMaterial("sfx"); });
   applyKeyMaterial(initialSettings.keyMaterial, true);
-
   var detectKeyBtn = document.getElementById("detectKeyBtn");
   detectKeyBtn.addEventListener("click", function () {
     detectKeyBtn.disabled = true;
@@ -2632,7 +2616,8 @@
       .then(function (decoded) {
         log("Decoded (" + decoded.original.durationSec.toFixed(2) + "s). Running KeyExtractor...");
         if (myGeneration === _activeOperationGeneration) {
-          lastDecodedSamples = decoded.samples; // reused later without a re-decode
+          lastDecodedSamples = decoded.samples;
+          // reused later without a re-decode
           lastDecodedSamplesPath = clipInfoForKey.mediaPath;
         }
         return _detectKey(decoded.samples, keyMaterial);
@@ -2714,7 +2699,6 @@
         hideBusy();
       });
   });
-
   document.getElementById("applyKeyOverrideBtn").addEventListener("click", function () {
     var raw = document.getElementById("keyOverrideInput").value.trim().toUpperCase();
     var isValidCode = /^([1-9]|1[0-2])[AB]$/.test(raw);
@@ -2774,8 +2758,10 @@
   // interval. One evalScript round-trip (no decode, no WASM) is cheap next to
   // the analysis it guards.
   var selectionStatusDisplay = document.getElementById("selectionStatusDisplay");
-  var lastSelectionKey = null; // mediaPath|inPoint|outPoint, or null when nothing valid is selected
-  var wasBusy = false; // true while a real Analyze/Detect key run is in flight
+  var lastSelectionKey = null;
+  // mediaPath|inPoint|outPoint, or null when nothing valid is selected
+  var wasBusy = false;
+  // true while a real Analyze/Detect key run is in flight
   // `text` may be a function that builds the line, so a language switch can
   // rebuild it (refreshDynamicTranslations -> _rebuildSelectionStatus);
   // "already analyzed" / "not analyzed yet" are translated parts of it.
@@ -2826,7 +2812,8 @@
     _setSelectionStatus(message, "is-error");
     _selectionErrorTimeout = setTimeout(function () {
       _selectionErrorTimeout = null;
-      lastSelectionKey = null; // next poll tick re-checks for real, instead of assuming this stale flash is still accurate
+      lastSelectionKey = null;
+      // next poll tick re-checks for real, instead of assuming this stale flash is still accurate
       _setSelectionStatus(_selectionPlaceholder, "");
     }, 3000);
   }
@@ -2842,18 +2829,18 @@
     lastKeyResult = null;
     renderKeyResult();
   }
-
   function _applyCachedEntry(entry, freshClipInfo) {
     var statusParts = [basename(freshClipInfo.mediaPath)];
-
     if (entry && entry.beatsArray && entry.clipInfo) {
       lastAnalysis = {
         beatsArray: entry.beatsArray,
         confidence: entry.confidence,
-        clipInfo: freshClipInfo, // the LIVE position, not the cached one - the clip may have moved since it was analyzed
+        clipInfo: freshClipInfo,
+        // the LIVE position, not the cached one - the clip may have moved since it was analyzed
         audioPath: entry.mediaPath,
         phase: entry.phase,
-        downbeatTimes: entry.downbeatTimes || null // Beat This! downbeats, when they were in use
+        downbeatTimes: entry.downbeatTimes || null
+      // Beat This! downbeats, when they were in use
       };
       _updatePhaseShiftUi();
       _setBpmText(entry.bpm.toFixed(2));
@@ -2870,7 +2857,6 @@
     _updateGridConfidenceHint(entry && entry.beatsArray ? entry.confidence : null);
     _updateRetempoLikelyHint(null, null);
     _refreshBeatClickPreview();
-
     if (entry && entry.camelot) {
       lastKeyResult = { key: entry.key, scale: entry.scale, strength: entry.strength, camelot: entry.camelot, manual: false,
                         mediaPath: entry.mediaPath, clipSpeed: Number(freshClipInfo.speed) > 0 ? Number(freshClipInfo.speed) : 1 };
@@ -2879,7 +2865,6 @@
       lastKeyResult = null;
     }
     renderKeyResult();
-
     if (!entry) {
       statusParts.push(function () { return I18n.t("selection.notAnalyzed"); });
     }
@@ -2887,7 +2872,6 @@
       return statusParts.map(function (part) { return typeof part === "function" ? part() : part; }).join(" — ");
     }, entry ? "has-cache" : "has-clip");
   }
-
   function pollSelection() {
     if (document.activeElement && document.activeElement.tagName === "SELECT") {
       return;
@@ -2922,7 +2906,6 @@
         });
       return;
     }
-
     getClipInfo()
       .then(function (clipInfo) {
         var key = clipInfo.mediaPath + "|" + clipInfo.inPointSeconds + "|" + clipInfo.outPointSeconds;
@@ -2942,13 +2925,12 @@
         _setSelectionStatus(_selectionPlaceholder, "");
       });
   }
-
   pollSelection();
   document.addEventListener("change", function (evt) {
     if (evt.target && evt.target.tagName === "SELECT" && typeof evt.target.blur === "function") {
-      evt.target.blur(); // lets pollSelection run again (see its first lines)
+      evt.target.blur();
+    // lets pollSelection run again (see its first lines)
     }
   }, true);
   setInterval(pollSelection, 1500);
-
 })();

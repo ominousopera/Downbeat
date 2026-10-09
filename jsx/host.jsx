@@ -11,6 +11,47 @@
 #include "host-ae.jsx"
 
 var TICKS_PER_SECOND = 254016000000;
+// Read the saved project path for project-relative audio output.
+function getProjectFilePath() {
+    var result = { ok: true, data: { path: null } };
+    try {
+        if (app.project) {
+            result.data.path = _dbIsAe() ? (app.project.file ? app.project.file.fsName : null) : (app.project.path || null);
+        }
+    } catch (e) { result.ok = false; result.error = e.message ? e.message : String(e); }
+    return JSON.stringify(result);
+}
+// A cancelled native picker returns a null directory.
+function pickOutputFolder(titleJson) {
+    var result = { ok: false };
+    try {
+        var folder = Folder.selectDialog(JSON.parse(titleJson));
+        result.ok = true;
+        result.data = { directory: folder ? folder.fsName : null };
+    } catch (e) { result.error = e.message ? e.message : String(e); }
+    return JSON.stringify(result);
+}
+// Check selection again before inserting timeline-aligned audio below it.
+function insertMetronomeTrack(mediaPathJson, durationSeconds, referenceJson) {
+    var result = { ok: false };
+    try {
+        var reference = JSON.parse(referenceJson);
+        var selection = JSON.parse(getSelectedAudioInfo());
+        if (!selection.ok) { throw new Error(selection.error); }
+        var clip = selection.data;
+        if (!_dbSamePath(clip.mediaPath, reference.mediaPath) || clip.trackIndex !== reference.trackIndex ||
+            Math.abs(clip.clipStartSeconds - reference.clipStartSeconds) > 0.0001 ||
+            Math.abs(clip.inPointSeconds - reference.inPointSeconds) > 0.0001 ||
+            Math.abs(clip.outPointSeconds - reference.outPointSeconds) > 0.0001 ||
+            Math.abs((clip.speed || 1) - (reference.speed || 1)) > 0.0001 || !!clip.reversed !== !!reference.reversed) {
+            throw new Error("The selected music changed. Select the analyzed clip and try again.");
+        }
+        if (!(durationSeconds > 0) || !isFinite(durationSeconds)) { throw new Error("Invalid metronome duration."); }
+        var opts = { atSeconds: clip.clipStartSeconds, outSec: durationSeconds, underTrack: clip.trackIndex + 1, belowLayerIndex: clip.trackIndex };
+        return insertAudioAtPlayhead(mediaPathJson, durationSeconds, JSON.stringify(opts));
+    } catch (e) { result.error = e.message ? e.message : String(e); }
+    return JSON.stringify(result);
+}
 // Native OS folder picker (used by the Library's Add folder).
 // Folder.selectDialog() is standard ExtendScript, not QE DOM, and exists in
 // every host app. Returns null (not an error) if the user cancels the
@@ -58,7 +99,6 @@ function pickOpenFile(promptText) {
     }
     return JSON.stringify(result);
 }
-
 function _getActiveSequenceOrThrow() {
     var sequence = app.project.activeSequence;
     if (!sequence) {
@@ -84,7 +124,6 @@ function _findSelectedAudioClipOrThrow(sequence) {
             }
         }
     }
-
     var selectedVideoCount = 0;
     var videoTrackCount = sequence.videoTracks.numTracks;
     for (var vt = 0; vt < videoTrackCount; vt++) {
@@ -97,7 +136,6 @@ function _findSelectedAudioClipOrThrow(sequence) {
             }
         }
     }
-
     if (selectedAudioCount === 0 && selectedVideoCount === 0) {
         throw new Error("Nothing selected. Select one audio clip on the timeline.");
     }
@@ -107,10 +145,8 @@ function _findSelectedAudioClipOrThrow(sequence) {
     if (selectedAudioCount > 1) {
         throw new Error("More than one audio clip selected (" + selectedAudioCount + "). Select exactly one.");
     }
-
     return { clip: selectedAudioClip, trackIndex: selectedAudioTrackIndex };
 }
-
 function _getFrameRate(sequence) {
     // videoFrameRate is the tick-length of ONE FRAME, not fps directly.
     var settings = sequence.getSettings();
@@ -122,17 +158,14 @@ function _secondsToTimecode(seconds, frameRate) {
     var framesPerSecond = Math.round(frameRate);
     var framesPerMinute = framesPerSecond * 60;
     var framesPerHour = framesPerMinute * 60;
-
     var hh = Math.floor(totalFrames / framesPerHour);
     var rem = totalFrames - hh * framesPerHour;
     var mm = Math.floor(rem / framesPerMinute);
     rem = rem - mm * framesPerMinute;
     var ss = Math.floor(rem / framesPerSecond);
     var ff = rem - ss * framesPerSecond;
-
     return _pad2(hh) + ":" + _pad2(mm) + ":" + _pad2(ss) + ":" + _pad2(ff);
 }
-
 function _pad2(n) {
     return (n < 10 ? "0" : "") + n;
 }
@@ -145,12 +178,10 @@ function getSelectedAudioInfo() {
         var sequence = _getActiveSequenceOrThrow();
         var found = _findSelectedAudioClipOrThrow(sequence);
         var clip = found.clip;
-
         var projectItem = clip.projectItem;
         if (!projectItem) {
             throw new Error("The selected clip has no project item.");
         }
-
         var mediaPath = projectItem.getMediaPath();
         if (!mediaPath) {
             throw new Error("Could not resolve a media file path for the selected clip.");
@@ -175,7 +206,6 @@ function getSelectedAudioInfo() {
         }
         var inSeconds = clip.inPoint.seconds;
         var outSeconds = Math.abs(speed - 1) > 1e-6 ? inSeconds + (clip.end.seconds - clip.start.seconds) * speed : clip.outPoint.seconds;
-
         result.ok = true;
         result.data = {
             mediaPath: mediaPath,
@@ -197,8 +227,10 @@ function getSelectedAudioInfo() {
 // timeline without reading the names, and so Premiere's own Markers panel
 // (Window > Markers) can filter by color. Uses Marker.setColorByIndex().
 var LABEL_COLOR_INDEX = {
-    "D": 0, // downbeat - Green
-    "b": 6 // beat - Blue
+    "D": 0,
+    // downbeat - Green
+    "b": 6
+// beat - Blue
 };
 var LABEL_COMMENT = {
     "D": "Downbeat (start of a bar/strong beat) - the recommended cut point for a beat-synced edit.",
@@ -215,7 +247,6 @@ function setMarkerComments(jsonMap) {
     }
     return "ok";
 }
-
 // Applies name + color + a longer explanation to one marker from its label.
 // The label is a type code ("D" downbeat or "b" beat, see js/cuesheet.js) or a
 // compound "type:name", where the part before the colon picks the color and
@@ -232,18 +263,17 @@ function _applyMarkerLabel(marker, label) {
     var compound = prefix !== null && LABEL_COLOR_INDEX.hasOwnProperty(prefix);
     var typeCode = compound ? prefix : label;
     var displayName = compound ? label.substring(colonIndex + 1) : label;
-
     try {
         marker.name = displayName;
     } catch (nameError) {
-        // Marker was still created - see this function's own header.
+    // Marker was still created - see this function's own header.
     }
     var colorIndex = LABEL_COLOR_INDEX[typeCode];
     if (colorIndex !== undefined) {
         try {
             marker.setColorByIndex(colorIndex);
         } catch (colorError) {
-            // Same best-effort treatment as the name assignment above.
+        // Same best-effort treatment as the name assignment above.
         }
     }
     var comment = (LABEL_COMMENT_LOCAL && LABEL_COMMENT_LOCAL[typeCode]) || LABEL_COMMENT[typeCode];
@@ -251,7 +281,7 @@ function _applyMarkerLabel(marker, label) {
         try {
             marker.comments = comment;
         } catch (commentError) {
-            // Same best-effort treatment.
+        // Same best-effort treatment.
         }
     }
 }
@@ -280,12 +310,10 @@ function createMarkers(secondsJsonArray, labelsJsonArray, replaceOwn) {
                 labels = null;
             }
         }
-
         var replacedCount = 0;
         if (replaceOwn === true) {
             replacedCount = _removeOwnMarkersAroundClip(sequence, _findSelectedAudioClipOrThrow(sequence).clip);
         }
-
         var createdCount = 0;
         var stored = [];
         for (var i = 0; i < times.length; i++) {
@@ -298,7 +326,6 @@ function createMarkers(secondsJsonArray, labelsJsonArray, replaceOwn) {
                 }
             }
         }
-
         result.ok = true;
         result.data = {
             requested: times.length,
@@ -333,7 +360,6 @@ function _removeOwnMarkersInRange(markers, fromSeconds, toSeconds) {
     }
     return doomed.length;
 }
-
 function _countOwnMarkersInRange(markers, fromSeconds, toSeconds) {
     var epsilon = 0.0005;
     var count = 0;
@@ -397,11 +423,10 @@ function _noteStored(stored, marker, requestedSeconds) {
         try {
             stored.push({ requested: requestedSeconds, stored: marker.start.seconds });
         } catch (readError) {
-            // reading back is diagnostic only
+        // reading back is diagnostic only
         }
     }
 }
-
 // Clip (project item) markers, as an alternative to sequence markers. Same
 // arguments as createMarkers(); times are in the file's own (source) seconds.
 // With replaceOwn, Downbeat's own markers around the clip are removed first
@@ -425,7 +450,6 @@ function createClipMarkers(secondsJsonArray, labelsJsonArray, replaceOwn) {
         if (!markers) {
             throw new Error("projectItem.getMarkers() returned nothing.");
         }
-
         var times = JSON.parse(secondsJsonArray);
         if (!times || times.length === undefined) {
             throw new Error("createClipMarkers expected a JSON array of numbers.");
@@ -438,14 +462,12 @@ function createClipMarkers(secondsJsonArray, labelsJsonArray, replaceOwn) {
                 labels = null;
             }
         }
-
         var replacedCount = 0;
         if (replaceOwn === true) {
             // Removes the sequence markers in the clip's timeline range and
             // the clip markers in its source range.
             replacedCount = _removeOwnMarkersAroundClip(sequence, found.clip);
         }
-
         var createdCount = 0;
         var stored = [];
         for (var i = 0; i < times.length; i++) {
@@ -458,7 +480,6 @@ function createClipMarkers(secondsJsonArray, labelsJsonArray, replaceOwn) {
                 }
             }
         }
-
         result.ok = true;
         result.data = {
             requested: times.length,
@@ -502,13 +523,11 @@ function testRazorAtSeconds(secondsValue) {
         if (isNaN(targetSeconds)) {
             throw new Error("testRazorAtSeconds expected a number.");
         }
-
         var sequence = _getActiveSequenceOrThrow();
         var found = _findSelectedAudioClipOrThrow(sequence);
         var trackIndex = found.trackIndex;
         var frameRate = _getFrameRate(sequence);
         var qeTrack = _getQeAudioTrackOrThrow(trackIndex);
-
         var timecode = _secondsToTimecode(targetSeconds, frameRate);
         var razorReturn = qeTrack.razor(timecode);
         // Re-read the standard DOM after the cut to report real boundaries -
@@ -526,7 +545,6 @@ function testRazorAtSeconds(secondsValue) {
                 nearbyClips.push({ name: clip.name, startSeconds: startSec, endSeconds: endSec });
             }
         }
-
         result.ok = true;
         result.data = {
             requestedSeconds: targetSeconds,
@@ -555,13 +573,11 @@ function razorAtManySeconds(secondsJsonArray) {
         if (!times || times.length === undefined) {
             throw new Error("razorAtManySeconds expected a JSON array of numbers.");
         }
-
         var sequence = _getActiveSequenceOrThrow();
         var found = _findSelectedAudioClipOrThrow(sequence);
         var trackIndex = found.trackIndex;
         var frameRate = _getFrameRate(sequence);
         var qeTrack = _getQeAudioTrackOrThrow(trackIndex);
-
         var cutCount = 0;
         var failures = [];
         for (var i = 0; i < times.length; i++) {
@@ -581,7 +597,6 @@ function razorAtManySeconds(secondsJsonArray) {
                 });
             }
         }
-
         result.ok = true;
         result.data = {
             requested: times.length,
@@ -613,7 +628,6 @@ function clearMarkersForSelectedClip(ownOnly) {
         var clipStart = clip.start.seconds;
         var clipEnd = clip.end.seconds;
         var epsilon = 0.0005;
-
         var sequenceMarkersRemoved = 0;
         var seqMarkers = sequence.markers;
         var seqToDelete = [];
@@ -630,7 +644,6 @@ function clearMarkersForSelectedClip(ownOnly) {
             seqMarkers.deleteMarker(seqToDelete[i]);
             sequenceMarkersRemoved++;
         }
-
         var clipMarkersRemoved = 0;
         var clipMarkersAttempted = false;
         var projectItem = clip.projectItem;
@@ -654,7 +667,6 @@ function clearMarkersForSelectedClip(ownOnly) {
                 }
             }
         }
-
         result.ok = true;
         result.data = {
             sequenceMarkersRemoved: sequenceMarkersRemoved,
@@ -693,7 +705,6 @@ function getMarkersDataForSelectedClip() {
         var clipStart = clip.start.seconds;
         var clipEnd = clip.end.seconds;
         var epsilon = 0.0005;
-
         var sequenceMarkers = [];
         var seqMarkers = sequence.markers;
         var sm = seqMarkers.getFirstMarker();
@@ -704,7 +715,6 @@ function getMarkersDataForSelectedClip() {
             }
             sm = seqMarkers.getNextMarker(sm);
         }
-
         var clipMarkers = [];
         var projectItem = clip.projectItem;
         if (projectItem && typeof projectItem.getMarkers === "function") {
@@ -717,7 +727,6 @@ function getMarkersDataForSelectedClip() {
                 }
             }
         }
-
         result.ok = true;
         result.data = {
             clipName: clip.name,
@@ -737,7 +746,6 @@ function getMarkersDataForSelectedClip() {
 // on the timeline is ever overwritten. With no such track it refuses with a
 // clear message instead.
 var DOWNBEAT_BIN_NAME = "Downbeat";
-
 function _dbSamePath(a, b) {
     var na = String(a).replace(/\\/g, "/");
     var nb = String(b).replace(/\\/g, "/");
@@ -746,7 +754,6 @@ function _dbSamePath(a, b) {
     }
     return na === nb;
 }
-
 function _findOrCreateDownbeatBin() {
     var binType = (typeof ProjectItemType !== "undefined" && ProjectItemType.BIN !== undefined) ? ProjectItemType.BIN : 2;
     var root = app.project.rootItem;
@@ -758,7 +765,6 @@ function _findOrCreateDownbeatBin() {
     }
     return root.createBin(DOWNBEAT_BIN_NAME);
 }
-
 function _findItemInBinByPath(bin, mediaPath) {
     for (var i = 0; i < bin.children.numItems; i++) {
         var child = bin.children[i];
@@ -766,7 +772,8 @@ function _findItemInBinByPath(bin, mediaPath) {
         try {
             childPath = child.getMediaPath();
         } catch (e) {
-            childPath = null; // bins and other items without media
+            childPath = null;
+        // bins and other items without media
         }
         if (childPath && _dbSamePath(childPath, mediaPath)) {
             return child;
@@ -774,7 +781,6 @@ function _findItemInBinByPath(bin, mediaPath) {
     }
     return null;
 }
-
 // The three audio crossfades under their names in the languages Premiere
 // is shipped in. QE looks a transition up by the name shown in the
 // interface, so on a Premiere that is not in English the English name finds
@@ -862,7 +868,6 @@ function _findAudioTransition(name) {
     }
     return result;
 }
-
 // A frame count as HH:MM:SS:FF at the sequence's whole frame rate.
 function _timecodeFor(frames, fps) {
     var base = Math.max(1, Math.round(fps));
@@ -921,7 +926,6 @@ function _addOneFade(qeItem, transition, atStart, frames, fps, placedClip) {
     }
     return result;
 }
-
 // Transitions taken from Premiere's own list instead of by name: the
 // crossfade's entry (by a known name, else by its place - Constant Power,
 // Constant Gain, Exponential Fade in that order) looked up by its listed
@@ -960,14 +964,13 @@ function _transitionsFromList(found, name) {
             out.push({ transition: byListedName, name: listedName, label: "listed name \"" + listedName + "\"" });
         }
     } catch (e1) {
-        /* the entry itself is tried below */
+    /* the entry itself is tried below */
     }
     if (typeof items[position] === "object") {
         out.push({ transition: items[position], name: listedName, label: "list entry \"" + listedName + "\"" });
     }
     return out;
 }
-
 // The QE clip at startSeconds on audio track `target`, looked up again
 // from a fresh QE sequence. QE does not always update itself right after
 // an edit made in the same script, so a clip placed a moment ago may be
@@ -985,24 +988,6 @@ function _freshQeClipAt(target, startSeconds) {
     }
     return null;
 }
-
-// A second try at the fades, in a script call of its own (the panel makes
-// it a moment after the insert when Premiere refused them): the clip placed
-// by the earlier call is found again on track `target` at startSeconds and
-// the fades named in optsJson are asked for once more, the same way.
-function retryEdgeFades(target, startSeconds, optsJson) {
-    var result = { ok: false };
-    try {
-        var opts = JSON.parse(optsJson);
-        var sequence = _getActiveSequenceOrThrow();
-        result.data = _addEdgeFades(sequence, Number(target), Number(startSeconds), opts);
-        result.ok = true;
-    } catch (e) {
-        result.error = e.message ? e.message : e.toString();
-    }
-    return JSON.stringify(result);
-}
-
 // Adds Premiere audio transitions as edge fades to the clip that starts at
 // startSeconds on audio track `target`, through the QE API (the way a script
 // can put fades on a clip that stay editable). opts: fadeInSec, fadeOutSec
@@ -1255,6 +1240,22 @@ function _applyClipSpeed(sequence, target, startSeconds, speed, reverse, timelin
     }
     return out;
 }
+// A second try at the fades, in a script call of its own (the panel makes
+// it a moment after the insert when Premiere refused them): the clip placed
+// by the earlier call is found again on track `target` at startSeconds and
+// the fades named in optsJson are asked for once more, the same way.
+function retryEdgeFades(target, startSeconds, optsJson) {
+    var result = { ok: false };
+    try {
+        var opts = JSON.parse(optsJson);
+        var sequence = _getActiveSequenceOrThrow();
+        result.data = _addEdgeFades(sequence, Number(target), Number(startSeconds), opts);
+        result.ok = true;
+    } catch (e) {
+        result.error = e.message ? e.message : e.toString();
+    }
+    return JSON.stringify(result);
+}
 // optsJson: { inSec, outSec, fadeInSec, fadeOutSec, transitionIn,
 // transitionOut, speed, reverse, atSeconds, muteSelected }. The original file
 // is inserted, trimmed to inSec..outSec of the source, with Premiere's own
@@ -1307,9 +1308,11 @@ function insertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
         var reverse = !!(opts && opts.reverse);
         var sped = Math.abs(speed - 1) > 1e-6 || reverse;
         var sourceLength = length;
-        length = length / speed; // on the timeline
+        length = length / speed;
+        // on the timeline
         var target = -1;
-        for (var t = 0; t < sequence.audioTracks.numTracks && target === -1; t++) {
+        var firstTrack = opts && typeof opts.underTrack === "number" ? Math.max(0, Math.floor(opts.underTrack)) : 0;
+        for (var t = firstTrack; t < sequence.audioTracks.numTracks && target === -1; t++) {
             var track = sequence.audioTracks[t];
             var locked = false;
             try {
@@ -1339,7 +1342,6 @@ function insertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
         if (target === -1) {
             throw new Error("No free audio track at the playhead for this " + length.toFixed(1) + " s sound. Add an audio track or move the playhead.");
         }
-
         var bin = _findOrCreateDownbeatBin();
         var item = _findItemInBinByPath(bin, mediaPath);
         var imported = false;
@@ -1351,15 +1353,16 @@ function insertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
             }
             imported = true;
         }
-
         if (trim) {
             try {
-                item.setInPoint(inSec, 4); // 4 = every media type
+                item.setInPoint(inSec, 4);
+                // 4 = every media type
                 if (outSec !== null) {
                     item.setOutPoint(outSec, 4);
                 }
             } catch (inOutErr) {
-                trim = false; // checked below by the placed clip's length
+                trim = false;
+            // checked below by the placed clip's length
             }
         }
         try {

@@ -42,8 +42,8 @@
 >
 > - Markers go on whole video frames only: no sample-accurate **Exact** timing
 >   and no **Shift**.
-> - The layer must play at normal speed (Stretch 100%, no Time Remap),
->   otherwise no markers are placed.
+> - Constant positive Time Stretch is supported for analysis and markers.
+>   Reversed layers and Time Remap are refused.
 > - You cut at the markers by hand with **J / K** and **Split Layer**; there is
 >   no Razor tool snapping to them.
 > - A marker keeps only its short label.
@@ -207,7 +207,7 @@ shrinks to the sounds that fit it.
   (for example FLAC and OGG in Premiere Pro) can be scanned and previewed in the
   Library, but not inserted.
 - **After Effects.** A smaller set of features, listed in the note at the top:
-  whole-frame markers, layers at normal speed, cutting by hand.
+  whole-frame markers, constant positive stretch, cutting by hand.
 
 ## FAQ
 
@@ -322,9 +322,10 @@ browser after a confirmation.
 
 No. Your files are never modified, and no processed copy of them is written.
 Sounds go on the timeline as your original file, with the trim, fades, pitch
-and reverse set on the clip itself. The only files Downbeat writes are its own
-settings, the track library and short-lived temporary files, in
-<code>Documents/Downbeat</code>; <b>Settings → Delete my data</b> removes them.
+and reverse set on the clip itself. Downbeat writes settings, the track library
+and short-lived temporary files in <code>Documents/Downbeat</code>;
+<b>Settings → Delete my data</b> removes them. Generated metronome WAVs use
+the <b>Finished audio</b> destination and are kept by Delete my data.
 </details>
 
 <details>
@@ -574,3 +575,22 @@ spaces), and `scripts/check-code.js` checks it before every build.
 ## Version
 
 1.0.3.
+
+### Metronome audio and destination
+
+**Analyze → Add metronome track** renders the current beat grid as a mono
+44.1 kHz WAV, with accented downbeats, and places it below the selected music.
+Trim, constant speed, the beat phase and grid adjustments are included.
+In Premiere, an unlocked audio track below the music must have room for the
+whole click track; add one if needed. The WAV remains available if insertion
+fails. Rendering is limited to 30 minutes.
+
+**Settings → Finished audio** chooses Documents/Downbeat/processed,
+Downbeat/processed next to the saved project, or a custom folder. Settings,
+libraries and temporary analysis files stay in Documents/Downbeat. Existing
+audio is never overwritten; generated WAVs are kept when you delete panel data.
+Pitch and Reverse change host clip parameters and do not render audio copies.
+
+On macOS, the update button targets ZXP Installer explicitly. If it is not
+installed, the verified package stays in Downloads for manual installation.
+Windows uses the system ZXP file association.

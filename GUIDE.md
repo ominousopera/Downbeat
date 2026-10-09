@@ -366,6 +366,9 @@ The gear icon, top right:
   you confirm and then restart Premiere Pro or After Effects; and **Open the
   release page**. If the checksum does not match, the file is deleted and
   nothing is opened. **Check now** asks right away.
+  On macOS this requires ZXP Installer to be installed. If opening fails,
+  the verified package stays in Downloads for manual installation. On Windows
+  opening uses the system's ZXP file association.
 - **Delete my data** — removes the settings, both libraries (the analyzed
   clips, and Music / SFX with their folders and analysis results) and any
   leftover temp files Downbeat saved in Documents/Downbeat, and nothing else —
@@ -393,8 +396,9 @@ Pro. Otherwise it works the same way, with a layer in place of a clip:
 - Markers always go on the start of the frame the beat begins in: After
   Effects has no Show Audio Time Units, and its playhead and Split Layer
   work in whole frames, so there is no Timing setting (or Shift) here.
-- The layer must play at normal speed: Stretch 100% and no Time Remap.
-  Otherwise Downbeat says so instead of placing markers in the wrong spot.
+- Constant positive Time Stretch is supported: analysis uses the source
+  audio and markers are mapped to the stretched layer. Negative Stretch and
+  Time Remap are refused because they need a different time mapping.
 - Marker colors use After Effects' label colors: D Green, b Blue. An After
   Effects marker has one text, which shows the short label; the longer
   explanation Premiere keeps in the marker's comments is not added.
@@ -463,3 +467,23 @@ Yes to both. Downbeat is free software under the GNU AGPL-3.0 (Settings →
 License has the full text), which lets you use, study, share and change it.
 The full source code is on GitHub, and the installed plugin's files are
 plain, readable code.
+
+### Metronome audio
+
+After analysis, **Add metronome track** creates a mono 44.1 kHz WAV from the
+current beat grid, with an accent on each downbeat. It uses the detected
+beat times, the chosen phase and grid adjustments, with the selected clip's
+trim and constant speed. It starts with the selected music, not the playhead.
+In After Effects it goes on a new layer directly below the music. In Premiere
+it uses an unlocked audio track below the music with room for the entire WAV;
+add a track if none is free. The original music remains audible. If insertion
+fails, the status shows the saved WAV's path. The limit is 30 minutes.
+
+**Settings → Finished audio** chooses Documents/Downbeat/processed,
+Downbeat/processed beside the saved project, or a custom folder. Save the
+project before using the project option. This changes only newly generated
+WAVs; existing files are not moved or overwritten. Libraries, settings and
+temporary files stay in Documents/Downbeat. Delete my data keeps the WAVs.
+Pitch and Reverse use host clip parameters and do not render audio copies.
+
+Logs include local file paths. Review the log before sharing it publicly.

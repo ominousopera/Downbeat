@@ -10,7 +10,8 @@
 //   razor cut                     -> layer split (duplicate + trim, like
 //                                    Edit > Split Layer)
 // Times: layer property keyframes, markers included, are keyed in
-// COMPOSITION time.
+// COMPOSITION time. For constant positive Stretch, a source second s maps
+// to layer.startTime + s * layer.stretch / 100.
 // MarkerValue.label indices of After Effects' default label colors
 // (Preferences > Labels): 1 Red, 2 Yellow, 3 Aqua, 4 Pink, 5 Lavender, 6
 // Peach, 7 Sea Foam, 8 Blue, 9 Green, 10 Purple, 11 Orange, 12 Brown, 13
@@ -20,7 +21,6 @@ var AE_LABEL_COLOR_INDEX = {
     "D": 9,
     "b": 8
 };
-
 function _dbIsAe() {
     try {
         return typeof BridgeTalk !== "undefined" && String(BridgeTalk.appName).indexOf("aftereffects") !== -1;
@@ -28,7 +28,6 @@ function _dbIsAe() {
         return false;
     }
 }
-
 function _dbAeResult(fn) {
     var result = { ok: false, error: null, data: null };
     try {
@@ -40,7 +39,6 @@ function _dbAeResult(fn) {
     }
     return JSON.stringify(result);
 }
-
 function _dbAeActiveCompOrThrow() {
     if (!app.project) {
         throw new Error("No project is open.");
@@ -51,7 +49,6 @@ function _dbAeActiveCompOrThrow() {
     }
     return item;
 }
-
 function _dbAeLayerHasFile(layer) {
     try {
         return !!(layer.source && layer.source.file);
@@ -93,16 +90,14 @@ function _dbAeSelectedAudioLayerOrThrow(comp) {
     _dbAeRefuseRetimedLayer(layer);
     return layer;
 }
-
 function _dbAeRefuseRetimedLayer(layer) {
     if (layer.timeRemapEnabled) {
-        throw new Error("The selected layer uses Time Remapping. Downbeat places markers only on a layer playing at normal speed - turn Time Remap off first.");
+        throw new Error("The selected layer uses Time Remapping. Downbeat supports constant positive Time Stretch - turn Time Remap off first.");
     }
-    if (Math.abs(layer.stretch - 100) > 0.0001) {
-        throw new Error("The selected layer is time-stretched (" + layer.stretch + "%). Downbeat places markers only on a layer at 100% - reset Stretch to 100% first.");
+    if (!(layer.stretch > 0) || !isFinite(layer.stretch)) {
+        throw new Error("The selected layer has a reversed or invalid Time Stretch. Analysis supports positive constant Stretch values.");
     }
 }
-
 function _dbAeParseArray(json, what) {
     var arr = JSON.parse(json);
     if (!arr || arr.length === undefined) {
@@ -110,7 +105,6 @@ function _dbAeParseArray(json, what) {
     }
     return arr;
 }
-
 function _dbAeParseLabels(json) {
     if (!json) {
         return null;
@@ -136,9 +130,10 @@ function _dbAeMarkerValue(label) {
     var mv = new MarkerValue(text);
     if (typeCode !== null && AE_LABEL_COLOR_INDEX[typeCode] !== undefined) {
         try {
-            mv.label = AE_LABEL_COLOR_INDEX[typeCode]; // best-effort; without it the marker keeps the default color
+            mv.label = AE_LABEL_COLOR_INDEX[typeCode];
+        // best-effort; without it the marker keeps the default color
         } catch (labelErr) {
-            // the marker itself is still created
+        // the marker itself is still created
         }
     }
     return mv;
@@ -169,13 +164,12 @@ function _dbAeAddMarkers(markerProp, compTimes, labels, minTime, maxTime) {
             try {
                 stored.push({ requested: t, stored: markerProp.keyTime(markerProp.nearestKeyIndex(t)) });
             } catch (readErr) {
-                // the marker is there; only the read-back failed
+            // the marker is there; only the read-back failed
             }
         }
     }
     return { created: created, skipped: skipped, stored: stored };
 }
-
 function _dbAeWithUndo(name, fn) {
     app.beginUndoGroup(name);
     try {
@@ -184,11 +178,9 @@ function _dbAeWithUndo(name, fn) {
         app.endUndoGroup();
     }
 }
-
 function _dbAeFrameSnap(seconds, fps) {
     return Math.round(seconds * fps) / fps;
 }
-
 function dbAeGetSelectedAudioInfo() {
     return _dbAeResult(function () {
         var comp = _dbAeActiveCompOrThrow();
@@ -196,8 +188,9 @@ function dbAeGetSelectedAudioInfo() {
         return {
             mediaPath: layer.source.file.fsName,
             clipStartSeconds: layer.inPoint,
-            inPointSeconds: layer.inPoint - layer.startTime,
-            outPointSeconds: layer.outPoint - layer.startTime,
+            inPointSeconds: (layer.inPoint - layer.startTime) * 100 / layer.stretch,
+            outPointSeconds: (layer.outPoint - layer.startTime) * 100 / layer.stretch,
+            speed: 100 / layer.stretch,
             frameRate: comp.frameRate,
             trackIndex: layer.index,
             host: "ae",
@@ -226,7 +219,6 @@ function _dbAeRemoveOwnAroundLayer(comp, layer) {
     }
     return removed;
 }
-
 function dbAeCreateClipMarkers(secondsJsonArray, labelsJsonArray, replaceOwn) {
     return _dbAeResult(function () {
         var comp = _dbAeActiveCompOrThrow();
@@ -235,7 +227,7 @@ function dbAeCreateClipMarkers(secondsJsonArray, labelsJsonArray, replaceOwn) {
         var labels = _dbAeParseLabels(labelsJsonArray);
         var compTimes = [];
         for (var i = 0; i < times.length; i++) {
-            compTimes.push(layer.startTime + times[i]);
+            compTimes.push(layer.startTime + times[i] * layer.stretch / 100);
         }
         var replaced = 0;
         var r = _dbAeWithUndo("Downbeat: place markers", function () {
@@ -282,19 +274,17 @@ function _dbAeSplitLayerAt(layer, compTime) {
     try {
         later.selected = false;
     } catch (selErr) {
-        // selection is a convenience; the split itself is done
+    // selection is a convenience; the split itself is done
     }
     return later;
 }
-
 function _dbAeReselect(layer) {
     try {
         layer.selected = true;
     } catch (selErr) {
-        // same as above
+    // same as above
     }
 }
-
 function dbAeRazorAtManySeconds(secondsJsonArray) {
     return _dbAeResult(function () {
         var comp = _dbAeActiveCompOrThrow();
@@ -324,7 +314,6 @@ function dbAeRazorAtManySeconds(secondsJsonArray) {
         return { requested: times.length, cut: cut, failures: failures };
     });
 }
-
 function dbAeTestRazorAtSeconds(secondsValue) {
     return _dbAeResult(function () {
         var targetSeconds = Number(secondsValue);
@@ -362,7 +351,6 @@ function dbAeTestRazorAtSeconds(secondsValue) {
         };
     });
 }
-
 function _dbAeMarkerTimes(markerProp) {
     var out = [];
     for (var i = 1; i <= markerProp.numKeys; i++) {
@@ -446,7 +434,7 @@ function dbAeGetMarkersDataForSelectedClip() {
         var clipMarkers = [];
         var lm = _dbAeMarkerTimes(layer.property("Marker"));
         for (var i = 0; i < lm.length; i++) {
-            clipMarkers.push({ localSeconds: lm[i].time - layer.startTime, label: lm[i].comment });
+            clipMarkers.push({ localSeconds: (lm[i].time - layer.startTime) * 100 / layer.stretch, label: lm[i].comment });
         }
         var sequenceMarkers = [];
         if (comp.markerProperty) {
@@ -460,7 +448,16 @@ function dbAeGetMarkersDataForSelectedClip() {
         return { clipName: layer.name, sequenceMarkers: sequenceMarkers, clipMarkers: clipMarkers };
     });
 }
-
+// Equal-power fade gain at position x (0..1) of a fade, bent by curve
+// (-100..100); mirrors fadeGain in js/lib-preview.js.
+function _dbAeFadeGain(x, rising, curve) {
+    x = Math.max(0, Math.min(1, x));
+    if (x === (rising ? 0 : 1)) {
+        return 0;
+    }
+    var base = rising ? Math.sin(x * Math.PI / 2) : Math.cos(x * Math.PI / 2);
+    return curve ? Math.pow(base, Math.pow(2, -curve / 50)) : base;
+}
 // Whether a reversed layer really plays source outSec..inSec over comp
 // startSeconds..endSeconds: active just inside both ends, and the source
 // time there as expected (within two frames). `known` is false when this
@@ -482,17 +479,6 @@ function _dbAeCheckReversed(layer, startSeconds, endSeconds, inSec, outSec, fps)
     out.seen = "active " + a0 + "/" + a1 + ", source " + s0.toFixed(3) + "->" + s1.toFixed(3) + " s, in " + Number(layer.inPoint).toFixed(3) + ", out " + Number(layer.outPoint).toFixed(3);
     out.ok = a0 && a1 && Math.abs(s0 - outSec) <= tol + 0.01 && Math.abs(s1 - inSec) <= tol + 0.01;
     return out;
-}
-
-// Equal-power fade gain at position x (0..1) of a fade, bent by curve
-// (-100..100); mirrors fadeGain in js/lib-preview.js.
-function _dbAeFadeGain(x, rising, curve) {
-    x = Math.max(0, Math.min(1, x));
-    if (x === (rising ? 0 : 1)) {
-        return 0;
-    }
-    var base = rising ? Math.sin(x * Math.PI / 2) : Math.cos(x * Math.PI / 2);
-    return curve ? Math.pow(base, Math.pow(2, -curve / 50)) : base;
 }
 // Library insert: the file as a new layer starting at the comp's current
 // time. An already-imported footage item for the same file is reused; a new
@@ -529,7 +515,7 @@ function dbAeInsertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
         var imported = !item;
         // opts.atSeconds / muteSelected: see host.jsx insertAudioAtPlayhead -
         // here the selected audio layer's sound is switched off.
-        var startSeconds = (opts && typeof opts.atSeconds === "number" && opts.atSeconds >= 0) ? opts.atSeconds : comp.time;
+        var startSeconds = (opts && typeof opts.atSeconds === "number" && isFinite(opts.atSeconds)) ? opts.atSeconds : comp.time;
         var toMute = null;
         if (opts && opts.muteSelected) {
             try {
@@ -540,7 +526,8 @@ function dbAeInsertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
         }
         // Set to "speedFailed" or "trimFailed" when the layer did not come out as asked.
         var failure = null;
-        var reverseLayout = null; // what the reversed layer's check saw (for the log)
+        var reverseLayout = null;
+        // what the reversed layer's check saw (for the log)
         var layer = _dbAeWithUndo("Downbeat: insert sound", function () {
             if (!item) {
                 item = app.project.importFile(new ImportOptions(file));
@@ -550,6 +537,15 @@ function dbAeInsertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
                 item.parentFolder = folder;
             }
             var added = comp.layers.add(item);
+            // Keep the metronome immediately below its selected music layer.
+            if (opts && typeof opts.belowLayerIndex === "number") {
+                try {
+                    added.moveAfter(comp.layer(opts.belowLayerIndex + 1));
+                } catch (moveErr) {
+                    added.remove();
+                    throw new Error("After Effects could not place the metronome below the music.");
+                }
+            }
             // The pitched clip (Key tab) goes right above the layer it was
             // made from, not to the top of the comp, so the two stay
             // together in a busy comp. A layer that will not move stays on top.
@@ -557,7 +553,7 @@ function dbAeInsertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
                 try {
                     added.moveBefore(toMute);
                 } catch (moveErr) {
-                    /* still inserted, just on top */
+                /* still inserted, just on top */
                 }
             }
             var inSec = opts && Number(opts.inSec) > 0 ? Number(opts.inSec) : 0;
@@ -569,7 +565,8 @@ function dbAeInsertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
             var speed = opts && Number(opts.speed) > 0 ? Number(opts.speed) : 1;
             var reverse = !!(opts && opts.reverse);
             var sped = Math.abs(speed - 1) > 1e-6 || reverse;
-            var factor = 1 / speed; // comp seconds per source second
+            var factor = 1 / speed;
+            // comp seconds per source second
             var wantStretch = (reverse ? -100 : 100) * factor;
             var wantOut = null;
             try {
@@ -656,7 +653,7 @@ function dbAeInsertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
                 try {
                     toMute.audioEnabled = false;
                 } catch (muteErr) {
-                    // reported below
+                // reported below
                 }
             }
             return added;

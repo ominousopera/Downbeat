@@ -8,7 +8,6 @@
 const fs = require("fs");
 const path = require("path");
 const { execFileSync } = require("child_process");
-
 const ROOT = path.join(__dirname, "..");
 const acorn = require(path.join(__dirname, "vendor", "acorn-8.15.0.js"));
 const THIRD_PARTY = /^(js\/lib\/|js\/CSInterface\.js$|jsx\/json2\.js$|scripts\/vendor\/|js\/ucs-data\.js$|assets\/)/;
@@ -18,7 +17,6 @@ const GLOBALS = new Set(("window document console Math JSON Promise setTimeout c
   "isFinite isNaN parseInt parseFloat encodeURIComponent decodeURIComponent CSInterface SystemPath AudioContext " +
   "OfflineAudioContext Event navigator location Infinity NaN undefined arguments Map Set Intl globalThis performance " +
   "Blob URL FileReader Image CustomEvent getComputedStyle Proxy Symbol EssentiaWASM Essentia").split(" "));
-
 const problems = [];
 let listed = "";
 try { listed = execFileSync("git", ["ls-files"], { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }); } catch (e) { listed = ""; }
@@ -47,7 +45,6 @@ scripts.forEach(function (f) {
     .filter(function (l) { return l.trim() && !/^#!/.test(l) && !/^["']use strict["'];$/.test(l.trim()); })[0] || "";
   if (!/^\s*(\/\/|\/\*|#)/.test(first)) { problems.push(f + ": no header comment saying what the file is"); }
 });
-
 function parse(f) {
   return acorn.parse(fs.readFileSync(path.join(ROOT, f), "utf8"), { ecmaVersion: "latest", locations: true });
 }
@@ -90,7 +87,7 @@ walk(mainAst, function (node) {
   if (owner.type !== "MemberExpression" || owner.object.name !== "window" || !node.arguments[0] || node.arguments[0].type !== "ObjectExpression") { return; }
   const globalName = owner.property.name;
   const file = panelScripts.find(function (f) {
-    return fs.readFileSync(path.join(ROOT, f), "utf8").indexOf("global." + globalName + " = { create: create }") !== -1;
+    return fs.readFileSync(path.join(ROOT, f), "utf8").indexOf("global." + globalName + " = { create: create") !== -1;
   });
   if (!file) { problems.push("js/main.js: no file defines " + globalName + ".create"); return; }
   const passed = node.arguments[0].properties.map(function (p) { return p.key.name || p.key.value; });
@@ -158,7 +155,6 @@ tracked.filter(function (f) { return /^index\.html$|^css\/.*\.css$/.test(f); }).
     problems.push(f + ": CSS loads something from the web (@import / url(http))");
   }
 });
-
 if (problems.length) {
   console.error(problems.join("\n"));
   console.error("\n" + problems.length + " code check(s) failed");

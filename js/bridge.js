@@ -23,7 +23,6 @@
     function _jsxStringArg(text) {
       return _asciiOnly(JSON.stringify(String(text)));
     }
-
     // Runs an ExtendScript expression. Every jsx/host.jsx function returns
     // { ok, error, data } as JSON; resolves with `data`, rejects with the
     // error text.
@@ -58,11 +57,9 @@
         });
       });
     }
-
     function getClipInfo() {
       return evalJson("getSelectedAudioInfo()");
     }
-
     // Node lookup. A GUI app started from Finder or the Dock does not inherit
     // the shell's PATH, so a Node that `which node` finds in Terminal (e.g.
     // /opt/homebrew/bin/node) may be invisible to the panel. Order: the
@@ -72,8 +69,10 @@
     // Path of the Node binary bundled in runtime/node/<platform>-<arch>/, or
     // null when this platform has no bundled build or the file is missing.
     function _bundledNodePath(fs, os, extensionRoot) {
-      var platform = os.platform(); // "darwin" | "win32" (Node's own naming, even on 64-bit Windows)
-      var arch = os.arch(); // "arm64" | "x64"
+      var platform = os.platform();
+      // "darwin" | "win32" (Node's own naming, even on 64-bit Windows)
+      var arch = os.arch();
+      // "arm64" | "x64"
       var platformArch = null;
       if (platform === "darwin" && (arch === "arm64" || arch === "x64")) {
         platformArch = "darwin-" + arch;
@@ -81,7 +80,8 @@
         platformArch = "win-x64";
       }
       if (!platformArch) {
-        return null; // no bundled build for this platform/arch - falls through to the candidate list below
+        return null;
+      // no bundled build for this platform/arch - falls through to the candidate list below
       }
       var fileName = platform === "win32" ? "node.exe" : "node";
       var candidate = extensionRoot + "/runtime/node/" + platformArch + "/" + fileName;
@@ -100,7 +100,7 @@
         if (onWin && hasMac && !hasWin) { return "Mac"; }
         if (!onWin && hasWin && !hasMac) { return "Windows"; }
       } catch (e) {
-        // Fall back to the general message.
+      // Fall back to the general message.
       }
       return null;
     }
@@ -114,10 +114,14 @@
         return _cachedNodeExecutable;
       }
       var candidates = [
-        "/opt/homebrew/bin/node", // Homebrew, Apple Silicon
-        "/usr/local/bin/node", // Homebrew Intel, or the official Node.js macOS installer
-        "/opt/local/bin/node", // MacPorts
-        "C:\\Program Files\\nodejs\\node.exe" // official Node.js Windows installer default
+        "/opt/homebrew/bin/node",
+        // Homebrew, Apple Silicon
+        "/usr/local/bin/node",
+        // Homebrew Intel, or the official Node.js macOS installer
+        "/opt/local/bin/node",
+        // MacPorts
+        "C:\\Program Files\\nodejs\\node.exe"
+      // official Node.js Windows installer default
       ];
       for (var i = 0; i < candidates.length; i++) {
         try {
@@ -126,10 +130,11 @@
             return _cachedNodeExecutable;
           }
         } catch (e) {
-          // Keep checking the rest of the list.
+        // Keep checking the rest of the list.
         }
       }
-      _cachedNodeExecutable = "node"; // last resort: look "node" up on PATH
+      _cachedNodeExecutable = "node";
+      // last resort: look "node" up on PATH
       return _cachedNodeExecutable;
     }
     // Number of temp files currently in use by running workers (see
@@ -140,7 +145,14 @@
     function _workerTimeoutMs(baseMs, audioSeconds) {
       return baseMs + Math.max(0, Math.round((audioSeconds || 0) * 1000));
     }
-
+    // Preserve OS exit details alongside the worker error.
+    function _workerFailureDetails(err) {
+      var parts = [];
+      if (err.code !== undefined && err.code !== null) { parts.push("code=" + err.code); }
+      if (err.signal) { parts.push("signal=" + err.signal); }
+      if (err.killed) { parts.push("killed=true"); }
+      return parts.length ? " [" + parts.join(", ") + "]" : "";
+    }
     // Runs worker/analyze-worker.js (essentia.js: beat, key and onset
     // detection) in a separate OS process through window.cep_node's
     // child_process, instead of loading essentia's WASM into the panel's own
@@ -163,7 +175,6 @@
           var tmpFile = tmpDir + "/samples-" + Date.now() + "-" + Math.floor(Math.random() * 1e6) + ".raw";
           fs.writeFileSync(tmpFile, monoSamples);
           _tempFilesInFlight++;
-
           var workerPath = extensionRoot + "/worker/analyze-worker.js";
           var args = [workerPath, mode, tmpFile];
           if (audioPath || tempoConstraint) {
@@ -177,7 +188,6 @@
             // analyze-worker.js); the arguments in between are unused there.
             args = [workerPath, mode, tmpFile, "", "", "", keyMaterialArg];
           }
-
           var timeoutMs = _workerTimeoutMs(60000, monoSamples.length / window.BeatMarkerAudio.TARGET_SAMPLE_RATE);
           childProcess.execFile(
             _resolveNodeExecutable(fs, os, extensionRoot),
@@ -188,11 +198,10 @@
               try {
                 fs.unlinkSync(tmpFile);
               } catch (cleanupErr) {
-                // Best-effort - a leftover temp file isn't worth failing the
-                // whole call over; clearLeftoverTempFiles() sweeps any that
-                // survive on the next panel start.
+              // Best-effort - a leftover temp file isn't worth failing the
+              // whole call over; clearLeftoverTempFiles() sweeps any that
+              // survive on the next panel start.
               }
-
               if (err) {
                 var reason;
                 if (err.killed) {
@@ -211,7 +220,7 @@
                   reason = err.message || String(err);
                 }
                 reject(new Error(
-                  "analyze-worker (" + mode + ") failed: " + reason +
+                  "analyze-worker (" + mode + ") failed: " + reason + _workerFailureDetails(err) +
                   (stderr ? " | stderr: " + String(stderr).slice(0, 500) : "")
                 ));
                 return;
@@ -252,7 +261,6 @@
           var tmpFile = tmpDir + "/beatthis-" + Date.now() + "-" + Math.floor(Math.random() * 1e6) + ".raw";
           fs.writeFileSync(tmpFile, samples22050);
           _tempFilesInFlight++;
-
           var workerPath = extensionRoot + "/worker/beatthis-worker.js";
           var btTimeoutMs = _workerTimeoutMs(120000, samples22050.length / 22050);
           childProcess.execFile(
@@ -264,13 +272,13 @@
               try {
                 fs.unlinkSync(tmpFile);
               } catch (cleanupErr) {
-                // Best-effort, same reasoning as runAnalyzeWorker() above.
+              // Best-effort, same reasoning as runAnalyzeWorker() above.
               }
               if (err) {
                 var reason = err.killed
                   ? "timed out after " + Math.round(btTimeoutMs / 1000) + "s"
                   : (err.message || String(err));
-                reject(new Error("beatthis-worker failed: " + reason + (stderr ? " | stderr: " + String(stderr).slice(0, 500) : "")));
+                reject(new Error("beatthis-worker failed: " + reason + _workerFailureDetails(err) + (stderr ? " | stderr: " + String(stderr).slice(0, 500) : "")));
                 return;
               }
               var parsed;
@@ -309,7 +317,6 @@
           var tmpFile = tmpDir + "/skey-" + Date.now() + "-" + Math.floor(Math.random() * 1e6) + ".raw";
           fs.writeFileSync(tmpFile, samples22050);
           _tempFilesInFlight++;
-
           var workerPath = extensionRoot + "/worker/skey-worker.js";
           var skeyTimeoutMs = _workerTimeoutMs(60000, samples22050.length / 22050 / 2);
           childProcess.execFile(
@@ -321,13 +328,13 @@
               try {
                 fs.unlinkSync(tmpFile);
               } catch (cleanupErr) {
-                // Best-effort, same reasoning as runAnalyzeWorker() above.
+              // Best-effort, same reasoning as runAnalyzeWorker() above.
               }
               if (err) {
                 var reason = err.killed
                   ? "timed out after " + Math.round(skeyTimeoutMs / 1000) + "s"
                   : (err.message || String(err));
-                reject(new Error("skey-worker failed: " + reason + (stderr ? " | stderr: " + String(stderr).slice(0, 500) : "")));
+                reject(new Error("skey-worker failed: " + reason + _workerFailureDetails(err) + (stderr ? " | stderr: " + String(stderr).slice(0, 500) : "")));
                 return;
               }
               var parsed;
@@ -364,7 +371,6 @@
     function nodeExecutable() {
       return _cachedNodeExecutable;
     }
-
     return {
       evalJson: evalJson,
       getClipInfo: getClipInfo,
@@ -380,6 +386,5 @@
       nodeExecutable: nodeExecutable
     };
   }
-
   global.BeatMarkerBridge = { create: create };
 })(window);

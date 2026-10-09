@@ -7,15 +7,12 @@
 // English.
 (function (global) {
   "use strict";
-
   var LANGUAGES = ["en", "ru", "es"];
-
   var LANGUAGE_NAMES = {
     en: "English",
     ru: "Русский",
     es: "Español"
   };
-
   var STRINGS = {
     en: {
       "ae.note": "In After Effects some things are limited: markers sit on whole frames, sounds go in as layers and fades as volume keyframes. Sound work is easier in Premiere Pro.",
@@ -78,12 +75,10 @@
       "settings.externalLinkCancel": "Cancel",
       "settings.externalLinkOpen": "Open",
       "settings.footer": "v{version} · © 2026 Nikita Kolesov · free software, AGPL‑3.0",
-
       "selection.placeholder": "Select an audio clip on the timeline to get started.",
       "selection.notAnalyzed": "not analyzed yet",
       "selection.needAnalyze": "Run Analyze first.",
       "selection.alreadyAnalyzed": "already analyzed",
-
       "analyze.run": "Analyze selected audio",
       "analyze.manualBpmIntro": "Already know the BPM? Skip analysis and place an even beat grid at the tempo you type in.",
       "analyze.manualBpmBtn": "Use",
@@ -98,6 +93,26 @@
       "analyze.retempoHalf": "½×",
       "analyze.retempoDouble": "2×",
       "analyze.placeMarkers": "Place markers",
+      "output.title": "Finished audio",
+      "output.documents": "Documents / Downbeat / processed",
+      "output.project": "Beside the saved project",
+      "output.custom": "Custom folder",
+      "output.choose": "Choose folder…",
+      "output.hint": "Only finished audio uses this folder. Settings, libraries and temporary files stay in Documents/Downbeat.",
+      "output.projectHint": "Saved project folder / Downbeat / processed. Save the project before creating audio.",
+      "output.projectUnsaved": "Save the Adobe project first, or choose another output folder in Settings.",
+      "output.folderMissing": "Choose an output folder in Settings.",
+      "output.nameCollision": "Too many metronome files with the same name. Choose another folder.",
+      "metronome.add": "Add metronome track",
+      "metronome.hint": "All beats, with accented downbeats. Creates a WAV under the selected music. Choose its folder in Settings.",
+      "metronome.analyzeFirst": "Analyze the selected music first.",
+      "metronome.selectionChanged": "Select the analyzed music clip and try again.",
+      "metronome.durationLimit": "Metronome tracks support clips up to 30 minutes long.",
+      "metronome.noBeats": "No beats fall inside the selected clip.",
+      "metronome.insertFailed": "The host could not place the metronome.",
+      "metronome.done": "Metronome added on {where}.",
+      "metronome.failed": "Could not create the metronome: {error}",
+      "metronome.savedNotPlaced": "WAV saved at {path}, but not placed: {error}",
       "analyze.beatClickLabel": "Click on downbeats",
       "analyze.beatClickTrackVolume": "Track",
       "analyze.beatClickClickVolume": "Click",
@@ -140,7 +155,6 @@
       "analyze.toolsShort": "Tools",
       "analyze.audioUnitsTip": "To cut exactly on the beat rather than on the nearest video frame, turn on Show Audio Time Units in the Timeline panel menu (☰ next to the sequence name).",
       "analyze.markerToolsToggle": "Marker tools",
-
       "cut.title": "Cut",
       "cut.run": "Cut selected clip at downbeats",
       "cut.hint": "Uses the last Analyze result on this clip — run Analyze first.",
@@ -152,7 +166,6 @@
       "analyze.copyMarkersDone": "Copied {count} marker(s)",
       "analyze.pasteMarkersNothing": "Nothing copied yet - use \"Copy markers\" first",
       "analyze.pasteMarkersDone": "Pasted",
-
       "key.title": "Key & Camelot",
       "key.intro": "Finds the musical key of any clip - song, riser, stinger, or SFX.",
       "key.run": "Detect key",
@@ -204,7 +217,6 @@
       "key.pitchLandingMixes": " It still mixes with {target}.",
       "key.pitchCompatibleNoShift": "{from} already mixes with {target} without shifting. Shift only if you want them in the same key.",
       "key.manuallySet": "(manually set)",
-
       "library.sectionMusic": "Music",
       "library.sectionSfx": "SFX",
       "library.addFolder": "+ Folder",
@@ -327,7 +339,6 @@
       "library.folderScopeTitle": "Search in this folder (several can be on)",
       "library.folderOnlyTitle": "click: show only this folder",
       "library.clear": "Clear",
-
       "busy.default": "Working…",
       "busy.stuckHint": "This is taking longer than expected.",
       "busy.dismiss": "Dismiss",
@@ -337,7 +348,6 @@
       "busy.cut": "Cutting clip…",
       "busy.detectKey": "Detecting key…",
       "busy.clearMarkers": "Clearing markers…",
-
       "tour.next": "Next",
       "tour.back": "Back",
       "tour.skip": "Skip tour",
@@ -367,7 +377,6 @@
       "tour.settingsBody": "The guide, this tour, language, Library copies, \"Delete my data\", and the log for troubleshooting.",
       "tour.finishTitle": "That's it",
       "tour.finishBody": "You can replay this tour anytime from Settings. Select a clip on your timeline to get started.",
-
       "lang.pickTitle": "Choose your language",
       "updatePick.title": "Tell you about new versions?",
       "updatePick.body": "Downbeat can ask GitHub once every three days whether a new version is out. This, and downloading an update when you press the button for it, would be the only times it goes online; nothing about you is sent and nothing is installed by itself. You can change this later in Settings.",
@@ -375,7 +384,6 @@
       "updatePick.no": "No, stay offline",
       "lang.pickBody": "You can change this later in Settings.",
     },
-
     ru: {
       "ae.note": "В After Effects часть возможностей ограничена: маркеры встают только по кадрам, звуки добавляются слоями, а фейды — ключевыми кадрами громкости. Со звуком удобнее работать в Premiere Pro.",
       "ae.noteDismiss": "Понятно",
@@ -437,12 +445,10 @@
       "settings.externalLinkCancel": "Отмена",
       "settings.externalLinkOpen": "Открыть",
       "settings.footer": "v{version} · © 2026 Nikita Kolesov · свободная программа, AGPL‑3.0",
-
       "selection.placeholder": "Выберите аудиоклип на таймлайне, чтобы начать.",
       "selection.notAnalyzed": "ещё не анализировался",
       "selection.needAnalyze": "Сначала запустите «Анализ».",
       "selection.alreadyAnalyzed": "уже проанализирован",
-
       "analyze.run": "Анализировать выбранное аудио",
       "analyze.manualBpmIntro": "Уже знаете BPM? Можно пропустить анализ и сразу расставить ровную сетку долей по вписанному темпу.",
       "analyze.manualBpmBtn": "Применить",
@@ -457,6 +463,26 @@
       "analyze.retempoHalf": "½×",
       "analyze.retempoDouble": "2×",
       "analyze.placeMarkers": "Расставить маркеры",
+      "output.title": "Готовое аудио",
+      "output.documents": "Документы / Downbeat / processed",
+      "output.project": "Рядом с сохранённым проектом",
+      "output.custom": "Другая папка",
+      "output.choose": "Выбрать папку…",
+      "output.hint": "В этой папке сохраняется только готовое аудио. Настройки, библиотеки и временные файлы остаются в Документах/Downbeat.",
+      "output.projectHint": "Папка сохранённого проекта / Downbeat / processed. Сохраните проект перед созданием аудио.",
+      "output.projectUnsaved": "Сначала сохраните проект Adobe или выберите другую папку в Настройках.",
+      "output.folderMissing": "Выберите папку для аудио в Настройках.",
+      "output.nameCollision": "Слишком много файлов метронома с одинаковым именем. Выберите другую папку.",
+      "metronome.add": "Добавить дорожку метронома",
+      "metronome.hint": "Все доли с акцентами на сильных. Создаёт WAV под выбранной музыкой. Папка выбирается в Настройках.",
+      "metronome.analyzeFirst": "Сначала проанализируйте выбранную музыку.",
+      "metronome.selectionChanged": "Выберите проанализированный музыкальный клип и повторите попытку.",
+      "metronome.durationLimit": "Метроном поддерживает клипы длительностью до 30 минут.",
+      "metronome.noBeats": "В выбранный клип не попадает ни одна доля.",
+      "metronome.insertFailed": "Приложение не смогло разместить метроном.",
+      "metronome.done": "Метроном добавлен: {where}.",
+      "metronome.failed": "Не удалось создать метроном: {error}",
+      "metronome.savedNotPlaced": "WAV сохранён в {path}, но не размещён: {error}",
       "analyze.beatClickLabel": "Клик на сильных долях",
       "analyze.beatClickTrackVolume": "Трек",
       "analyze.beatClickClickVolume": "Клик",
@@ -499,7 +525,6 @@
       "analyze.toolsShort": "Ещё",
       "analyze.audioUnitsTip": "Чтобы резать точно в бит, а не по ближайшему кадру видео, включите Show Audio Time Units в меню панели Timeline (☰ рядом с названием секвенции).",
       "analyze.markerToolsToggle": "Инструменты маркеров",
-
       "cut.title": "Нарезка",
       "cut.run": "Разрезать клип по сильным долям",
       "cut.hint": "Использует последний результат анализа этого клипа — сначала запустите анализ.",
@@ -511,7 +536,6 @@
       "analyze.copyMarkersDone": "Скопировано маркеров: {count}",
       "analyze.pasteMarkersNothing": "Пока ничего не скопировано — сначала нажмите «Скопировать маркеры»",
       "analyze.pasteMarkersDone": "Вставлено",
-
       "key.title": "Тональность и Камелот",
       "key.intro": "Определяет тональность любого клипа — трека, райзера, стингера или SFX.",
       "key.run": "Определить тональность",
@@ -565,7 +589,6 @@
       "key.pitchLandingMixes": " Результат всё равно сочетается с {target}.",
       "key.pitchCompatibleNoShift": "{from} уже сочетается с {target} без сдвига. Сдвигайте, только если нужна одна и та же тональность.",
       "key.manuallySet": "(задано вручную)",
-
       "library.sectionMusic": "Музыка",
       "library.sectionSfx": "SFX",
       "library.addFolder": "+ Папка",
@@ -688,7 +711,6 @@
       "library.folderScopeTitle": "Искать в этой папке (можно отметить несколько)",
       "library.folderOnlyTitle": "клик — показать только эту папку",
       "library.clear": "Очистить",
-
       "busy.default": "Идёт обработка…",
       "busy.stuckHint": "Это занимает больше времени, чем обычно.",
       "busy.dismiss": "Закрыть",
@@ -698,7 +720,6 @@
       "busy.cut": "Нарезка клипа…",
       "busy.detectKey": "Определение тональности…",
       "busy.clearMarkers": "Удаление маркеров…",
-
       "tour.next": "Далее",
       "tour.back": "Назад",
       "tour.skip": "Пропустить обучение",
@@ -728,7 +749,6 @@
       "tour.settingsBody": "Справка, этот тур, язык, копии библиотеки, «Удалить мои данные» и лог для поиска проблем.",
       "tour.finishTitle": "Готово",
       "tour.finishBody": "Обучение можно пройти заново в любой момент через настройки. Выберите клип на таймлайне, чтобы начать.",
-
       "lang.pickTitle": "Выберите язык",
       "updatePick.title": "Сообщать о новых версиях?",
       "updatePick.body": "Downbeat может раз в три дня спрашивать у GitHub, не вышла ли новая версия. Это и скачивание обновления по нажатию кнопки — единственные случаи, когда он выходит в интернет: ничего о вас не отправляется и ничего не устанавливается само. Позже это можно изменить в настройках.",
@@ -736,7 +756,6 @@
       "updatePick.no": "Нет, без интернета",
       "lang.pickBody": "Позже это можно изменить в настройках.",
     },
-
     es: {
       "ae.note": "En After Effects algunas cosas están limitadas: los marcadores van a fotogramas enteros, los sonidos entran como capas y los fundidos como fotogramas clave de volumen. Para trabajar el sonido, Premiere Pro es más cómodo.",
       "ae.noteDismiss": "Entendido",
@@ -798,12 +817,10 @@
       "settings.externalLinkCancel": "Cancelar",
       "settings.externalLinkOpen": "Abrir",
       "settings.footer": "v{version} · © 2026 Nikita Kolesov · software libre, AGPL‑3.0",
-
       "selection.placeholder": "Selecciona un clip de audio en la línea de tiempo para empezar.",
       "selection.notAnalyzed": "aún no analizado",
       "selection.needAnalyze": "Ejecuta Analizar primero.",
       "selection.alreadyAnalyzed": "ya analizado",
-
       "analyze.run": "Analizar audio seleccionado",
       "analyze.manualBpmIntro": "¿Ya sabes el BPM? Omite el análisis y coloca una cuadrícula de tiempos uniforme al tempo que escribas.",
       "analyze.manualBpmBtn": "Usar",
@@ -818,6 +835,26 @@
       "analyze.retempoHalf": "½×",
       "analyze.retempoDouble": "2×",
       "analyze.placeMarkers": "Colocar marcadores",
+      "output.title": "Audio terminado",
+      "output.documents": "Documentos / Downbeat / processed",
+      "output.project": "Junto al proyecto guardado",
+      "output.custom": "Otra carpeta",
+      "output.choose": "Elegir carpeta…",
+      "output.hint": "Solo el audio terminado usa esta carpeta. Los ajustes, bibliotecas y archivos temporales permanecen en Documentos/Downbeat.",
+      "output.projectHint": "Carpeta del proyecto guardado / Downbeat / processed. Guarda el proyecto antes de crear audio.",
+      "output.projectUnsaved": "Guarda primero el proyecto de Adobe o elige otra carpeta en Ajustes.",
+      "output.folderMissing": "Elige una carpeta de audio en Ajustes.",
+      "output.nameCollision": "Hay demasiados archivos de metrónomo con el mismo nombre. Elige otra carpeta.",
+      "metronome.add": "Añadir pista de metrónomo",
+      "metronome.hint": "Todos los tiempos, con acentos en los fuertes. Crea un WAV debajo de la música seleccionada. Elige su carpeta en Ajustes.",
+      "metronome.analyzeFirst": "Analiza primero la música seleccionada.",
+      "metronome.selectionChanged": "Selecciona el clip de música analizado e inténtalo de nuevo.",
+      "metronome.durationLimit": "El metrónomo admite clips de hasta 30 minutos.",
+      "metronome.noBeats": "No hay tiempos dentro del clip seleccionado.",
+      "metronome.insertFailed": "La aplicación no pudo colocar el metrónomo.",
+      "metronome.done": "Metrónomo añadido en {where}.",
+      "metronome.failed": "No se pudo crear el metrónomo: {error}",
+      "metronome.savedNotPlaced": "WAV guardado en {path}, pero no colocado: {error}",
       "analyze.beatClickLabel": "Clic en los tiempos fuertes",
       "analyze.beatClickTrackVolume": "Pista",
       "analyze.beatClickClickVolume": "Clic",
@@ -860,7 +897,6 @@
       "analyze.toolsShort": "Más",
       "analyze.audioUnitsTip": "Para cortar justo en el pulso y no en el fotograma más cercano, activa Show Audio Time Units en el menú del panel Línea de tiempo (☰ junto al nombre de la secuencia).",
       "analyze.markerToolsToggle": "Herramientas de marcadores",
-
       "cut.title": "Cortar",
       "cut.run": "Cortar el clip en los tiempos fuertes",
       "cut.hint": "Usa el último resultado de Analizar en este clip — ejecuta Analizar primero.",
@@ -872,7 +908,6 @@
       "analyze.copyMarkersDone": "{count} marcador(es) copiado(s)",
       "analyze.pasteMarkersNothing": "Aún no se ha copiado nada - usa primero «Copiar marcadores»",
       "analyze.pasteMarkersDone": "Pegado",
-
       "key.title": "Tonalidad y Camelot",
       "key.intro": "Detecta la tonalidad de cualquier clip - canción, riser, stinger o SFX.",
       "key.run": "Detectar tonalidad",
@@ -924,7 +959,6 @@
       "key.pitchLandingMixes": " Aun así combina con {target}.",
       "key.pitchCompatibleNoShift": "{from} ya combina con {target} sin cambiar el tono. Cámbialo solo si quieres que estén en la misma tonalidad.",
       "key.manuallySet": "(ajustado manualmente)",
-
       "library.sectionMusic": "Música",
       "library.sectionSfx": "SFX",
       "library.addFolder": "+ Carpeta",
@@ -1047,7 +1081,6 @@
       "library.folderScopeTitle": "Buscar en esta carpeta (se pueden marcar varias)",
       "library.folderOnlyTitle": "clic: mostrar solo esta carpeta",
       "library.clear": "Borrar",
-
       "busy.default": "Procesando…",
       "busy.stuckHint": "Esto está tardando más de lo esperado.",
       "busy.dismiss": "Descartar",
@@ -1057,7 +1090,6 @@
       "busy.cut": "Cortando el clip…",
       "busy.detectKey": "Detectando tonalidad…",
       "busy.clearMarkers": "Borrando marcadores…",
-
       "tour.next": "Siguiente",
       "tour.back": "Atrás",
       "tour.skip": "Omitir recorrido",
@@ -1087,7 +1119,6 @@
       "tour.settingsBody": "La guía, este recorrido, el idioma, copias de la biblioteca, «Eliminar mis datos» y el registro para resolver problemas.",
       "tour.finishTitle": "Eso es todo",
       "tour.finishBody": "Puedes repetir este recorrido en cualquier momento desde Ajustes. Selecciona un clip en tu línea de tiempo para empezar.",
-
       "lang.pickTitle": "Elige tu idioma",
       "updatePick.title": "¿Avisarte de versiones nuevas?",
       "updatePick.body": "Downbeat puede preguntar a GitHub una vez cada tres días si hay una versión nueva. Eso, y descargar una actualización cuando pulsas el botón, serían las únicas veces que se conecta a internet: no se envía nada sobre ti y no se instala nada por sí solo. Puedes cambiarlo más tarde en Ajustes.",
@@ -1096,13 +1127,10 @@
       "lang.pickBody": "Puedes cambiarlo más tarde en Ajustes.",
     }
   };
-
   var currentLanguage = "en";
-
   function getLanguage() {
     return currentLanguage;
   }
-
   function setLanguage(lang) {
     if (LANGUAGES.indexOf(lang) === -1) {
       return;
@@ -1146,7 +1174,6 @@
       titleNodes[k].title = t(titleNodes[k].getAttribute("data-i18n-title"));
     }
   }
-
   global.BeatMarkerI18n = {
     LANGUAGES: LANGUAGES,
     LANGUAGE_NAMES: LANGUAGE_NAMES,
