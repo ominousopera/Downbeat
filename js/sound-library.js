@@ -570,7 +570,8 @@
     if (durationSec <= 100) {
       return { startSec: 0, lengthSec: durationSec, wantBpm: true };
     }
-    return { startSec: Math.min(30, durationSec * 0.2), lengthSec: 90, wantBpm: true };
+    var startSec = Math.min(30, durationSec * 0.2);
+    return { startSec: startSec, lengthSec: Math.min(90, durationSec - startSec), wantBpm: true };
   }
   // Favorites: a flag on the file's record, so it is saved with the library
   // and kept by Save / Load a copy.

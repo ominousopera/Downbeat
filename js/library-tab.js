@@ -91,8 +91,8 @@
     }
     // File and folder dialogs. CEP's own dialog first: it is parented to
     // Premiere, so on Windows it opens in front and does not tie up the
-    // host script engine (the ExtendScript dialog opened behind Premiere
-    // there, and every host call stalled until it was found and closed).
+    // host script engine. ExtendScript dialogs can open behind Premiere
+    // on Windows and block host calls until they are closed.
     // The ExtendScript dialog stays as the fallback when CEP's is missing.
     // Both resolve like the host functions: { directory } / { path },
     // null when cancelled.

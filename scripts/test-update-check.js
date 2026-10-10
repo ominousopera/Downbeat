@@ -244,8 +244,8 @@ function ask(kind, body) {
   let requests = 0;
   let nextAnswer = { err: null, value: { version: "9.9.9", url: "https://github.com/ominousopera/Downbeat/releases/tag/v9.9.9" } };
   UC.fetchLatest = function (cb) { requests++; setImmediate(function () { cb(nextAnswer.err, nextAnswer.value); }); };
-  check("off by default: the switch is off, no request was made, no Check now button, no open button",
-    r.updateCheckCheckbox.checked === false && requests === 0 && r.updateCheckNowBtn.hidden === true && r.updateOpenBtn.hidden === true);
+  check("off by default: the switch is off, no request was made, manual Check now available, no open button",
+    r.updateCheckCheckbox.checked === false && requests === 0 && r.updateCheckNowBtn.hidden === false && r.updateOpenBtn.hidden === true);
   r.updateCheckCheckbox.checked = true;
   r.updateCheckCheckbox._fire("change");
   await new Promise(function (res) { setTimeout(res, 20); });
@@ -298,7 +298,7 @@ function ask(kind, body) {
   r.updateCheckNowBtn._fire("click");
   await new Promise(function (res) { setTimeout(res, 20); });
   check("when the latest release is the installed one it says so, and the dot and button go away",
-    /latest version/.test(r.updateStatus.textContent) && r.updateOpenBtn.hidden === true && !r.settingsGearBtn.classList.contains("has-update"), r.updateStatus.textContent);
+    /No newer release found/.test(r.updateStatus.textContent) && r.updateOpenBtn.hidden === true && !r.settingsGearBtn.classList.contains("has-update"), r.updateStatus.textContent);
   nextAnswer = { err: new Error("no answer from GitHub in 10 s"), value: null };
   r.updateCheckNowBtn._fire("click");
   await new Promise(function (res) { setTimeout(res, 20); });
@@ -307,7 +307,7 @@ function ask(kind, body) {
   r.updateCheckCheckbox.checked = false;
   r.updateCheckCheckbox._fire("change");
   saved = JSON.parse(fs.readFileSync(path.join(DATA, "settings.json"), "utf8"));
-  check("switching it off stops everything: saved off, no request, Check now hidden", saved.updateCheck === false && requests === before && r.updateCheckNowBtn.hidden === true);
+  check("switching it off stops everything: saved off, no request, manual Check now remains available", saved.updateCheck === false && requests === before && r.updateCheckNowBtn.hidden === false);
   fs.rmSync(DOCS, { recursive: true, force: true });
   if (failures) { console.error("\n" + failures + " check(s) failed"); process.exit(1); }
   console.log("\nthe update notice is opt-in and verifies packages before opening them");

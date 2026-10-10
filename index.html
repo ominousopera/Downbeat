@@ -68,8 +68,8 @@
     <div class="row">
       <button id="clearLibraryBtn" type="button" class="ghost settings-full-btn" data-i18n="library.clear">Clear</button>
     </div>
-    <div class="row" style="margin-top:6px">
-      <span class="hint" data-i18n="settings.libraryHint">Kept in Documents/Downbeat. Clear forgets the results; your folders stay.</span>
+    <div class="row settings-hint-row">
+      <span class="hint" data-i18n="settings.libraryHint">Library data is saved in Documents/Downbeat. Clear removes saved analysis results. Your folder list and original audio files stay.</span>
     </div>
     <div class="row g-status-row">
       <span id="libraryAdminStatus" class="hint"></span>
@@ -77,9 +77,7 @@
 
     <hr>
 
-    <div class="row">
-      <span class="panel-title" data-i18n="output.title">Finished audio</span>
-    </div>
+    <p class="panel-title" data-i18n="output.title">Finished audio</p>
     <div class="row">
       <select id="audioOutputModeSelect">
         <option value="documents" data-i18n="output.documents">Documents / Downbeat / processed</option>
@@ -92,34 +90,43 @@
     </div>
     <p id="audioOutputPath" class="hint"></p>
     <p class="hint" data-i18n="output.hint">Only finished audio uses this folder. Settings, libraries and temporary files stay in Documents/Downbeat.</p>
-    <hr>
-    <div class="row">
-      <button id="deleteDataBtn" type="button" class="ghost settings-full-btn" data-i18n="settings.deleteData">Delete my data</button>
-    </div>
-    <div class="row" style="margin-top:6px">
-      <span class="hint" data-i18n="settings.deleteDataHint">Removes only the files Downbeat saved itself in Documents/Downbeat: settings, the track library, the Music / SFX library, leftover temp files. Nothing else in that folder is ever touched.</span>
-    </div>
 
     <hr>
 
     <p class="panel-title" data-i18n="settings.updates">Updates</p>
     <div class="row">
+      <button id="updateCheckNowBtn" type="button" class="ghost settings-full-btn" data-i18n="settings.updateCheckNow">Check now</button>
+    </div>
+    <div class="row">
       <label><input type="checkbox" id="updateCheckCheckbox"> <span data-i18n="settings.updateCheck">Tell me when a new version is out</span></label>
     </div>
-    <div class="row" style="margin-top:6px">
-      <span class="hint" data-i18n="settings.updateHint">Asked once at the first start. When on, Downbeat asks GitHub once every three days for the number of the latest release. Nothing about you is sent, and nothing is installed: you download an update yourself.</span>
+    <div class="row settings-hint-row">
+      <span class="hint" data-i18n="settings.updateHint">Check now makes a one-time request to GitHub. Turn on notifications for a check every three days. Analysis stays offline. Updates are downloaded only when you ask; your ZXP installer handles installation.</span>
     </div>
     <div class="row g-status-row">
       <span id="updateStatus" class="hint"></span>
-    </div>
-    <div class="row">
-      <button id="updateCheckNowBtn" type="button" class="ghost settings-full-btn" data-i18n="settings.updateCheckNow" hidden>Check now</button>
     </div>
     <div class="row">
       <button id="updateDownloadBtn" type="button" class="primary settings-full-btn" hidden>Download and open the update</button>
     </div>
     <div class="row">
       <button id="updateOpenBtn" type="button" class="ghost settings-full-btn" data-i18n="settings.updateOpen" hidden>Open the release page</button>
+    </div>
+
+    <div class="row">
+      <button id="updateReopenBtn" type="button" class="ghost settings-full-btn" data-i18n="settings.updateReopen" hidden>Open downloaded update</button>
+    </div>
+    <div class="row">
+      <button id="updateFolderBtn" type="button" class="ghost settings-full-btn" data-i18n="settings.updateFolder" hidden>Show downloaded file</button>
+    </div>
+    <p id="updateSavedPath" class="hint" hidden></p>
+    <hr>
+    <p class="panel-title" data-i18n="settings.savedData">Saved data</p>
+    <div class="row">
+      <button id="deleteDataBtn" type="button" class="ghost settings-full-btn" data-i18n="settings.deleteData">Delete my data</button>
+    </div>
+    <div class="row settings-hint-row">
+      <span class="hint" data-i18n="settings.deleteDataHint">Removes only the files Downbeat saved itself in Documents/Downbeat: settings, the track library, the Music / SFX library, leftover temp files. Nothing else in that folder is ever touched.</span>
     </div>
 
     <hr>
@@ -144,11 +151,11 @@
          above. They stay in the DOM because the self-test clicks these
          elements by id. -->
     <div id="individualDiagnostics" hidden>
-      <div class="row" style="margin-top:6px">
+      <div class="row settings-hint-row">
         <button id="testEssentiaBtn" type="button" class="ghost" data-i18n="settings.testEssentia">Test the analysis engine</button>
         <span class="hint" data-i18n="settings.testEssentiaHint">no file needed</span>
       </div>
-      <div class="row" style="margin-top:6px">
+      <div class="row settings-hint-row">
         <button id="getInfoBtn" type="button" class="ghost" data-i18n="settings.getInfo">Get selected audio info</button>
       </div>
       <div class="row">

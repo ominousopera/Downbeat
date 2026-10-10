@@ -395,20 +395,20 @@ El icono del engranaje, arriba a la derecha:
   - **Borrar** olvida todos los resultados del análisis (pulsa dos veces
     para confirmar). Tus carpetas se quedan, e Iniciar análisis en la
     pestaña Biblioteca las vuelve a analizar.
-- **Actualizaciones**: **Avisarme de una versión nueva** se pregunta una sola vez, al
-  primer inicio (un «no» deja Downbeat totalmente sin conexión); aquí puedes
-  cambiarlo. Si está activado, Downbeat pregunta a GitHub una vez cada tres días por el
-  número de la última versión (no se envía nada sobre ti). Si hay una versión
-  más nueva, el engranaje muestra un punto y esta sección dos botones:
-  **Descargar y abrir la actualización** toma el paquete de tu ordenador de la
-  versión (solo desde GitHub), lo comprueba con la suma de control publicada
-  con ella, lo guarda en tu carpeta Descargas y lo abre en tu instalador de
-  ZXP, donde confirmas y luego reinicias Premiere Pro o After Effects; y
-  **Abrir la página de la versión**. Si la suma no coincide, el archivo se
-  borra y no se abre nada. **Comprobar ahora** pregunta al momento.
-  En macOS debe estar instalado ZXP Installer. Si no se puede abrir,
-  el paquete verificado permanece en Descargas para instalarlo manualmente.
-  En Windows se usa la asociación de archivos ZXP del sistema.
+- **Actualizaciones**: **Comprobar ahora** aparece primero y consulta una
+  sola vez aunque los avisos estén desactivados. **Avisarme de una versión
+  nueva** activa una comprobación cada tres días, sin descargas ni instalación
+  automáticas. El análisis funciona sin internet.
+  **Descargar y abrir la actualización** obtiene el paquete de GitHub,
+  comprueba su suma y lo guarda en Descargas antes de abrir el instalador ZXP.
+  Confirma allí y reinicia Premiere Pro o After Effects. Los paquetes
+  existentes se conservan; otra descarga recibe un nombre separado.
+  **Abrir actualización descargada** verifica de nuevo el archivo y lo abre
+  sin descargar. **Mostrar archivo descargado** abre su carpeta. Si falta o
+  ha cambiado, debes descargarlo otra vez. macOS necesita ZXP Installer;
+  Windows usa la asociación de archivos ZXP. Un error al abrir conserva el
+  paquete verificado. **Abrir la página de la versión** permite instalar
+  manualmente. Verificar el archivo no confirma que la instalación terminó.
 - **Eliminar mis datos**: quita los ajustes, las dos bibliotecas (los
   clips analizados, y Música / SFX con sus carpetas y resultados) y los
   archivos temporales que hayan quedado y que Downbeat guardó en
@@ -537,3 +537,7 @@ los datos del panel conserva los WAV. Pitch y Reverse cambian parámetros
 del clip y no generan copias de audio.
 
 El registro incluye rutas locales. Revísalo antes de compartirlo públicamente.
+
+Si una pista guardada contiene un tempo o tiempos inválidos, conserva los datos válidos de tonalidad, pero hay que analizar de nuevo su rejilla de tiempos. Los fragmentos de análisis de la biblioteca permanecen dentro del archivo original.
+
+La corrección de tempo pertenece al análisis que la inició. Si seleccionas otro clip o inicias un nuevo análisis mientras se ejecuta, el resultado tardío no sustituirá la cuadrícula actual.

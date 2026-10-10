@@ -3,6 +3,12 @@
    hairline, numbered-section look. A rule in part 1 may be overridden by the THEME block. */
 
 :root {
+  --space-tight: 4px;
+  --space-row: 8px;
+  --space-group: 12px;
+  --space-section: 16px;
+  --leading-prose: 1.5;
+  --leading-control: 1.3;
   --bg: #161617;
   --bg-panel: #1d1d1f;
   --bg-raised: #232326;
@@ -29,7 +35,7 @@
 body {
   font-family: var(--font-ui);
   font-size: 11.5px;
-  line-height: 1.5;
+  line-height: var(--leading-prose);
   margin: 0;
   padding: 14px 14px 24px;
   /* Faint horizontal scale lines every 24px over the background color. */
@@ -929,7 +935,7 @@ hr {
 }
 .tour-callout-body {
   font-size: 10.5px;
-  line-height: 1.5;
+  line-height: var(--leading-prose);
   color: var(--text);
   margin: 0 0 10px;
 }
@@ -1048,7 +1054,7 @@ hr {
 .modal-card-message {
   padding: 12px 14px 0;
   font-size: 11px;
-  line-height: 1.5;
+  line-height: var(--leading-prose);
   color: var(--text);
   white-space: pre-line; /* the delete-data dialog lists one file per line */
   word-break: break-word;
@@ -1759,7 +1765,7 @@ button.lib-insert { padding: 3px 8px; font-size: 9px; }
   padding: 14px 16px 16px;
 }
 .settings-panel hr { display: none; }
-.settings-panel .panel-title { margin-top: 14px; }
+
 .settings-panel-head .panel-title {
   border-top: none;
   padding-top: 0;
@@ -1793,10 +1799,10 @@ button.settings-full-btn::after { content: "\2192"; color: var(--text-dim); }
 .tour-spotlight { border-radius: 0; border-color: var(--accent); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 0; }
 
-.row { margin-bottom: 5px; }
-.panel, .g-sec { margin-bottom: 12px; }
-.panel-title, .settings-panel .panel-title, .g-sec-head { margin-bottom: 7px; }
-.settings-panel .panel-title { margin-top: 10px; }
+.row { margin-bottom: var(--space-tight); }
+.panel, .g-sec { margin-bottom: var(--space-section); }
+.panel-title, .settings-panel .panel-title, .g-sec-head { margin-bottom: var(--space-row); }
+
 .settings-panel { padding: 12px 14px 12px; }
 button.settings-full-btn { padding: 5px 0; }
 .g-analyze { margin-bottom: 6px; }
@@ -2009,14 +2015,14 @@ button.g-cell:disabled { opacity: 0.35; }
   text-transform: none;
 }
 /* The "1" row under the tempo check, left-aligned, with its line of help. */
-.g-phase-row { margin-top: 2px; margin-bottom: 2px; }
+
 .g-phase-row .g-phase > span:first-child {
   font-size: 9.5px;
   letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--text-dim);
 }
-.g-phase-hint { margin-bottom: 8px; }
+
 
 /* ==========================================================================
    TEXT LEVELS. Four levels: 1. values (BPM, key) - large, --text; 2. main
@@ -2110,12 +2116,12 @@ button.settings-full-btn { font-size: 10.5px; letter-spacing: 1.2px; }
 /* TEMPO in one label column. Each line is a label and its controls; the label
    column is as wide as the Markers grid's, so the values of both sections
    line up (108 + 4 + 8 = 108 + 12). A line's hint wraps under it, full width. */
-.g-kv { column-gap: 8px; row-gap: 4px; margin-bottom: 7px; }
+.g-kv { column-gap: var(--space-row); row-gap: var(--space-tight); margin-bottom: var(--space-row); }
 .g-kv > .g-key { flex: 0 0 auto; min-width: 108px; margin-right: 4px; }
 .g-grid { grid-template-columns: minmax(108px, auto) 1fr; }
 .g-kv > .hint { flex-basis: 100%; }
-.g-phase-row { margin-top: 0; margin-bottom: 4px; }
-.g-phase-hint { margin-bottom: 8px; }
+.g-phase-row { margin-top: 0; margin-bottom: var(--space-tight); }
+.g-phase-hint { margin-bottom: var(--space-row); }
 #retempoHint:empty { display: none; }
 /* Beat grid: Refined / Basic, two words like the Markers options - the chosen
    one white and underlined in orange. */
@@ -2178,7 +2184,7 @@ button.settings-full-btn.g-last { border-bottom-color: transparent; }
 
 /* Settings: less room above each section's rule, so the blank band under a
    section's last item matches the one under its heading. */
-.settings-panel .panel-title { margin-top: 4px; }
+
 
 /* Copy log answers on the button itself: for two seconds it reads "Copied"
    with a check in place of the arrow, or "Copy failed" in red. */
@@ -2399,3 +2405,20 @@ body.on-library #tabContentLibrary .g-lib-body > #libFolderList:empty { display:
 
 /* The one-time update-notice question: the two answers side by side. */
 .update-pick-actions { display: flex; justify-content: center; gap: 12px; margin-top: 12px; }
+
+/* Shared spacing for prose, parameters and numbered settings sections. */
+.hint { line-height: var(--leading-prose); }
+p.hint { margin: 0 0 var(--space-row); }
+.g-opt, .g-opt-btn, .db-select-btn, .settings-full-btn { line-height: var(--leading-control); }
+.settings-panel .panel-title {
+  margin-top: var(--space-group);
+  margin-bottom: var(--space-row);
+  padding-top: var(--space-row);
+}
+.settings-panel-head .panel-title { margin: 0; padding-top: 0; }
+.settings-panel .row { margin-bottom: var(--space-tight); gap: var(--space-row); }
+.settings-panel .settings-hint-row { margin-top: var(--space-tight); margin-bottom: var(--space-row); }
+.settings-panel .hint { overflow-wrap: anywhere; }
+.settings-panel .g-status-row { margin: 0; }
+.settings-panel .g-status-row > span:not(:empty) { margin: var(--space-tight) 0 var(--space-row); }
+#updateSavedPath:empty, #audioOutputPath:empty { display: none; }

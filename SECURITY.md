@@ -1,19 +1,19 @@
 # Security
 
-Downbeat is a local panel: it has no server and no account, and it makes no
-network calls except one optional request: if you say yes to the one-time
-question about the update notice (or switch it on in Settings; "no" is the
-default), it asks `api.github.com` for the latest release of this project
-once every three days and sends nothing about you. When a
-newer version exists, a button can download its package from that release
-(only from GitHub's own hosts, over https), checks it against the SHA-256
-checksum published with the release (no checksum, or a mismatch, deletes the
-file), saves it in your Downloads folder and hands it to your ZXP installer;
-Downbeat installs nothing itself (`scripts/check-code.js` fails the build if
-any other code that could go online is added, or if that one file talks to
-anything but this project's release record and its downloads). The only web
-addresses it opens are links in Settings, in your browser, after a
-confirmation.
+Downbeat is a local panel with no server or account. Analysis and Library
+work offline. Background release checks are off by default; enabling the
+optional notification asks this project's GitHub release API every three
+days. Check now makes one explicit request independently of that preference.
+Downloads occur only on request, follow HTTPS redirects on GitHub hosts,
+and are checked against the release's SHA-256 before opening an installer.
+Only the current download's uniquely created temporary file is cleaned up
+on failure. Existing packages and unrelated temporary files are preserved.
+A saved update is checked again before reopening. The installer confirms
+installation; Downbeat does not modify its signed installation in place.
+No audio, library or project content is transmitted. GitHub receives the
+network request and its IP address. Feedback/release links open in the
+browser after confirmation. The build rejects network code outside the
+pinned updater module.
 
 What is worth reporting: anything that lets a crafted audio file, file name,
 folder, project or saved settings file make the panel run code, read or write

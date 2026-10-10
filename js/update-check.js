@@ -1,7 +1,7 @@
 // The optional "new version" notice: asks GitHub for the number of the
 // latest Downbeat release and compares it with the installed version. It is
-// the only place the plugin goes online, it runs only when the user has
-// switched it on in Settings, and it sends nothing about the user - a plain
+// the only module that goes online, after an explicit check/download or
+// when periodic notices are enabled, with no audio or project content - a plain
 // GET for the public release record. Nothing is ever installed by Downbeat
 // itself: a signed package cannot be changed in place. When a newer version
 // is out, a button can fetch its package from the release, check it against
@@ -252,212 +252,216 @@
   // GET `urlText` over https, following GitHub's forwards. Calls
   // onResponse(res) for the final 200 answer, or onFail(err). Every hop must
   // be https on a GitHub host.
-  function getFollowing(https, urlText, onResponse, onFail, hops) {
+  function getFollowing(https, urlText, onResponse, onFail, hops, control) {
+    control = control || { request: null, response: null, stopped: false, destroy: function () {
+      this.stopped = true;
+      if (this.request) { this.request.destroy(); }
+      if (this.response && typeof this.response.destroy === "function") { this.response.destroy(); }
+    } };
     var u;
-    try {
-      u = new URL(urlText);
-    } catch (e) {
-      onFail(new Error("not a web address"));
-      return null;
-    }
+    try { u = new URL(urlText); }
+    catch (e) { onFail(new Error("not a web address")); return control; }
     if (u.protocol !== "https:" || !isGithubFileHost(u.hostname)) {
-      onFail(new Error("the file is not on GitHub"));
-      return null;
+      onFail(new Error("the file is not on GitHub")); return control;
     }
-    var req = https.get({
+    control.request = https.get({
       host: u.hostname,
       path: u.pathname + u.search,
+      timeout: DOWNLOAD_IDLE_MS,
       headers: { "User-Agent": "Downbeat-update-check", "Accept": "application/octet-stream" }
     }, function (res) {
+      if (control.stopped) { res.resume(); return; }
+      control.response = res;
+      res.on("error", onFail);
+      res.on("aborted", function () { onFail(new Error("the response was interrupted")); });
+      res.on("close", function () {
+        if (res.complete === false) { onFail(new Error("the response ended before it was complete")); }
+      });
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers && res.headers.location) {
         res.resume();
-        if ((hops || 0) >= MAX_REDIRECTS) {
-          onFail(new Error("too many forwards"));
-          return;
-        }
+        if ((hops || 0) >= MAX_REDIRECTS) { onFail(new Error("too many forwards")); return; }
         var next;
-        try {
-          next = new URL(res.headers.location, u).toString();
-        } catch (e2) {
-          onFail(new Error("a forward to nowhere"));
-          return;
-        }
-        getFollowing(https, next, onResponse, onFail, (hops || 0) + 1);
+        try { next = new URL(res.headers.location, u).toString(); }
+        catch (e2) { onFail(new Error("a forward to nowhere")); return; }
+        getFollowing(https, next, onResponse, onFail, (hops || 0) + 1, control);
         return;
       }
       if (res.statusCode !== 200) {
-        res.resume();
-        onFail(new Error("GitHub answered " + res.statusCode));
-        return;
+        res.resume(); onFail(new Error("GitHub answered " + res.statusCode)); return;
       }
       onResponse(res);
     });
-    req.on("error", function (e) { onFail(e); });
-    return req;
+    control.request.on("error", onFail);
+    control.request.on("timeout", function () { onFail(new Error("no response data from GitHub in 30 s")); });
+    return control;
   }
   // Small text file (the checksum list) into a string.
   function fetchText(https, urlText, maxBytes, callback) {
     var finished = false;
+    var control = null;
+    var timer = setTimeout(function () { done(new Error("the checksum request timed out"), null); }, DOWNLOAD_IDLE_MS);
     function done(err, text) {
-      if (!finished) {
-        finished = true;
-        callback(err, text);
-      }
+      if (finished) { return; }
+      finished = true;
+      clearTimeout(timer);
+      if (err && control) { control.destroy(); }
+      callback(err, text);
     }
-    getFollowing(https, urlText, function (res) {
-      var text = "";
-      if (typeof res.setEncoding === "function") { res.setEncoding("utf8"); }
-      res.on("data", function (chunk) {
-        text += chunk.toString("utf8");
-        if (text.length > maxBytes) {
-          if (typeof res.destroy === "function") { res.destroy(); }
-          done(new Error("the checksum list was too large"), null);
-        }
-      });
-      res.on("end", function () { done(null, text); });
-      res.on("error", function (e) { done(e, null); });
-    }, function (e) { done(e, null); }, 0);
+    try {
+      control = getFollowing(https, urlText, function (res) {
+        var text = "";
+        res.on("data", function (chunk) {
+          if (finished) { return; }
+          text += chunk.toString("utf8");
+          if (text.length > maxBytes) { done(new Error("the checksum list was too large"), null); }
+        });
+        res.on("end", function () { done(null, text); });
+      }, function (e) { done(e, null); }, 0);
+    } catch (e) { done(e, null); }
   }
-  // Downloads the package for this computer, checks it, saves it as
-  // <dir>/<name> and opens it. `latest` is the answer saved by fetchLatest.
-  // opts: { platform, dir, onProgress(fraction), modules: { https, fs, path,
-  // crypto, open(path) } } - the modules come from the panel's Node context
-  // unless a test passes stand-ins.
-  // callback(err, { path, name, sha256 }). The file is verified BEFORE it is
-  // named: it is written under a ".part" name, its SHA-256 is compared with
-  // the one the release publishes (the asset's own digest, else the line in
-  // SHA256SUMS.txt), and only a match is renamed and opened. No published
-  // checksum, or a mismatch, deletes the file and stops.
-  function downloadPackage(latest, opts, callback) {
+  // Check retained package bytes before passing them to an installer.
+  function verifyDownloaded(saved, opts, callback) {
+    var stream = null;
     var finished = false;
-    var partPath = null;
+    function done(err) {
+      if (finished) { return; }
+      finished = true;
+      if (err && stream) { stream.destroy(); }
+      callback(err, err ? null : saved);
+    }
+    try {
+      var m = opts && opts.modules || {};
+      var req = global.cep_node.require;
+      var fs = m.fs || req("fs"), path = m.path || req("path"), crypto = m.crypto || req("crypto");
+      if (!saved || typeof saved.path !== "string" || !path.isAbsolute(saved.path) ||
+          !/^Downbeat-\d{1,4}\.\d{1,4}\.\d{1,4}-(mac|win)(-\d+)?\.zxp$/.test(path.basename(saved.path)) ||
+          !/^[a-f0-9]{64}$/.test(saved.sha256 || "")) { throw new Error("no verified update package is saved"); }
+      var stat = fs.lstatSync(saved.path);
+      if (!stat.isFile() || stat.isSymbolicLink() || stat.size > MAX_PACKAGE_BYTES ||
+          (saved.size > 0 && stat.size !== saved.size)) { throw new Error("the saved package has changed"); }
+      var hash = crypto.createHash("sha256");
+      stream = fs.createReadStream(saved.path);
+      stream.on("data", function (data) { hash.update(data); });
+      stream.on("error", done);
+      stream.on("end", function () {
+        done(hash.digest("hex") === saved.sha256 ? null : new Error("the saved package does not match its verified checksum"));
+      });
+    } catch (e) { done(e); }
+  }
+
+  // Download to a uniquely owned temporary file, verify its release checksum,
+  // then save without overwriting another package and hand it to the installer.
+  // Without a published checksum no download begins; failed owned temporary
+  // files are removed, while verified final files remain available for retry.
+  function downloadPackage(latest, opts, callback) {
+    var finished = false, ownedPath = null, out = null, response = null, control = null, idle = null;
     var fsMod = null;
     function done(err, value) {
       if (finished) { return; }
       finished = true;
-      if (err && partPath && fsMod) {
-        try { fsMod.unlinkSync(partPath); } catch (e) { /* nothing was written yet */ }
+      clearTimeout(idle);
+      function cleanup() {
+        if (err && ownedPath) { try { fsMod.unlinkSync(ownedPath); } catch (e) { /* already gone */ } }
+        callback(err, value);
       }
-      callback(err, value);
+      if (err) {
+        if (control) { control.destroy(); }
+        if (response && typeof response.destroy === "function") { response.destroy(); }
+        if (out && !out.closed) { out.once("close", cleanup); out.destroy(); return; }
+      }
+      cleanup();
+    }
+    function armIdle() {
+      clearTimeout(idle);
+      idle = setTimeout(function () { done(new Error("the download stopped"), null); }, DOWNLOAD_IDLE_MS);
     }
     try {
-      var nodeRequire = global.cep_node && global.cep_node.require ? global.cep_node.require : null;
+      var req = global.cep_node.require;
       var m = opts.modules || {};
-      var https = m.https || nodeRequire("https");
-      fsMod = m.fs || nodeRequire("fs");
-      var pathMod = m.path || nodeRequire("path");
-      var crypto = m.crypto || nodeRequire("crypto");
+      var https = m.https || req("https"), path = m.path || req("path"), crypto = m.crypto || req("crypto");
+      fsMod = m.fs || req("fs");
       var pkg = packageFor(latest, opts.platform);
-      if (!pkg) {
-        done(new Error("this release has no package for this computer"), null);
-        return;
-      }
+      if (!pkg) { done(new Error("this release has no package for this computer"), null); return; }
       var name = pkg.name;
       if (!/^Downbeat-\d{1,4}\.\d{1,4}\.\d{1,4}-(mac|win)\.zxp$/.test(name)) {
-        done(new Error("unexpected package name"), null);
-        return;
+        done(new Error("unexpected package name"), null); return;
       }
-      if (pkg.size > MAX_PACKAGE_BYTES) {
-        done(new Error("the package is larger than expected"), null);
-        return;
-      }
-      var finalPath = pathMod.join(opts.dir, name);
-      partPath = finalPath + ".part";
-      var getExpected = function (next) {
-        if (pkg.sha256) {
-          next(null, pkg.sha256);
-          return;
-        }
+      if (pkg.size > MAX_PACKAGE_BYTES) { done(new Error("the package is larger than expected"), null); return; }
+      var finalPath = path.join(opts.dir, name);
+      function getExpected(next) {
+        if (/^[a-f0-9]{64}$/.test(pkg.sha256 || "")) { next(null, pkg.sha256); return; }
         var sums = latest.files && latest.files.sums;
-        if (!sums) {
-          next(new Error("the release publishes no checksum for the package"), null);
-          return;
-        }
+        if (!sums) { next(new Error("the release publishes no checksum for the package"), null); return; }
         fetchText(https, sums.url, MAX_SUMS_BYTES, function (err, text) {
           if (err) { next(err, null); return; }
           var sum = sumFor(text, name);
           next(sum ? null : new Error("the checksum list does not name the package"), sum);
         });
-      };
+      }
       getExpected(function (expectErr, expected) {
         if (expectErr) { done(expectErr, null); return; }
-        var hash = crypto.createHash("sha256");
-        var written = 0;
-        var out = null;
-        var idle = null;
-        var req = null;
-        var armIdle = function () {
-          if (idle) { clearTimeout(idle); }
-          idle = setTimeout(function () {
-            if (req && typeof req.destroy === "function") { req.destroy(); }
-            if (out) { try { out.destroy(); } catch (e) { /* closing anyway */ } }
-            done(new Error("the download stopped"), null);
-          }, DOWNLOAD_IDLE_MS);
-        };
+        if (finished) { return; }
+        var hash = crypto.createHash("sha256"), written = 0;
         armIdle();
-        req = getFollowing(https, pkg.url, function (res) {
-          try {
-            out = fsMod.createWriteStream(partPath);
-          } catch (e) {
-            clearTimeout(idle);
-            done(e, null);
-            return;
-          }
-          out.on("error", function (e) { clearTimeout(idle); done(e, null); });
-          res.on("data", function (chunk) {
-            armIdle();
-            written += chunk.length;
-            if (written > MAX_PACKAGE_BYTES) {
-              if (typeof res.destroy === "function") { res.destroy(); }
+        try {
+          control = getFollowing(https, pkg.url, function (res) {
+            if (finished) { res.resume(); return; }
+            response = res;
+            var fd = null;
+            try {
+              var partPath = finalPath + "." + crypto.randomBytes(12).toString("hex") + ".part";
+              fd = fsMod.openSync(partPath, "wx", 384);
+              ownedPath = partPath;
+              out = fsMod.createWriteStream(partPath, { fd: fd });
+            } catch (e) {
+              if (fd !== null) { try { fsMod.closeSync(fd); } catch (closeErr) { /* closing anyway */ } }
+              done(e, null); return;
+            }
+            out.on("error", function (e) { done(e, null); });
+            out.on("drain", function () { if (!finished && typeof res.resume === "function") { res.resume(); } });
+            res.on("data", function (chunk) {
+              if (finished) { return; }
+              armIdle();
+              written += chunk.length;
+              if (written > MAX_PACKAGE_BYTES) { done(new Error("the package is larger than expected"), null); return; }
+              hash.update(chunk);
+              if (!out.write(chunk) && typeof res.pause === "function") { res.pause(); }
+              var total = pkg.size > 0 ? pkg.size : Number(res.headers && res.headers["content-length"]) || 0;
+              if (typeof opts.onProgress === "function" && total > 0) { opts.onProgress(Math.min(1, written / total)); }
+            });
+            res.on("end", function () {
+              if (finished) { return; }
               clearTimeout(idle);
-              try { out.destroy(); } catch (e) { /* closing anyway */ }
-              done(new Error("the package is larger than expected"), null);
-              return;
-            }
-            hash.update(chunk);
-            out.write(chunk);
-            var total = pkg.size > 0 ? pkg.size : (res.headers && Number(res.headers["content-length"]) > 0 ? Number(res.headers["content-length"]) : 0);
-            if (typeof opts.onProgress === "function" && total > 0) {
-              opts.onProgress(Math.min(1, written / total));
-            }
-          });
-          res.on("error", function (e) { clearTimeout(idle); done(e, null); });
-          res.on("end", function () {
-            clearTimeout(idle);
-            out.end(function () {
+              out.end();
+            });
+            out.on("close", function () {
+              if (finished) { return; }
               var got = hash.digest("hex");
-              if (got !== expected) {
-                done(new Error("the downloaded file does not match its published checksum - it was deleted"), null);
-                return;
-              }
-              if (pkg.size > 0 && written !== pkg.size) {
-                done(new Error("the downloaded file is not the expected size - it was deleted"), null);
-                return;
-              }
+              if (got !== expected) { done(new Error("the downloaded file does not match its published checksum - it was deleted"), null); return; }
+              if (pkg.size > 0 && written !== pkg.size) { done(new Error("the downloaded file is not the expected size - it was deleted"), null); return; }
               try {
-                fsMod.renameSync(partPath, finalPath);
-              } catch (e) {
-                done(e, null);
-                return;
-              }
-              partPath = null;
+                for (var suffix = 0; suffix < 100; suffix++) {
+                  var target = suffix ? finalPath.replace(/\.zxp$/, "-" + suffix + ".zxp") : finalPath;
+                  try { fsMod.copyFileSync(ownedPath, target, 1); finalPath = target; break; }
+                  catch (copyErr) { if (copyErr.code !== "EEXIST" || suffix === 99) { throw copyErr; } }
+                }
+                fsMod.unlinkSync(ownedPath);
+                ownedPath = null;
+              } catch (e) { done(e, null); return; }
               finished = true;
               function finishOpen(error) {
-                callback(null, { path: finalPath, name: name, sha256: got, openError: error ? (error.message || String(error)) : null });
+                callback(null, { path: finalPath, name: path.basename(finalPath), sha256: got, size: written,
+                  version: latest.version || null, openError: error ? (error.message || String(error)) : null });
               }
               try {
                 Promise.resolve(typeof m.open === "function" ? m.open(finalPath) : null)
                   .then(function () { finishOpen(null); }, finishOpen);
-              } catch (e) {
-                finishOpen(e);
-              }
+              } catch (e) { finishOpen(e); }
             });
-          });
-        }, function (e) { clearTimeout(idle); done(e, null); }, 0);
+          }, function (e) { done(e, null); }, 0);
+        } catch (e) { done(e, null); }
       });
-    } catch (e) {
-      done(e, null);
-    }
+    } catch (e) { done(e, null); }
   }
   global.BeatMarkerUpdateCheck = {
     parseVersion: parseVersion,
@@ -471,6 +475,7 @@
     sumFor: sumFor,
     isGithubFileHost: isGithubFileHost,
     downloadPackage: downloadPackage,
+    verifyDownloaded: verifyDownloaded,
     RELEASES_URL: RELEASES_URL
   };
 })(window);

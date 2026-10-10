@@ -355,20 +355,20 @@ The gear icon, top right:
   - **Clear** forgets all analysis results (click it twice to confirm).
     Your folders stay, and Start scan in the Library tab analyzes them
     again.
-- **Updates** — **Tell me when a new version is out** is asked once, at the first
-  start (a "no" keeps Downbeat fully offline); change it here any time. When
-  it is on, Downbeat asks GitHub once every three days for the number
-  of the latest release (nothing about you is sent). If a newer version exists,
-  the gear shows a dot and this section shows two buttons: **Download and
-  open the update** fetches the package for your computer from the release
-  (from GitHub only), checks it against the checksum published with it,
-  saves it in your Downloads folder and opens it in your ZXP installer, where
-  you confirm and then restart Premiere Pro or After Effects; and **Open the
-  release page**. If the checksum does not match, the file is deleted and
-  nothing is opened. **Check now** asks right away.
-  On macOS this requires ZXP Installer to be installed. If opening fails,
-  the verified package stays in Downloads for manual installation. On Windows
-  opening uses the system's ZXP file association.
+- **Updates** — **Check now** is the first action and makes a one-time
+  request even when background notifications are off. **Tell me when a new
+  version is out** enables a check every three days; it does not download or
+  install automatically. Analysis stays offline.
+  **Download and open the update** fetches the package from GitHub, verifies
+  its checksum and saves it in Downloads before opening your ZXP installer.
+  Confirm installation there, then restart Premiere Pro or After Effects.
+  Existing packages are preserved; repeated downloads use a separate name.
+  If installation was postponed, **Open downloaded update** verifies the
+  saved file again and opens it without downloading. **Show downloaded file**
+  opens its folder. A missing or changed package must be downloaded again.
+  macOS needs ZXP Installer; Windows uses the ZXP file association. An opening
+  failure keeps the verified package. **Open the release page** is the manual
+  fallback. Download verification is not confirmation of installation.
 - **Delete my data** — removes the settings, both libraries (the analyzed
   clips, and Music / SFX with their folders and analysis results) and any
   leftover temp files Downbeat saved in Documents/Downbeat, and nothing else —
@@ -487,3 +487,7 @@ temporary files stay in Documents/Downbeat. Delete my data keeps the WAVs.
 Pitch and Reverse use host clip parameters and do not render audio copies.
 
 Logs include local file paths. Review the log before sharing it publicly.
+
+Saved track entries with invalid tempo or beat data keep usable key metadata, but their beat grid must be analyzed again. Library excerpt requests stay within the source file.
+
+Tempo correction belongs to the analysis that started it. If you select another clip or start a new analysis while a correction is running, its delayed result will not replace the current grid.

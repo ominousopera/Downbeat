@@ -242,7 +242,7 @@
       }
       var raw = fs.readFileSync(filePath, "utf8");
       var entries = JSON.parse(raw);
-      if (!entries || entries.length === undefined) {
+      if (!Array.isArray(entries)) {
         throw new Error("library.json did not contain a JSON array.");
       }
       return { ok: true, entries: entries, path: filePath, existed: true };

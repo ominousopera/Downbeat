@@ -893,10 +893,12 @@
   }
   var RETEMPO_AUTOCORRECT_MARGIN = 1.1;
   function _tryAutoCorrectHalfTempo(bpm, monoSamples, audioPath) {
+    var origin = lastAnalysis, generation = _activeOperationGeneration;
     return Promise.all([
       runAnalyzeWorker("beats", monoSamples, audioPath, _narrowForcedWindow(bpm)),
       runAnalyzeWorker("beats", monoSamples, audioPath, _narrowForcedWindow(bpm * 2))
     ]).then(function (results) {
+      if (generation !== _activeOperationGeneration || lastAnalysis !== origin) { return false; }
       var slowResult = results[0], fastResult = results[1];
       var slowConf = slowResult.confidence, fastConf = fastResult.confidence;
       if (fastConf > 0 && (slowConf / fastConf) >= RETEMPO_AUTOCORRECT_MARGIN) {
@@ -1398,11 +1400,9 @@
   // Fields that Beat This! can change on lastAnalysis. They are snapshotted
   // before applying so a one-click revert can restore the essentia result
   // exactly, without re-running essentia. Kept as one list so
-  // apply/snapshot/revert cannot drift out of sync. "phase" is still set too
-  // (via computeNativeDownbeatPhase) as a fallback for the features that need
-  // a 0-3 index, which an irregular or interpolated downbeat-times array has
-  // no equivalent for: the "detailed" cut mode, the phase-shift buttons'
-  // starting point, and the library's `phase` field.
+  // apply/snapshot/revert cannot drift out of sync. Phase is also retained
+  // as a 0-3 fallback for grids without native downbeats and for persisted
+  // analysis metadata.
   var BEAT_FIELD_KEYS = [
     "beatsArray", "downbeatTimes", "phase", "phaseMarginRatio", "phaseSource",
     "bassPhase", "bassPhaseMarginRatio", "chordPhase", "chordPhaseMarginRatio",
@@ -1885,6 +1885,7 @@
   // level is kept, like _preBeatThisSnapshot and _preManualBpmSnapshot. The
   // snapshot is invalidated if Beat This! is applied or reverted in between.
   function _retempoViaRecompute(factor, currentBpm) {
+    var origin = lastAnalysis, generation = _activeOperationGeneration;
     var reverseFactor = factor === 2 ? 0.5 : 2;
     var pending = lastAnalysis._preRetempoSnapshot;
     if (pending && pending.reverseFactor === factor) {
@@ -1905,11 +1906,13 @@
     showBusy("busy.default");
     runAnalyzeWorker("beats", lastDecodedSamples, lastAnalysis.audioPath, tempoWindow)
       .then(function (analysis) {
+        if (generation !== _activeOperationGeneration || lastAnalysis !== origin) { return; }
         _maybePreserveBetterPhase(analysis, currentBpm);
         _applyRecomputedBeatsAnalysis(analysis, "Tempo re-derived (constrained re-analysis, not a naive ×2/÷2): now ");
         lastAnalysis._preRetempoSnapshot = { reverseFactor: reverseFactor, fields: preSnapshot, bpmText: preBpmText };
       })
       .catch(function (err) {
+        if (generation !== _activeOperationGeneration || lastAnalysis !== origin) { return; }
         log("Tempo re-derive failed (" + (err && err.message ? err.message : err) +
             ") - falling back to a plain ×2/÷2 of the existing grid instead.");
         _retempoNaive(factor);

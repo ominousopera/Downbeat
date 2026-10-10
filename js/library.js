@@ -79,11 +79,28 @@
   // current position fresh from the host.
   function loadEntries(list) {
     entries = {};
+    if (!Array.isArray(list)) { return; }
     for (var i = 0; i < list.length; i++) {
-      if (list[i] && list[i].mediaPath) {
-        entries[list[i].mediaPath] = list[i];
+      if (list[i] && typeof list[i].mediaPath === "string" && list[i].mediaPath) {
+        var entry = Object.assign({}, list[i]);
+        entry.bpm = typeof entry.bpm === "number" && isFinite(entry.bpm) && entry.bpm > 0 ? entry.bpm : null;
+        entry.beatsArray = entry.bpm ? validTimes(entry.beatsArray) : null;
+        entry.downbeatTimes = entry.beatsArray ? validTimes(entry.downbeatTimes) : null;
+        entry.confidence = typeof entry.confidence === "number" && isFinite(entry.confidence) ? entry.confidence : null;
+        entry.phase = Number.isInteger(entry.phase) && entry.phase >= 0 && entry.phase <= 3 ? entry.phase : 0;
+        entries[entry.mediaPath] = entry;
       }
     }
+  }
+
+  // Validate the complete grid so removing a beat cannot alter phase.
+  function validTimes(times) {
+    if (!Array.isArray(times) || !times.length) { return null; }
+    for (var i = 0; i < times.length; i++) {
+      if (typeof times[i] !== "number" || !isFinite(times[i]) || times[i] < 0 ||
+          (i > 0 && times[i] <= times[i - 1])) { return null; }
+    }
+    return times.slice();
   }
 
   global.BeatMarkerLibrary = {

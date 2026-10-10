@@ -303,17 +303,14 @@ components and their licenses are listed in [`NOTICE.md`](NOTICE.md).
 <details>
 <summary><b>Does it work offline? Is anything uploaded?</b></summary>
 
-It works completely offline. Nothing is uploaded, there is no account and no
-analytics. The panel goes online only if you say yes to the one-time question at the first
-start, or switch on **Settings → Updates → Tell me when a new version is out**
-later (a "no" keeps it fully offline): then, once every three
-days, it asks GitHub for the number of the latest release and shows a link when
-a newer one exists, with a button that downloads the update for you, checks it
-against the checksum published with the release and opens it in your ZXP
-installer (you confirm there; Downbeat never installs anything itself). No
-data about you is sent (GitHub sees your IP address, as
-any website does). Apart from that, the
-only web links are the feedback link and the release link, which open in your
+Analysis and Library work offline. Nothing is uploaded, there is no account
+and no analytics. **Settings → Updates → Check now** makes a one-time GitHub
+request. Optional notifications check every three days; they are off by
+default. Downloading happens only when you ask: the package is verified,
+saved in Downloads and opened in your ZXP installer. You confirm there and
+restart the Adobe app. A retained package can be verified and opened again
+without another download. No personal content is sent (GitHub sees your IP
+address, as any website does). Feedback and release-page links open in your
 browser after a confirmation.
 </details>
 
@@ -535,7 +532,8 @@ comments, is this repository.
 
 The bundled runtimes are fetched once, manually, by the two scripts above
 (pinned versions, hash-checked), never automatically. The plugin itself
-goes online only for the optional update notice, which you choose at the first start.
+goes online only for a requested release check/download or optional periodic
+update notices. Analysis and Library stay offline.
 
 ## Uninstall
 
