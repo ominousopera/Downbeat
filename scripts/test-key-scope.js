@@ -50,11 +50,19 @@ function waitFor(fn) { return new Promise(function (resolve, reject) { const sta
     assert.ok($.keyResultDisplay.textContent.startsWith("8A"));
     assert.strictEqual($.heardKeyRow.hidden, false, "Fresh pitched Key must not use the old beat analysis speed");
     assert.ok(/10A/.test($.heardKeyHint.textContent) && /\+2/.test($.heardKeyHint.textContent));
+    assert.strictEqual($.pitchFromSelect.value, "10A", "From must follow selected playback, not source");
+    assert.strictEqual($.camelotWheel.children[$.camelotWheel.children.length - 1].textContent, "10A");
+    assert.ok(/10A/.test($.playbackKeyDisplay.textContent));
+    $.libMatchClipBtn._fire("click");
+    assert.strictEqual($.libKeySelect.value, "10A");
+    assert.strictEqual($.libBpmInput.value, "112.2");
     assert.strictEqual(window.BeatMarkerLibrary.getKey(media, "sfx").camelot, "8A");
     panel.runIntervals(); await new Promise(function (r) { setTimeout(r, 30); });
     fake.audioTrack.clips[0]._speed = 1;
     panel.runIntervals(); await new Promise(function (r) { setTimeout(r, 30); });
     assert.strictEqual($.heardKeyRow.hidden, true, "Speed-only selection change must restore source playback");
+    assert.strictEqual($.libKeySelect.value, "8A", "Active matching follows current playback");
+    assert.strictEqual($.libBpmInput.value, "100.0");
     fake.audioTrack.clips[0]._speed = Math.pow(2, 2 / 12);
     panel.runIntervals(); await new Promise(function (r) { setTimeout(r, 30); });
     assert.strictEqual($.heardKeyRow.hidden, false);
@@ -79,6 +87,7 @@ function waitFor(fn) { return new Promise(function (resolve, reject) { const sta
     window.BeatMarkerLibrary.upsertKey(media, "audio.wav", { camelot: "8A", key: "A", scale: "minor", material: "music", scopeKey: "music" });
     $.keyMaterialMusicBtn._fire("click");
     await new Promise(function (r) { setTimeout(r, 20); });
+    $.libMatchClipBtn._fire("click");
     $.libSectionMusicBtn._fire("click");
     const row = $.libraryDisplay.children.find(function (r) { return /lib-row/.test(r.className || ""); });
     assert.ok(row); row._fire("click");
@@ -91,15 +100,15 @@ function waitFor(fn) { return new Promise(function (resolve, reject) { const sta
     await new Promise(function (r) { setTimeout(r, 20); });
     assert.ok($.keyResultDisplay.textContent.startsWith("10A"));
     $.libMatchClipBtn._fire("click");
-    assert.strictEqual($.libKeySelect.value, "10A");
-    assert.strictEqual($.libBpmInput.value, "128.0");
+    assert.strictEqual($.libKeySelect.value, "12A");
+    assert.strictEqual($.libBpmInput.value, (128 * Math.pow(2, 2 / 12)).toFixed(1));
     $.libConfirmResetBtn._fire("click");
     assert.strictEqual(window.BeatMarkerLibrary.getKey(media, "music").camelot, "8A");
     assert.strictEqual(window.BeatMarkerLibrary.get(media).confirmedBpm, null);
     await new Promise(function (r) { setTimeout(r, 20); });
     assert.ok($.keyResultDisplay.textContent.startsWith("8A"));
     $.libMatchClipBtn._fire("click"); $.libMatchClipBtn._fire("click");
-    assert.strictEqual($.libKeySelect.value, "8A"); assert.strictEqual($.libBpmInput.value, "100.0");
+    assert.strictEqual($.libKeySelect.value, "10A"); assert.strictEqual($.libBpmInput.value, "112.2");
     console.log("PASS: confirmation controls preserve beat timing and reset detector values.");
     console.log("PASS: real Detect key handlers select source scope, persist the choice and keep whole-file keys separately.");
   } finally { cp.execFile = original; fs.rmSync(tmp, { recursive: true, force: true }); }

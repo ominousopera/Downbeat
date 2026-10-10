@@ -132,7 +132,7 @@ analysis window that hears low notes better, and no AI model (it is
 trained on music and does worse there). The chord progression is the
 second opinion. Sounds shorter than 10 seconds get a note saying so, since
 a key from so little audio is less reliable. If you already know the key,
-you can set it by hand (Override).
+you can set the source key by hand (Source override).
 
 **Pitch shift** (under the result): pick the key a sound is in and the key
 you want, and it gives the numbers for your own pitch shifter — semitones,
@@ -145,10 +145,10 @@ the shift — no copy is made, it is still your file where it lies. The
 original stays where it was, switched off (Disable in Premiere, its sound
 off in After Effects) — switch it back on to undo.
 
-When the selected clip plays at a speed other than 100%, a line under the
-result says how the key sounds on the timeline (for example "5A, +3
-semitones"), because speed carries pitch with it. A speed that is not a
-whole semitone says the clip lands between two keys.
+Timeline key (calculated) is the main result and drives the wheel and
+matching. Source key stays separate. At speeds other than 100%, the
+supplemental line explains the shift (for example "5A, +3 semitones"). A
+speed between whole semitones has no exact Camelot key.
 
 ## Library tab: Music and SFX
 
@@ -229,8 +229,8 @@ To find something:
   2×" also finds files at half or double that tempo, which usually cut
   together fine.
 - **Match clip** (a checkbox, like Favorites) fills in the key and BPM of
-  the clip you last analyzed on the timeline, so you get sounds that fit
-  it. **Reset** clears every filter.
+  the currently selected clip, calculated from saved source analysis and
+  playback speed, so you get sounds that fit it. **Reset** clears every filter.
 - **Sort** — best match, name, length, or tempo (Music).
 - **★** on a row marks a favorite; **Favorites** shows just your favorites.
   Favorites are saved with the library.
@@ -275,7 +275,7 @@ and stays in view while the list scrolls:
   note, a line under it says what the pitch turns it into ("Key: 8A A
   minor → 10A B minor");
 - **In key** — pitches every sound you listen to into the key of the music
-  clip (the one you last analyzed or ran Detect Key on), so you browse with ↑
+  selected clip (calculated from its saved source key and playback speed), so you browse with ↑
   ↓ and already hear each sound in key; **Add** then places the file itself at
   that pitch. A sound goes the shortest way to the clip's key; a major sound
   on a minor song goes to the song's relative major (the same Camelot number,
@@ -523,6 +523,8 @@ Replay the tour includes metronome tracks, key scope and saved values, Pitch the
 
 ### Source key and timeline pitch
 
-Detect key measures the source file or its selected source interval. Pitch the clip changes playback speed without rewriting that file: an A-minor source remains 8A, while +2 semitones plays as B minor, 10A. The Source key result stays unchanged; the line below shows the timeline key at the selected clip speed. Speed changes refresh that view. Audio effects and pitch-preserving stretch are not measured from the file.
+Detect key measures the source file or its selected source interval. Pitch the clip changes playback speed without rewriting that file: an A-minor source remains 8A, while +2 semitones plays as B minor, 10A. The Source key result stays unchanged; Timeline key (calculated) shows the timeline key at the selected clip speed. Speed changes refresh that view. Audio effects and pitch-preserving stretch are not measured from the file.
 
 After Pitch the clip succeeds, the new clip/layer is selected automatically, so another Detect key uses its playback speed. If the host cannot confirm selection, the panel asks you to select it manually. Copy log records the selected clip speed; detector messages still describe source audio.
+
+The main result is Timeline key (calculated). Its wheel, compatible keys, Match clip and In key follow the selected clip's current speed. Source key and source overrides keep the file's original key. Pitch the clip composes each shift with the existing speed: +2 followed by another +2 gives 125.99%, and shifting back restores 100%. The speed shown in the calculator is the final clip speed; BPM goes from current playback to the new playback. If selection or speed changes before insertion, review the updated plan and click again. Between-semitone speeds have no exact key for matching or automatic pitch. Maintain audio pitch and pitch effects are outside this calculation.

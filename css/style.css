@@ -1586,7 +1586,7 @@ input[type="text"]:focus, input[type="number"]:focus, input[type="password"]:foc
 
 /* ---------- Theme: Key tab ---------- */
 #camelotWheel { filter: none; }
-#tabContentKey #keyResultDisplay {
+#tabContentKey #playbackKeyDisplay {
   font-family: var(--font-display);
   font-size: 22px;
   font-weight: 300;
@@ -2178,10 +2178,6 @@ button.g-opt-btn:disabled { opacity: 0.5; cursor: default; }
 #libMatchClipBtn:hover { color: var(--text); }
 #libMatchClipBtn.is-active { color: var(--text); }
 #libMatchClipBtn.is-active::before { background: var(--accent); border-color: var(--accent); }
-
-/* Settings: less room above each section's rule, so the blank band under a
-   section's last item matches the one under its heading. */
-
 
 /* Copy log answers on the button itself: for two seconds it reads "Copied"
    with a check in place of the arrow, or "Copy failed" in red. */

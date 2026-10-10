@@ -136,7 +136,32 @@
     return out;
   }
 
+  // File metadata stays source-based; playback metadata is a transient view.
+  function playback(speed, bpm, camelot) {
+    var s = Number(speed);
+    if (!(s > 0) || !isFinite(s)) { return null; }
+    var sourceBpm = Number(bpm) > 0 && isFinite(Number(bpm)) ? Number(bpm) : null;
+    var heard = heardOnTimeline(s, sourceBpm, camelot);
+    return { speed: s, sourceCamelot: camelot || null, sourceBpm: sourceBpm,
+      camelot: heard ? heard.camelot : camelot || null,
+      bpm: sourceBpm ? sourceBpm * s : null,
+      heard: heard };
+  }
+
+  // Insertions use the original file, so the host needs the composed absolute rate.
+  function playbackPlan(speed, from, to, sourceBpm) {
+    var view = playback(speed, sourceBpm, from);
+    var p = view ? plan(from, to, view.bpm) : null;
+    if (!p) { return null; }
+    p.currentSpeed = view.speed;
+    p.finalSpeed = view.speed * p.primary.ratio;
+    if (!(p.finalSpeed > 0) || !isFinite(p.finalSpeed)) { return null; }
+    return p;
+  }
+
   global.BeatMarkerPitch = {
+    playback: playback,
+    playbackPlan: playbackPlan,
     shiftBetween: shiftBetween,
     heardOnTimeline: heardOnTimeline,
     describeShift: describeShift,

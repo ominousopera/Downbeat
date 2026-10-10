@@ -1263,6 +1263,20 @@ function retryEdgeFades(target, startSeconds, optsJson) {
 // Trimming goes through the project item's in / out points, which are cleared
 // again right after the insert so the bin item stays whole. Times in opts
 // are file seconds; speed / reverse are applied to the placed clip.
+// Validate the displayed pitch plan before importing or changing any clip.
+function _dbAssertPitchReference(reference) {
+    var selection = JSON.parse(getSelectedAudioInfo());
+    if (!selection.ok) { throw new Error(selection.error); }
+    var clip = selection.data;
+    if (!_dbSamePath(clip.mediaPath, reference.mediaPath) || clip.trackIndex !== reference.trackIndex ||
+        Math.abs(clip.clipStartSeconds - reference.clipStartSeconds) > 0.0001 ||
+        Math.abs(clip.inPointSeconds - reference.inPointSeconds) > 0.0001 ||
+        Math.abs(clip.outPointSeconds - reference.outPointSeconds) > 0.0001 ||
+        Math.abs((clip.speed || 1) - (reference.speed || 1)) > 0.0001 || !!clip.reversed !== !!reference.reversed) {
+        throw new Error("The selected clip changed. Review the pitch plan and try again.");
+    }
+}
+
 function insertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
     if (_dbIsAe()) {
         return dbAeInsertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson);
@@ -1285,6 +1299,7 @@ function insertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
         // opts.muteSelected then switches the selected clip off (Disable), so
         // the inserted clip is what plays and the original is one click from
         // coming back.
+        if (opts && opts.pitchReference) { _dbAssertPitchReference(opts.pitchReference); }
         var position = sequence.getPlayerPosition();
         if (opts && typeof opts.atSeconds === "number" && opts.atSeconds >= 0) {
             position = new Time();

@@ -480,6 +480,11 @@
     </div>
 
     <div class="row">
+      <span class="hint" data-i18n="key.playbackLabel">Timeline key (calculated)</span>
+      <span id="playbackKeyDisplay">–</span>
+    </div>
+    <div class="row"><span class="hint" data-i18n="key.playbackAssumption">Calculated from clip speed. Maintain audio pitch and pitch effects are not included.</span></div>
+    <div class="row">
       <span class="hint" data-i18n="key.label">Source key</span>
       <span id="keyResultDisplay">–</span>
     </div>
@@ -730,7 +735,7 @@
   <div id="updatePickOverlay" class="tour-overlay" hidden>
     <div class="tour-card lang-pick-card">
       <p class="tour-card-title" data-i18n="updatePick.title">Tell you about new versions?</p>
-      <p class="tour-card-body" data-i18n="updatePick.body">Downbeat can ask GitHub once every three days whether a new version is out. This would be the only time it goes online; nothing about you is sent and nothing is installed by itself. You can change this later in Settings.</p>
+      <p class="tour-card-body" data-i18n="updatePick.body">Downbeat can check GitHub every three days for new releases. Background checks are optional. You can always check manually in Settings and open the release page. Analysis works offline; download and installation are manual.</p>
       <div class="update-pick-actions">
         <button id="updatePickNoBtn" type="button" class="ghost" data-i18n="updatePick.no">No, stay offline</button>
         <button id="updatePickYesBtn" type="button" class="primary" data-i18n="updatePick.yes">Yes, tell me</button>

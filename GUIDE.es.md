@@ -143,7 +143,7 @@ análisis más larga que oye mejor las notas graves, y sin modelo de IA
 (está entrenado con música y aquí funciona peor). La segunda opinión es
 la progresión de acordes. Los sonidos de menos de 10 segundos reciben una
 nota que lo indica: con tan poco audio la tonalidad es menos fiable. Si
-ya conoces la tonalidad, puedes fijarla a mano (**Ajustar manualmente**).
+ya conoces la tonalidad, puedes fijarla a mano (**Ajustar tonalidad del original**).
 
 **Cambio de tono** (bajo el resultado): elige la tonalidad en la que está
 un sonido y la tonalidad que quieres, y te da los números para tu propio
@@ -159,11 +159,11 @@ está. El original se queda donde estaba, desactivado (Desactivar en
 Premiere, sin sonido en After Effects): vuelve a activarlo para
 deshacerlo.
 
-Si el clip seleccionado se reproduce a una velocidad distinta del 100 %, una
-línea bajo el resultado dice cómo suena la tonalidad en la línea de tiempo
-(por ejemplo «5A, +3 semitonos»), porque la velocidad arrastra el tono. Si la
-velocidad no es un número entero de semitonos, la línea dice que el clip cae
-entre dos tonalidades.
+Tonalidad en la línea de tiempo (calculada) es el resultado principal y
+controla la rueda y las coincidencias. La tonalidad del original se muestra
+aparte. Con velocidades distintas del 100 %, una línea adicional explica
+el cambio (por ejemplo «5A, +3 semitonos»). Entre semitonos enteros no hay
+una tonalidad Camelot exacta.
 
 ## Pestaña Biblioteca: Música y SFX
 
@@ -252,8 +252,8 @@ Para encontrar algo:
   y 2×» encuentra también archivos a la mitad o al doble de ese tempo, que
   suelen montarse bien juntos.
 - **Como el clip** (un interruptor, como Favoritos) rellena la tonalidad
-  y el BPM del último clip que analizaste en la línea de tiempo, así
-  obtienes sonidos que encajan con él. **Restablecer** quita todos los
+  y el BPM del clip seleccionado, calculados a partir del análisis guardado
+  del original y la velocidad actual, para encontrar sonidos compatibles. **Restablecer** quita todos los
   filtros.
 - **Orden**: mejor coincidencia, nombre, duración o tempo (Música).
 - **★** en una fila lo marca como favorito; **Favoritos** muestra solo tus
@@ -304,8 +304,8 @@ y se queda a la vista mientras la lista se desplaza:
   indica en qué lo convierte el cambio («Tonalidad: 8A A menor → 10A B
   menor»);
 - **En tono**: transpone cada sonido que escuchas a la tonalidad del clip
-  de música (el último que analizaste o del que detectaste la
-  tonalidad), así que recorres la lista con ↑ ↓ y ya oyes cada sonido en
+  de música seleccionado (según la tonalidad guardada del original
+  y la velocidad actual), así que recorres la lista con ↑ ↓ y ya oyes cada sonido en
   tono; **Añadir** coloca entonces el propio archivo con ese tono. Un sonido va
   por el camino más corto a la tonalidad del clip; un sonido mayor sobre
   una canción menor va a la relativa mayor de la canción (el mismo
@@ -574,6 +574,8 @@ El recorrido incluye metrónomo, intervalo de análisis y valores guardados, cam
 
 ### Tonalidad del original y tono en la línea de tiempo
 
-Detectar tonalidad analiza el archivo original o el intervalo seleccionado del original. Cambiar el tono del clip ajusta la velocidad sin modificar el archivo: un original en la menor conserva 8A y +2 semitonos suenan como si menor, 10A. El resultado Tonalidad del original no cambia; la línea inferior indica la tonalidad a la velocidad del clip seleccionado. Los cambios de velocidad actualizan esta vista. Los efectos de audio y el estiramiento que conserva el tono no se miden desde el archivo.
+Detectar tonalidad analiza el archivo original o el intervalo seleccionado del original. Cambiar el tono del clip ajusta la velocidad sin modificar el archivo: un original en la menor conserva 8A y +2 semitonos suenan como si menor, 10A. El resultado Tonalidad del original no cambia; el resultado principal indica la tonalidad a la velocidad del clip seleccionado. Los cambios de velocidad actualizan esta vista. Los efectos de audio y el estiramiento que conserva el tono no se miden desde el archivo.
 
 Tras aplicar Pitch the clip, se selecciona automáticamente el nuevo clip o capa para que Detect key use su velocidad de reproducción. Si la aplicación no confirma la selección, el panel pide seleccionarlo manualmente. Copy log registra la velocidad del clip seleccionado; los mensajes del detector siguen describiendo el audio original.
+
+El resultado principal es Tonalidad en la línea de tiempo (calculada). La rueda, las tonalidades compatibles, Match clip e In key siguen la velocidad actual del clip seleccionado. La tonalidad del original y sus valores manuales conservan la tonalidad del archivo. Cada cambio se combina con la velocidad existente: +2 seguido de otro +2 da 125,99 %, y volver a la tonalidad original restaura el 100 %. La calculadora muestra la velocidad final y el cambio del BPM actual al nuevo. Si cambian la selección o la velocidad antes de insertar, revisa el cálculo y pulsa de nuevo. Una velocidad entre semitonos no tiene una tonalidad Camelot exacta para coincidencias o cambio de tono automático. Mantener tono de audio y los efectos de tono quedan fuera del cálculo.

@@ -496,6 +496,7 @@ function dbAeInsertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
         } catch (optsErr) {
             opts = null;
         }
+        if (opts && opts.pitchReference) { _dbAssertPitchReference(opts.pitchReference); }
         var comp = _dbAeActiveCompOrThrow();
         var file = new File(mediaPath);
         if (!file.exists) {

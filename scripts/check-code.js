@@ -2,8 +2,7 @@
 // Code checks run by build-zxp.sh before every build. Third-party files
 // (js/lib/, js/CSInterface.js, jsx/json2.js, scripts/vendor/) and the
 // generated js/ucs-data.js are left out. The panel makes no network calls: the
-// one exception is js/update-check.js (the optional update notice, off until
-// the user turns it on), which may use Node's https for this project's GitHub
+// one exception is js/update-check.js (explicit checks and optional notices), which may use Node's https for this project's GitHub
 // release record only. Run: node scripts/check-code.js.
 const fs = require("fs");
 const path = require("path");
@@ -117,11 +116,8 @@ const NETWORK = [
   [/\bwindow\.open\s*\(/, "window.open"], [/\bnew\s+Image\s*\(/, "new Image() (loads a URL)"],
   [/["'`](curl|wget)["'`]/, "curl / wget"]
 ];
-// The one exception: the optional update notice. Its file may use Node's
-// https and nothing else that goes online, and it may name only GitHub's
-// release record of this project and that project's release downloads (a
-// download may be forwarded to GitHub's storage hosts; the file checks the
-// host of every hop itself and the test proves it).
+// Update checks may use Node's https for this project's GitHub release metadata
+// and release-page redirect. Package download and installation are manual.
 const UPDATE_FILE = "js/update-check.js";
 tracked.filter(function (f) { return /^(js|worker)\/.*\.js$|^jsx\/.*\.jsx$/.test(f); }).forEach(function (f) {
   if (f === UPDATE_FILE) {

@@ -1,8 +1,7 @@
 "use strict";
-// Runs Settings > Run full self-test end to end, the way a user would click
-// it, with the real jsx/host.jsx answering from a stand-in Premiere or After
-// Effects (scripts/host-mocks.js), the real workers doing the analysis, and
-// ffmpeg in place of Web Audio.
+// Runs the hidden developer self-test through its real button handler, with
+// production JSX adapters, mocked host DOMs, real workers and ffmpeg decoding.
+// The summary must have no failures, host-script errors or unclosed undo groups.
 // Slow (a few minutes: it runs Analyze, Beat This!, three key detections,
 // retempo and every other step), so it is not part of build-zxp.sh; run it
 // after changing the self-test or the host scripts.

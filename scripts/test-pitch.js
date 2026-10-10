@@ -130,6 +130,14 @@ check("an octave up is the same code", oct.camelot, "8A");
 check("no key given, no key shown", P.heardOnTimeline(1.5, 120, null).camelot, null);
 check("no bpm given, no bpm shown", P.heardOnTimeline(1.5, null, "8A").bpm, null);
 
+const repeated = P.playbackPlan(Math.pow(2, 2 / 12), "8A", "10A", 100);
+close("repeat pitch composes the absolute speed", repeated.finalSpeed, Math.pow(2, 4 / 12), 1e-9);
+close("repeat pitch uses current playback BPM", repeated.primary.newBpm, 100 * repeated.finalSpeed, 1e-9);
+close("pitch keeps the current octave", P.playbackPlan(2, "8A", "10A", 100).finalSpeed, 2 * Math.pow(2, 2 / 12), 1e-9);
+check("100% playback retains the source key", P.playback(1, 120, "8A").camelot, "8A");
+check("off-semitone playback has no discrete key", P.playback(1.07, 120, "8A").camelot, null);
+check("invalid playback speed rejected", P.playback(Infinity, 120, "8A"), null);
+
 if (failures) {
   console.error("\n" + failures + " assertion(s) FAILED");
   process.exit(1);

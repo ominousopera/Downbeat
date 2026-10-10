@@ -7,7 +7,7 @@
   // ctx - what this part needs from main.js: its shared helpers (log,
   // translations, the busy overlay, host calls, settings and library saving),
   // getters for what main.js owns and keeps changing (the active tab, the
-  // current analysis and key, csInterface and the settings, which main.js
+  // selected playback view, csInterface and the settings, which main.js
   // sets up after this part), and tempFileStarted / tempFileDone for
   // main.js's count of temp files in use (Delete my data waits on it).
   function create(ctx) {
@@ -888,11 +888,8 @@
     [libKeySelect, libKeyModeSelect, libHalfDoubleCheckbox, libSortSelect, libFavOnlyCheckbox, libPitchedOnlyCheckbox].forEach(function (el) {
       el.addEventListener("change", function () { renderLibrary(); });
     });
-    // "Match the current clip": the key and tempo of whatever was last
-    // analyzed or key-detected on the timeline, as the filter. Match clip
-    // works as a switch: on while the key / BPM filters still hold what it
-    // put there; a second click clears them; changing either by hand turns it
-    // off.
+    // Match uses the selected playback key and tempo from saved source metadata.
+    // A second click clears the filters; manually editing them turns matching off.
     var _libMatched = null;
     // { camelot, bpm } as Match clip set them
     function _libUpdateMatchState() {
@@ -904,21 +901,10 @@
       libMatchClipBtn.classList.toggle("is-active", on);
       libMatchClipBtn.setAttribute("aria-pressed", on ? "true" : "false");
     }
-    // The key of the music clip on the timeline: what Detect key or Analyze
-    // last found for it (the same source as Match clip and In key).
-    function _libClipEntry() {
-      var analysis = ctx.lastAnalysis(), key = ctx.lastKeyResult();
-      var mediaPath = analysis && analysis.audioPath ? analysis.audioPath : key && key.mediaPath;
-      return mediaPath ? window.BeatMarkerLibrary.get(mediaPath) : null;
-    }
+    // Match and preview pitch share the selected clip's calculated playback key.
     function _libClipCamelot() {
-      var key = ctx.lastKeyResult();
-      if (key && key.mediaPath) {
-        var saved = window.BeatMarkerLibrary.getKey(key.mediaPath, key.scopeKey || key.material);
-        return saved ? saved.camelot : null;
-      }
-      var entry = _libClipEntry();
-      return entry && entry.camelot || null;
+      var playback = ctx.selectedPlayback();
+      return playback && playback.camelot || null;
     }
     libMatchClipBtn.addEventListener("click", function () {
       if (_libMatched) {
@@ -929,9 +915,9 @@
         renderLibrary();
         return;
       }
-      var entry = _libClipEntry();
+      var playback = ctx.selectedPlayback();
       var camelot = _libClipCamelot();
-      var bpm = (entry && (entry.confirmedBpm ? entry.confirmedBpm.value : entry.bpm)) || (ctx.lastAnalysis() ? parseFloat(ctx.bpmDisplay().textContent) : null) || null;
+      var bpm = playback && playback.bpm;
       if (!camelot && !bpm) {
         setTranslatedText(libScanStatus, "library.matchClipNone");
         return;
@@ -942,8 +928,8 @@
       _libMatched = { camelot: libKeySelect.value, bpm: libBpmInput.value };
       renderLibrary();
       // What it took and from where, for the log.
-      var keySource = ctx.lastKeyResult() && ctx.lastKeyResult().camelot ? "Detect key" : "the analysis";
-      var keyFile = basename((ctx.lastKeyResult() && ctx.lastKeyResult().mediaPath) || (ctx.lastAnalysis() && ctx.lastAnalysis().audioPath) || "");
+      var keySource = "calculated playback";
+      var keyFile = basename(playback.clip.mediaPath);
       log("Match clip: key " + (camelot ? camelot + " (+ compatible, from " + keySource + (keyFile ? " of " + keyFile : "") + ")" : "none") +
           (libSection === "music" ? ", BPM " + (libBpmInput.value || "none") : " (sound effects: no tempo filter)") +
           " - " + _libMatches.length + " of " + _libItemCount + " match.");
@@ -1175,8 +1161,7 @@
     var libPaneSel = document.getElementById("libPaneSel");
     var libPaneSelText = document.getElementById("libPaneSelText");
     var libPaneSelClear = document.getElementById("libPaneSelClear");
-    // A decoded file is held whole (float samples): over this, the pane says
-    // so and ▶ is not offered (a 10-minute 96 kHz stereo WAV is ~460 MB).
+    // Above this decoded size, playback uses the plain preview without pitch or reverse.
     var LIB_PANE_MAX_DECODED_BYTES = 300 * 1024 * 1024;
     var _libPaneItem = null;
     // the item shown (loaded or loading)
@@ -1268,7 +1253,9 @@
     function _libApplyInKey() {
       var item = _libPaneItem;
       var clip = _libClipCamelot();
-      if (!_libInKey || !_libPaneReady || !item || !clip || !item.camelot || !SL.hasPitch(item)) {
+      if (!_libInKey || !_libPaneReady || !item) { return; }
+      if (!clip || !item.camelot || !SL.hasPitch(item)) {
+        _libPlayer.setPitch(0);
         return;
       }
       var st = _libInKeyShift(item.camelot, clip);
@@ -2324,7 +2311,21 @@
         _libPlayer.setVolume(settings.libPreviewVolume / 100);
       }
     }
+    function refreshPlayback() {
+      _libUpdateMatchState();
+      if (_libMatched) {
+        var playback = ctx.selectedPlayback();
+        libKeySelect.value = playback && playback.camelot || "";
+        libBpmInput.value = playback && playback.bpm ? playback.bpm.toFixed(1) : "";
+        _libMatched = { camelot: libKeySelect.value, bpm: libBpmInput.value };
+        renderLibrary();
+      }
+      _libApplyInKey();
+      _libPaneRefresh();
+    }
+
     return {
+      refreshPlayback: refreshPlayback,
       renderLibrary: renderLibrary,
       renderLibraryKeySelect: renderLibraryKeySelect,
       renderLibrarySortSelect: renderLibrarySortSelect,

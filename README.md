@@ -611,6 +611,8 @@ Replay the tour covers the metronome, key scope/confirmations, pitch application
 
 ### Source key and timeline key
 
-Detect key measures source audio. Pitch the clip leaves the file unchanged; Source key therefore remains the detected source key, with the timeline key shown underneath at the selected clip speed. For example, A minor (8A) at +2 semitones plays as B minor (10A). Audio effects and pitch-preserving stretch are not measured from the file.
+Detect key measures source audio. Pitch the clip leaves the file unchanged; Source key therefore remains the detected source key, with the main timeline key calculated at the selected clip speed. For example, A minor (8A) at +2 semitones plays as B minor (10A). Audio effects and pitch-preserving stretch are not measured from the file.
 
 Pitch the clip selects the new clip/layer after a successful insert. If automatic selection cannot be confirmed, select the new clip manually before Detect key. Diagnostics records selected playback speed alongside source analysis.
+
+The main Key result, Camelot wheel, compatible keys, Match clip and In key use the selected clip's calculated playback key. Source key and manual source confirmations stay attached to the unchanged file or source interval. Pitch the clip starts from the current playback speed: a second +2-semitone shift after 112.25% gives 125.99%, rather than resetting to 112.25%. The calculator shows final clip speed and current-to-new BPM. If selection or speed changes before insertion, review the refreshed plan and click again. Between-semitone speeds have no exact Camelot target. The calculation assumes speed changes pitch; Maintain audio pitch and pitch effects are not measured.

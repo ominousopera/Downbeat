@@ -142,12 +142,10 @@
     jsxStringArg: _jsxStringArg,
     resolveNodeExecutable: _resolveNodeExecutable,
     activeTabId: function () { return activeTabId; },
-    bpmDisplay: function () { return bpmDisplay; },
     csInterface: function () { return csInterface; },
     hostIsAe: function () { return hostIsAe; },
     initialSettings: function () { return initialSettings; },
-    lastAnalysis: function () { return lastAnalysis; },
-    lastKeyResult: function () { return lastKeyResult; },
+    selectedPlayback: _selectedPlayback,
     refreshTimelineKey: function (mediaPath) {
       return getClipInfo().then(function (clipInfo) {
         if (clipInfo.mediaPath === mediaPath) { _restoreCachedKey(clipInfo); }
@@ -159,6 +157,7 @@
   var SL = window.BeatMarkerSoundLibrary;
   var LP = window.BeatMarkerLibPreview;
   function renderLibrary() {
+    if (keyResultDisplay) { _refreshPlaybackConsumers(); }
     return _library.renderLibrary.apply(null, arguments);
   }
   function renderLibraryKeySelect() {
@@ -516,8 +515,31 @@
   function evalJson() {
     return _bridge.evalJson.apply(null, arguments);
   }
+  var selectedClipInfo = null;
   function getClipInfo() {
-    return _bridge.getClipInfo.apply(null, arguments);
+    return _bridge.getClipInfo.apply(null, arguments).then(function (clip) {
+      selectedClipInfo = clip;
+      return clip;
+    }, function (error) {
+      selectedClipInfo = null;
+      throw error;
+    });
+  }
+  function _selectedPlayback() {
+    var clip = selectedClipInfo;
+    if (!clip) { return null; }
+    var entry = window.BeatMarkerLibrary.get(clip.mediaPath);
+    var scope = _keyScopeFor(clip);
+    var key = lastKeyResult && lastKeyResult.mediaPath === clip.mediaPath && lastKeyResult.scopeKey === scope ? lastKeyResult :
+      window.BeatMarkerLibrary.getKey(clip.mediaPath, scope);
+    var bpm = entry && (entry.confirmedBpm ? entry.confirmedBpm.value : entry.bpm);
+    var view = window.BeatMarkerPitch.playback(clip.speed || 1, bpm, key && key.camelot);
+    if (!view) { return null; }
+    view.clip = clip;
+    view.signature = JSON.stringify([clip.mediaPath, clip.trackIndex, clip.clipStartSeconds, clip.inPointSeconds,
+      clip.outPointSeconds, clip.speed, !!clip.reversed, scope, window.BeatMarkerLibrary.identityKey(clip.mediaPath),
+      view.sourceCamelot, view.sourceBpm]);
+    return view;
   }
   function _resolveNodeExecutable() {
     return _bridge.resolveNodeExecutable.apply(null, arguments);
@@ -752,12 +774,9 @@
   var heardTempoHint = document.getElementById("heardTempoHint");
   var heardKeyRow = document.getElementById("heardKeyRow");
   var heardKeyHint = document.getElementById("heardKeyHint");
-  // "Plays at ... on the timeline". The panel measures the FILE, but
-  // Premiere plays the clip at the clip's own speed, and speed carries
-  // pitch with it like a sampler, so neither the tempo nor the key shown
-  // is what the timeline plays. Both lines are hidden at 100%. Every
-  // bpmDisplay write goes through _setBpmText, so the lines cannot be left
-  // standing from an earlier tempo.
+  // Supplemental playback hints accompany the source BPM and key values.
+  // At 100% they are hidden; the main Key result always shows the selected
+  // clip's calculated timeline key. BPM writes refresh both hints.
   function _setBpmText(text) {
     bpmDisplay.textContent = text;
     _renderHeard();
@@ -790,10 +809,14 @@
       pct: _speedPct(heard.speed)
     });
   }
+  function _refreshPlaybackConsumers() {
+    renderKeyResult();
+    if (_library) { _library.refreshPlayback(); }
+  }
   function _renderHeardKey() {
-    var camelot = lastKeyResult && lastKeyResult.camelot ? lastKeyResult.camelot : null;
-    var speed = lastKeyResult && Number(lastKeyResult.clipSpeed) > 0 ? Number(lastKeyResult.clipSpeed) : null;
-    var heard = window.BeatMarkerPitch.heardOnTimeline(speed, null, camelot);
+    var playback = _selectedPlayback();
+    var camelot = playback && playback.sourceCamelot;
+    var heard = playback && playback.heard;
     // A speed within a hair of a whole octave-free semitone of 0 (say
     // 100.2%) moves no key, so there is nothing to say about the key.
     if (!heard || !camelot || (heard.onSemitone && heard.semitones === 0)) {
@@ -2382,11 +2405,8 @@
   var compatibleKeysDisplay = document.getElementById("compatibleKeysDisplay");
   var keyAgreementRow = document.getElementById("keyAgreementRow");
   var keyAgreementDisplay = document.getElementById("keyAgreementDisplay");
-  // PITCH SHIFT CALCULATOR. All the music theory is in js/pitch.js; this only
-  // renders its plan() in the panel's language. "From" follows the key shown
-  // above (detected, overridden, or picked from the library) -
-  // renderKeyResult() calls renderPitch() - and the tempo it quotes is that
-  // same clip's analyzed BPM from the library, when it has one.
+  // The calculator uses the selected playback key and current BPM. Each shift
+  // composes with the clip's existing rate to produce a final source-file rate.
   var pitchFromSelect = document.getElementById("pitchFromSelect");
   var pitchToSelect = document.getElementById("pitchToSelect");
   var pitchSemitonesEl = document.getElementById("pitchSemitones");
@@ -2437,10 +2457,14 @@
   }
   var pitchApplyBtn = document.getElementById("pitchApplyBtn");
   var pitchApplyStatus = document.getElementById("pitchApplyStatus");
+  var displayedPitchSignature = null;
   function renderPitch() {
-    var bpm = _pitchTempoBpm();
-    var plan = window.BeatMarkerPitch.plan(pitchFromSelect.value, pitchToSelect.value, bpm);
-    pitchApplyBtn.disabled = !plan || !plan.primary.semitones;
+    var view = _selectedPlayback();
+    var bpm = view && view.bpm || _pitchTempoBpm();
+    var plan = window.BeatMarkerPitch.playbackPlan(view ? view.speed : 1, pitchFromSelect.value, pitchToSelect.value,
+      view ? view.sourceBpm : bpm);
+    displayedPitchSignature = view ? view.signature : null;
+    pitchApplyBtn.disabled = !view || !view.camelot || !plan || !plan.primary.semitones;
     pitchNoteEl.className = "pitch-note";
     if (!plan) {
       pitchSemitonesEl.textContent = "-";
@@ -2457,7 +2481,7 @@
     } else {
       setTranslatedText(pitchUnitsEl, "key.pitchUnits", {
         cents: (p.cents > 0 ? "+" : "") + p.cents,
-        speed: p.speedPercent.toFixed(2)
+        speed: (plan.finalSpeed * 100).toFixed(2)
       });
       var altText = "";
       if (plan.alternative) {
@@ -2490,6 +2514,9 @@
     } else if (plan.alreadyCompatible && p.semitones !== 0) {
       note = I18n.t("key.pitchCompatibleNoShift", { from: plan.from, target: plan.to });
     }
+    if (view && view.camelot && pitchFromSelect.value !== view.camelot) {
+      note += (note ? " " : "") + I18n.t("key.pitchAssumedFrom");
+    }
     pitchNoteEl.textContent = note;
   }
   pitchFromSelect.addEventListener("change", renderPitch);
@@ -2499,7 +2526,9 @@
   // (pitch with it, like a sampler - js/bridge.js and host.jsx
   // insertAudioAtPlayhead), and the original switched off.
   pitchApplyBtn.addEventListener("click", function () {
-    var plan = window.BeatMarkerPitch.plan(pitchFromSelect.value, pitchToSelect.value, _pitchTempoBpm());
+    var view = _selectedPlayback();
+    var plan = view && window.BeatMarkerPitch.playbackPlan(view.speed, pitchFromSelect.value, pitchToSelect.value, view.sourceBpm);
+    var signature = displayedPitchSignature;
     var st = plan ? plan.primary.semitones : 0;
     if (!st) {
       return;
@@ -2509,9 +2538,14 @@
     showBusy("busy.default");
     getClipInfo()
       .then(function (clip) {
+        var fresh = _selectedPlayback();
+        if (!fresh || !fresh.camelot || fresh.signature !== signature) {
+          _restoreCachedKey(clip);
+          throw new Error(I18n.t("key.pitchSelectionChanged"));
+        }
         var inSec = Math.max(0, clip.inPointSeconds || 0);
         var outSec = typeof clip.outPointSeconds === "number" && clip.outPointSeconds > inSec ? clip.outPointSeconds : null;
-        var opts = { atSeconds: clip.clipStartSeconds, muteSelected: true, selectInserted: true, inSec: inSec, speed: LP.semitoneRate(st) };
+        var opts = { atSeconds: clip.clipStartSeconds, muteSelected: true, selectInserted: true, inSec: inSec, speed: plan.finalSpeed, reverse: !!clip.reversed, pitchReference: clip };
         if (outSec !== null) {
           opts.outSec = outSec;
         }
@@ -2529,6 +2563,9 @@
               (data.muted ? "; the original is switched off." : "; the original could not be switched off - do it by hand."));
           log(data.selected ? "Key: the pitched clip is selected for further analysis." :
             "Key: select the new pitched clip before further analysis; automatic selection was not confirmed.");
+          return getClipInfo().then(function (inserted) {
+            _restoreCachedKey(inserted);
+          }).catch(function () { selectedClipInfo = null; _clearSelectionDependentState(); });
         });
       })
       .catch(function (err) {
@@ -2548,6 +2585,7 @@
     reset.hidden = !(lastKeyResult && lastKeyResult.manual);
     if (!lastKeyResult) {
       keyResultDisplay.textContent = "-";
+      document.getElementById("playbackKeyDisplay").textContent = "-";
       _renderHeardKey();
       compatibleKeysRow.style.display = "none";
       keyAgreementRow.style.display = "none";
@@ -2555,9 +2593,10 @@
       renderPitch();
       return;
     }
-    if (lastKeyResult.camelot) {
-      pitchFromSelect.value = lastKeyResult.camelot;
-    }
+    var playback = _selectedPlayback();
+    var playbackCode = playback && playback.camelot;
+    if (playbackCode) { pitchFromSelect.value = playbackCode; }
+    document.getElementById("playbackKeyDisplay").textContent = playbackCode ? playbackCode + " - " + _keyNameOf(playbackCode) : I18n.t("key.playbackUnknown");
     renderPitch();
     var text = lastKeyResult.camelot || "?";
     if (lastKeyResult.camelot) {
@@ -2580,12 +2619,12 @@
     }
     keyResultDisplay.textContent = text;
     _renderHeardKey();
-    window.BeatMarkerWheel.renderWheel(document.getElementById("camelotWheel"), lastKeyResult.camelot);
+    window.BeatMarkerWheel.renderWheel(document.getElementById("camelotWheel"), playbackCode);
     // The direct answer to "which key should the OTHER track / riser / SFX be
     // for this to sound good with it", shown as plain key names alongside the
     // Camelot codes, for users who do not know Camelot notation.
-    if (lastKeyResult.camelot) {
-      var compatibleCodes = window.BeatMarkerCamelot.getCompatibleCodes(lastKeyResult.camelot);
+    if (playbackCode) {
+      var compatibleCodes = window.BeatMarkerCamelot.getCompatibleCodes(playbackCode);
       var parts = [];
       for (var i = 0; i < compatibleCodes.length; i++) {
         var friendly = window.BeatMarkerCamelot.fromCamelotCode(compatibleCodes[i]);
@@ -2679,9 +2718,10 @@
   }
   function _restoreCachedKey(clipInfo) {
     var cached = window.BeatMarkerLibrary.getKey(clipInfo.mediaPath, _keyScopeFor(clipInfo));
+    selectedClipInfo = clipInfo;
     lastKeyResult = cached ? Object.assign({}, cached, { mediaPath: clipInfo.mediaPath,
       scopeKey: _keyScopeFor(clipInfo), clipSpeed: Number(clipInfo.speed) > 0 ? Number(clipInfo.speed) : 1 }) : null;
-    renderKeyResult();
+    _refreshPlaybackConsumers();
   }
   keyScopeSelect.addEventListener("change", function () {
     keyScope = keyScopeSelect.value === "clip" ? "clip" : "file";
@@ -2794,7 +2834,10 @@
           var confirmed = window.BeatMarkerLibrary.getKey(clipInfoForKey.mediaPath, result.scopeKey);
           if (confirmed && confirmed.manual) { lastKeyResult = Object.assign({}, lastKeyResult, confirmed); }
         }
-        renderKeyResult();
+        _refreshPlaybackConsumers();
+        var playback = _selectedPlayback();
+        log("Key source: " + result.camelot + "; selected playback: " + (playback && playback.camelot || "between keys or unavailable") +
+          "; speed " + (playback ? (playback.speed * 100).toFixed(2) : "unknown") + "% (calculated from speed).");
       })
       .catch(function (err) {
         var message = err && err.message ? err.message : err;
@@ -2944,6 +2987,7 @@
     }, 3000);
   }
   function _clearSelectionDependentState() {
+    selectedClipInfo = null;
     lastAnalysis = null;
     _updatePhaseShiftUi();
     _setBpmText("-");
@@ -2953,7 +2997,7 @@
     _updateRetempoLikelyHint(null, null);
     _hideBeatClickPreview();
     lastKeyResult = null;
-    renderKeyResult();
+    _refreshPlaybackConsumers();
   }
 
   function _applyCachedEntry(entry, freshClipInfo) {
@@ -2993,7 +3037,8 @@
     _refreshBeatClickPreview();
 
     _restoreCachedKey(freshClipInfo);
-    if (lastKeyResult && lastKeyResult.camelot) { statusParts.push(lastKeyResult.camelot); }
+    var playback = _selectedPlayback();
+    if (playback && playback.camelot) { statusParts.push(playback.camelot); }
 
     if (!entry) {
       statusParts.push(function () { return I18n.t("selection.notAnalyzed"); });
@@ -3020,6 +3065,10 @@
       wasBusy = false;
       getClipInfo()
         .then(function (clipInfo) {
+          if ((lastKeyResult && (lastKeyResult.mediaPath !== clipInfo.mediaPath || lastKeyResult.scopeKey !== _keyScopeFor(clipInfo))) ||
+              (lastAnalysis && lastAnalysis.audioPath !== clipInfo.mediaPath)) {
+            _applyCachedEntry(window.BeatMarkerLibrary.get(clipInfo.mediaPath), clipInfo);
+          }
           var currentSpeed = Number(clipInfo.speed) > 0 ? Number(clipInfo.speed) : 1;
           if (lastKeyResult && lastKeyResult.mediaPath === clipInfo.mediaPath && lastKeyResult.scopeKey === _keyScopeFor(clipInfo)) {
             lastKeyResult.clipSpeed = currentSpeed;
@@ -3028,15 +3077,15 @@
             lastAnalysis.clipInfo.speed = currentSpeed;
           }
           _renderHeard();
+          _refreshPlaybackConsumers();
           lastSelectionKey = clipInfo.mediaPath + "|" + clipInfo.inPointSeconds + "|" + clipInfo.outPointSeconds + "|" + clipInfo.speed + "|" + window.BeatMarkerLibrary.identityKey(clipInfo.mediaPath);
           var entry = window.BeatMarkerLibrary.get(clipInfo.mediaPath);
           var parts = [basename(clipInfo.mediaPath)];
           if (entry && entry.bpm) {
             parts.push(entry.bpm.toFixed(1) + " BPM");
           }
-          if (entry && entry.camelot) {
-            parts.push(entry.camelot);
-          }
+          var playback = _selectedPlayback();
+          if (playback && playback.camelot) { parts.push(playback.camelot); }
           _setSelectionStatus(parts.join(" — "), "has-cache");
         })
         .catch(function () {

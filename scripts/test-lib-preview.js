@@ -241,6 +241,15 @@ waitFor(function () { return rows().length === 2; }, "listing the SFX folder")
       $.libPaneInKeyBtn.classList.contains("is-active") && $.libPanePitchValue.textContent === "+2" &&
       /8A A minor → 10A B minor/.test($.libPaneKey.textContent) && /In key 10A/.test($.libPaneInKeyBtn.textContent) && $.libPaneNote.hidden,
       $.libPanePitchValue.textContent + " | " + $.libPaneKey.textContent + " | " + $.libPaneInKeyBtn.textContent);
+    panel.runIntervals(); await new Promise(function (resolve) { setTimeout(resolve, 40); });
+    fake.audioTrack.clips[0]._speed = Math.pow(2, 2 / 12);
+    panel.runIntervals(); await waitFor(function () { return $.libPanePitchValue.textContent === "+4"; }, "In key playback refresh");
+    check("active In key follows the clip's playback key after a speed change", /In key 12A/.test($.libPaneInKeyBtn.textContent));
+    fake.audioTrack.clips[0]._speed = 1.07;
+    panel.runIntervals(); await waitFor(function () { return $.libPanePitchValue.textContent === "0"; }, "In key without an exact key");
+    check("between-key playback clears the preview's automatic pitch", $.libPaneInKeyBtn.classList.contains("is-active"));
+    fake.audioTrack.clips[0]._speed = 1;
+    panel.runIntervals(); await waitFor(function () { return $.libPanePitchValue.textContent === "+2"; }, "In key restore");
     $.libConfirmKey.value = "10A"; $.libConfirmBpm.value = ""; $.libConfirmApplyBtn._fire("click");
     check("confirming the loaded sound recomputes In key immediately", $.libPanePitchValue.textContent === "0", $.libPanePitchValue.textContent);
     $.libConfirmResetBtn._fire("click");
