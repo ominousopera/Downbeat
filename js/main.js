@@ -2511,7 +2511,7 @@
       .then(function (clip) {
         var inSec = Math.max(0, clip.inPointSeconds || 0);
         var outSec = typeof clip.outPointSeconds === "number" && clip.outPointSeconds > inSec ? clip.outPointSeconds : null;
-        var opts = { atSeconds: clip.clipStartSeconds, muteSelected: true, inSec: inSec, speed: LP.semitoneRate(st) };
+        var opts = { atSeconds: clip.clipStartSeconds, muteSelected: true, selectInserted: true, inSec: inSec, speed: LP.semitoneRate(st) };
         if (outSec !== null) {
           opts.outSec = outSec;
         }
@@ -2521,9 +2521,14 @@
             throw new Error(I18n.t("library.speedFailed", { name: basename(clip.mediaPath) }));
           }
           setTranslatedText(pitchApplyStatus, data.muted ? "key.pitchApplyDone" : "key.pitchApplyNotMuted", { where: data.where });
+          if (!data.selected) {
+            pitchApplyStatus.textContent += " " + I18n.t("key.pitchSelectNew");
+          }
           log("Key: " + basename(clip.mediaPath) + " placed " + (st > 0 ? "+" : "") + st + " st at " + Number(data.startSeconds).toFixed(2) +
               " s on " + data.where + " (the file itself, at speed " + opts.speed.toFixed(4) + ")" +
               (data.muted ? "; the original is switched off." : "; the original could not be switched off - do it by hand."));
+          log(data.selected ? "Key: the pitched clip is selected for further analysis." :
+            "Key: select the new pitched clip before further analysis; automatic selection was not confirmed.");
         });
       })
       .catch(function (err) {
@@ -2696,6 +2701,8 @@
         clipInfoForKey = clipInfo;
         clipInfo.fileIdentity = window.BeatMarkerLibrary.fileIdentity(clipInfo.mediaPath);
         log("Reading file for key detection: " + clipInfo.mediaPath);
+        log("Key selected clip: playback speed " + ((Number(clipInfo.speed) > 0 ? Number(clipInfo.speed) : 1) * 100).toFixed(2) +
+            "%, timeline start " + Number(clipInfo.clipStartSeconds || 0).toFixed(2) + "s; detector reads source audio.");
         return window.BeatMarkerAudio.decodeFileToMono44100(clipInfo.mediaPath, {
           onFallback: function () { log("The panel's decoder could not read this file; using the plugin's own WAV / AIFF reader."); }
         });

@@ -665,11 +665,22 @@ function dbAeInsertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
                 error: "After Effects could not apply the speed or the trim." + (reverseLayout && reverseLayout.known ? " Reversed layer: " + reverseLayout.tried + "; " + reverseLayout.seen : "") };
             return failed;
         }
+        var selected = false;
+        if (opts && opts.selectInserted) {
+            try {
+                for (var sl = 1; sl <= comp.numLayers; sl++) {
+                    comp.layer(sl).selected = false;
+                }
+                layer.selected = true;
+                selected = layer.selected === true && comp.selectedLayers.length === 1 &&
+                    comp.selectedLayers[0].index === layer.index;
+            } catch (selectionErr) { selected = false; /* the panel asks for manual selection */ }
+        }
         // `where` is the composition: the panel says "Inserted {name} on
         // {where}", and the layer's own name is the file's.
         return { where: comp.name, layerName: layer.name, startSeconds: startSeconds, imported: imported,
             trimmed: !!opts && (Number(opts.inSec) > 0 || Number(opts.outSec) > 0), inPoint: layer.inPoint, outPoint: layer.outPoint,
-            stretch: layer.stretch, muted: !!toMute && toMute.audioEnabled === false,
+            stretch: layer.stretch, muted: !!toMute && toMute.audioEnabled === false, selected: selected,
             reverseLayout: reverseLayout && reverseLayout.known ? reverseLayout.tried + "; " + reverseLayout.seen : null };
     });
 }

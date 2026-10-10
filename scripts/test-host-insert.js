@@ -177,9 +177,42 @@ try {
   check("Premiere: when the speed does not take, the clip is removed again and speedFailed says so (no copy)",
     r.ok && r.data.speedFailed === true && !speedOf(p7, 40), JSON.stringify(r.data || r.error));
   const p8 = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60, clipStart: 3, playheadSeconds: 20, audioTrackCount: 2, insertDurationSec: 5 });
-  r = JSON.parse(mocks.loadHost(p8.context).run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + js(({ atSeconds: 3, muteSelected: true, speed: rate })) + ")"));
+  const ph8 = mocks.loadHost(p8.context);
+  r = JSON.parse(ph8.run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + js(({ atSeconds: 3, muteSelected: true, selectInserted: true, speed: rate })) + ")"));
   check("Premiere: the Key tab's pitch - the file itself at the clip's place, original switched off",
     r.ok && r.data.startSeconds === 3 && r.data.where === "A2" && r.data.muted === true && r.data.speed && Math.abs(r.data.speed.speed - rate) < 1e-9, JSON.stringify(r.data || r.error));
+  const selectedPitch = JSON.parse(ph8.run("getSelectedAudioInfo()"));
+  check("Premiere: Detect key immediately after pitch reads the new clip speed, not the disabled original",
+    r.data.selected === true && selectedPitch.ok && Math.abs(selectedPitch.data.speed - rate) < 1e-9 &&
+    !p8.audioTrack.clips[0].isSelected(), JSON.stringify(selectedPitch));
+  check("Premiere: ordinary Library inserts keep the original selection",
+    p.audioTrack.clips[0].isSelected() && !a2[0].isSelected());
+  const pNoSelect = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60,
+    audioTrackCount: 2, insertDurationSec: 5 });
+  pNoSelect.audioTrack.clips[0].setSelected = function () { throw new Error("Selection unavailable"); };
+  const noSelect = JSON.parse(mocks.loadHost(pNoSelect.context).run("insertAudioAtPlayhead(" + js(sound) +
+    ", 5, " + js({ atSeconds: 0, muteSelected: true, selectInserted: true, speed: rate }) + ")"));
+  check("Premiere: failed selection preserves a successful pitched insert and reports manual selection",
+    noSelect.ok && noSelect.data.selected === false && noSelect.data.muted === true &&
+    pNoSelect.sequence.audioTracks[1].clips.length === 1 && pNoSelect.audioTrack.clips[0].isSelected());
+  const pSilent = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60,
+    audioTrackCount: 2, insertDurationSec: 5 });
+  pSilent.audioTrack.clips[0].setSelected = function () {};
+  const silent = JSON.parse(mocks.loadHost(pSilent.context).run("insertAudioAtPlayhead(" + js(sound) +
+    ", 5, " + js({ atSeconds: 0, muteSelected: true, selectInserted: true, speed: rate }) + ")"));
+  check("Premiere: silently refused deselection requires manual selection, even when the new clip is selected",
+    silent.ok && silent.data.selected === false && pSilent.audioTrack.clips[0].isSelected() &&
+    pSilent.sequence.audioTracks[1].clips[0].isSelected());
+  const pReadFail = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60,
+    audioTrackCount: 2, insertDurationSec: 5 });
+  pReadFail.audioTrack.clips[0].isSelected = function () {
+    if (!this.selected) { throw new Error("Selection readback unavailable"); }
+    return true;
+  };
+  const readFail = JSON.parse(mocks.loadHost(pReadFail.context).run("insertAudioAtPlayhead(" + js(sound) +
+    ", 5, " + js({ atSeconds: 0, muteSelected: true, selectInserted: true, speed: rate }) + ")"));
+  check("Premiere: a failed exclusivity readback requires manual selection, without undoing the pitched insert",
+    readFail.ok && readFail.data.selected === false && pReadFail.sequence.audioTracks[1].clips.length === 1);
   // The selected clip's info after the Key tab re-sped it: the used part of
   // the file is the timeline length times the speed.
   const p9 = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60, clipStart: 3, playheadSeconds: 0, audioTrackCount: 2 });
@@ -217,10 +250,12 @@ try {
   check("After Effects: a part of the file - the layer shows source 1-3 s from the current time",
     r.ok && trimmedLayer.startTime === 29 && trimmedLayer.inPoint === 30 && trimmedLayer.outPoint === 32, JSON.stringify(r.data || r.error));
   const selectedSong = a.comp.layers.filter(function (l) { return l.selected && l.hasAudio; })[0];
-  r = JSON.parse(ah.run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + js(({ atSeconds: 3, muteSelected: true })) + ")"));
+  r = JSON.parse(ah.run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + js(({ atSeconds: 3, muteSelected: true, selectInserted: true })) + ")"));
   const pitchedLayer = a.comp.layers.filter(function (l) { return l !== selectedSong && l.startTime === 3; })[0];
   check("After Effects: a pitched copy starts at the layer's place, and the original layer's sound is switched off",
     r.ok && pitchedLayer && r.data.muted === true && selectedSong && selectedSong.audioEnabled === false, JSON.stringify(r.data || r.error));
+  check("After Effects: only the new pitched layer is selected",
+    r.data.selected === true && a.comp.selectedLayers.length === 1 && a.comp.selectedLayers[0] === pitchedLayer);
   check("After Effects: the pitched layer sits right above the layer it was made from, not on top of the comp",
     pitchedLayer && pitchedLayer.index === selectedSong.index - 1 && pitchedLayer.index > 1,
     "pitched at " + (pitchedLayer && pitchedLayer.index) + ", original at " + (selectedSong && selectedSong.index));

@@ -575,3 +575,5 @@ El recorrido incluye metrónomo, intervalo de análisis y valores guardados, cam
 ### Tonalidad del original y tono en la línea de tiempo
 
 Detectar tonalidad analiza el archivo original o el intervalo seleccionado del original. Cambiar el tono del clip ajusta la velocidad sin modificar el archivo: un original en la menor conserva 8A y +2 semitonos suenan como si menor, 10A. El resultado Tonalidad del original no cambia; la línea inferior indica la tonalidad a la velocidad del clip seleccionado. Los cambios de velocidad actualizan esta vista. Los efectos de audio y el estiramiento que conserva el tono no se miden desde el archivo.
+
+Tras aplicar Pitch the clip, se selecciona automáticamente el nuevo clip o capa para que Detect key use su velocidad de reproducción. Si la aplicación no confirma la selección, el panel pide seleccionarlo manualmente. Copy log registra la velocidad del clip seleccionado; los mensajes del detector siguen describiendo el audio original.

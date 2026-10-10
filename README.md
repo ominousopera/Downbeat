@@ -612,3 +612,5 @@ Replay the tour covers the metronome, key scope/confirmations, pitch application
 ### Source key and timeline key
 
 Detect key measures source audio. Pitch the clip leaves the file unchanged; Source key therefore remains the detected source key, with the timeline key shown underneath at the selected clip speed. For example, A minor (8A) at +2 semitones plays as B minor (10A). Audio effects and pitch-preserving stretch are not measured from the file.
+
+Pitch the clip selects the new clip/layer after a successful insert. If automatic selection cannot be confirmed, select the new clip manually before Detect key. Diagnostics records selected playback speed alongside source analysis.

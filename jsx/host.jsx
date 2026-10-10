@@ -1419,8 +1419,38 @@ function insertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
                 muted = false;
             }
         }
+        var selected = false;
+        if (opts && opts.selectInserted) {
+            try {
+                placedClip = _findClipStartingAt(targetTrack, startSeconds);
+                placedClip.setSelected(true, false);
+                var selectionTracks = [sequence.audioTracks, sequence.videoTracks];
+                for (var st = 0; st < selectionTracks.length; st++) {
+                    for (var si = 0; si < selectionTracks[st].numTracks; si++) {
+                        var selectionClips = selectionTracks[st][si].clips;
+                        for (var sc = 0; sc < selectionClips.numItems; sc++) {
+                            if (!(st === 0 && si === target && Math.abs(selectionClips[sc].start.seconds - startSeconds) < 0.02)) {
+                                selectionClips[sc].setSelected(false, false);
+                            }
+                        }
+                    }
+                }
+                placedClip.setSelected(true, true);
+                selected = placedClip.isSelected();
+                for (var ct = 0; ct < selectionTracks.length; ct++) {
+                    for (var ci = 0; ci < selectionTracks[ct].numTracks; ci++) {
+                        var checkedClips = selectionTracks[ct][ci].clips;
+                        for (var cc = 0; cc < checkedClips.numItems; cc++) {
+                            if (!(ct === 0 && ci === target && Math.abs(checkedClips[cc].start.seconds - startSeconds) < 0.02) && checkedClips[cc].isSelected()) {
+                                selected = false;
+                            }
+                        }
+                    }
+                }
+            } catch (selectionErr) { selected = false; /* the panel asks for manual selection */ }
+        }
         result.ok = true;
-        result.data = { where: "A" + (target + 1), target: target, startSeconds: startSeconds, imported: imported, trimmed: !!opts && (inSec > 0 || outSec !== null), fades: fades, muted: muted, speed: speedResult };
+        result.data = { where: "A" + (target + 1), target: target, startSeconds: startSeconds, imported: imported, trimmed: !!opts && (inSec > 0 || outSec !== null), fades: fades, muted: muted, speed: speedResult, selected: selected };
     } catch (e) {
         result.ok = false;
         result.error = e.message ? e.message : e.toString();

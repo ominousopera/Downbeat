@@ -524,3 +524,5 @@ Replay the tour includes metronome tracks, key scope and saved values, Pitch the
 ### Source key and timeline pitch
 
 Detect key measures the source file or its selected source interval. Pitch the clip changes playback speed without rewriting that file: an A-minor source remains 8A, while +2 semitones plays as B minor, 10A. The Source key result stays unchanged; the line below shows the timeline key at the selected clip speed. Speed changes refresh that view. Audio effects and pitch-preserving stretch are not measured from the file.
+
+After Pitch the clip succeeds, the new clip/layer is selected automatically, so another Detect key uses its playback speed. If the host cannot confirm selection, the panel asks you to select it manually. Copy log records the selected clip speed; detector messages still describe source audio.
