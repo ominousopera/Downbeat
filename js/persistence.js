@@ -218,8 +218,13 @@
           confidence: e.confidence,
           phase: e.phase,
           downbeatTimes: e.downbeatTimes || null,
+          fileIdentity: e.fileIdentity || null,
+          detectedKey: e.detectedKey || null,
+          confirmedKey: e.confirmedKey || null,
+          confirmedBpm: e.confirmedBpm || null,
+          intervalKeys: e.intervalKeys || [],
           material: e.material || null
-        // clipInfo is omitted on purpose (see above).
+
         });
       }
       fs.writeFileSync(filePath, JSON.stringify(stripped, null, 2), "utf8");

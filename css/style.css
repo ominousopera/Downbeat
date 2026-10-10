@@ -2142,10 +2142,6 @@ button.g-opt-btn:hover { color: var(--text); }
 button.g-opt-btn.is-active { color: var(--text); border-bottom-color: var(--accent); cursor: default; }
 button.g-opt-btn:disabled { opacity: 0.5; cursor: default; }
 
-/* Settings: the last item of a list section has no underline of its own -
-   with the next section's rule under it, the two lines read as an empty row. */
-button.settings-full-btn.g-last { border-bottom-color: transparent; }
-
 /* The filters stay on one line unless the panel is narrower than about
    620 px; then the end wraps under. */
 .g-filters label input[type="checkbox"] + span,
@@ -2424,3 +2420,13 @@ p.hint { margin: 0 0 var(--space-row); }
 .settings-panel .g-status-row { margin: 0; }
 .settings-panel .g-status-row > span:not(:empty) { margin: var(--space-tight) 0 var(--space-tight); }
 #audioOutputPath:empty { display: none; }
+
+
+
+
+/* Action separators belong to their buttons; the following title has no second rule. */
+.settings-panel .panel-title.settings-follow-action { margin-top: 0; border-top: none; padding-top: var(--space-tight); }
+.pitch-action { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-row); margin: var(--space-row) 0; }
+.pitch-action-result { flex: 1 1 220px; min-width: 0; }
+.pitch-action .pitch-readout { margin: 0; }
+button.pitch-apply { flex: 0 1 auto; width: auto; max-width: 100%; gap: var(--space-row); padding: 8px 12px; }

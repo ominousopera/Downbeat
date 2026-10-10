@@ -37,3 +37,7 @@ publicly. The analysis workers execute bundled local scripts under the
 bundled Node runtime; endpoint-security tools may ask about these executions.
 A valid ZXP signature does not guarantee that every runtime action will be
 accepted by third-party security software.
+
+Confirmed Key/BPM and source-interval results are stored only with local library
+data and explicit library backups. They do not edit original media or send
+analysis data online. Cache identity uses size/mtime rather than content hashes.

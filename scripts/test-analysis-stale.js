@@ -15,7 +15,9 @@ function body(name) {
 function fixture() {
   const pending = [], calls = [];
   const c = { Promise, _activeOperationGeneration: 1,
-    lastAnalysis: { audioPath: "first.wav", beatsArray: [0, 1] },
+    lastAnalysis: { audioPath: "first.wav", beatsArray: [0, 1], clipInfo: { mediaPath: "first.wav", fileIdentity: { size: 4 } } },
+    window: { BeatMarkerLibrary: { sameIdentity: function (a, b) { return a.size === b.size; }, fileIdentity: function () { return c.identity; } } },
+    identity: { size: 4 }, I18n: { t: function () { return "file changed"; } },
     lastDecodedSamples: new Float32Array(4),
     RETEMPO_AUTOCORRECT_MARGIN: 1.1, bpmDisplay: { textContent: "60" },
     retempoHalfBtn: {}, retempoDoubleBtn: {},
@@ -29,15 +31,16 @@ function fixture() {
     log: function () {}, showBusy: function () {}, hideBusy: function () { calls.push("hide"); }
   };
   vm.createContext(c);
-  vm.runInContext(body("_tryAutoCorrectHalfTempo") + "\n" + body("_retempoViaRecompute"), c);
+  vm.runInContext(body("_assertAudioUnchanged") + "\n" + body("_tryAutoCorrectHalfTempo") + "\n" + body("_retempoViaRecompute"), c);
   return { c, pending, calls };
 }
 const result = { confidence: 1, cuesheet: { bpm: 120 } };
 const flush = async function () { for (let i = 0; i < 8; i++) { await Promise.resolve(); } };
 (async function () {
-  for (const change of ["generation", "selection", "none"]) {
+  for (const change of ["generation", "selection", "file", "none"]) {
     const f = fixture();
     const done = f.c._tryAutoCorrectHalfTempo(60, f.c.lastDecodedSamples, "first.wav");
+    if (change === "file") { f.c.identity = { size: 5 }; }
     if (change === "generation") { f.c._activeOperationGeneration++; }
     if (change === "selection") { f.c.lastAnalysis = { audioPath: "second.wav" }; }
     f.pending[0].resolve({ confidence: 2, cuesheet: { bpm: 60 } });
@@ -46,10 +49,11 @@ const flush = async function () { for (let i = 0; i < 8; i++) { await Promise.re
     assert.strictEqual(f.calls.includes("apply"), change === "none", "automatic correction: " + change);
   }
   for (const rejected of [false, true]) {
-    for (const change of ["generation", "selection", "none"]) {
+    for (const change of ["generation", "selection", "file", "none"]) {
       const f = fixture();
       f.c._retempoViaRecompute(2, 60);
-      if (change === "generation") { f.c._activeOperationGeneration++; }
+      if (change === "file") { f.c.identity = { size: 5 }; }
+    if (change === "generation") { f.c._activeOperationGeneration++; }
       if (change === "selection") { f.c.lastAnalysis = { audioPath: "second.wav" }; }
       if (rejected) { f.pending[0].reject(new Error("worker unavailable")); }
       else { f.pending[0].resolve(result); }

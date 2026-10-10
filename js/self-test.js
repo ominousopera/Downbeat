@@ -156,7 +156,9 @@
             _selfTestKeyOverrideDetail = ok
               ? "lastKeyResult.camelot=8A, manual=true, as expected"
               : "lastKeyResult after the click: " + JSON.stringify(ctx.lastKeyResult() && { camelot: ctx.lastKeyResult().camelot, manual: ctx.lastKeyResult().manual });
-            return _clickAndWaitForButton(ctx.detectKeyBtn(), "Detect key (run 3, restoring real data after the override test above)");
+            return _clickAndWaitForButton(document.getElementById("clearKeyOverrideBtn"), "Clear key override").then(function () {
+              return _clickAndWaitForButton(ctx.detectKeyBtn(), "Detect key (restoring detector data)");
+            });
           }).then(function () {
             // Several steps below (razorTestBtn, cutDownbeatsBtn) cut the
             // selected clip, which changes Premiere's selection. The

@@ -148,6 +148,11 @@
     initialSettings: function () { return initialSettings; },
     lastAnalysis: function () { return lastAnalysis; },
     lastKeyResult: function () { return lastKeyResult; },
+    refreshTimelineKey: function (mediaPath) {
+      return getClipInfo().then(function (clipInfo) {
+        if (clipInfo.mediaPath === mediaPath) { _restoreCachedKey(clipInfo); }
+      }).catch(function (err) { log(err.message || String(err)); });
+    },
     tempFileStarted: function () { _bridge.tempFileStarted(); },
     tempFileDone: function () { _bridge.tempFileDone(); }
   });
@@ -517,8 +522,15 @@
   function _resolveNodeExecutable() {
     return _bridge.resolveNodeExecutable.apply(null, arguments);
   }
-  function runAnalyzeWorker() {
-    return _bridge.runAnalyzeWorker.apply(null, arguments);
+  var _bpmPassCache = window.BeatMarkerAnalysisCache.create(4);
+  function runAnalyzeWorker(mode, samples, audioPath, constraint, material) {
+    var args = arguments;
+    if (mode === "beats" && constraint) {
+      return _bpmPassCache.run(samples, audioPath, constraint, function () {
+        return _bridge.runAnalyzeWorker.apply(null, args);
+      });
+    }
+    return _bridge.runAnalyzeWorker(mode, samples, audioPath, constraint, material);
   }
   function runBeatThisWorker() {
     return _bridge.runBeatThisWorker.apply(null, arguments);
@@ -526,13 +538,21 @@
   function runSkeyWorker() {
     return _bridge.runSkeyWorker.apply(null, arguments);
   }
-  // Key detection for Detect key: the essentia
-  // worker (profile vote + chord key), plus - in Music mode - S-KEY as a
-  // third opinion, combined by js/key-combine.js. S-KEY failing never fails
-  // key detection: the essentia answer simply stands, with its own chord-only
-  // confidence line.
-  function _detectKey(samples44100, material) {
-    var keyPromise = runAnalyzeWorker("key", samples44100, null, null, material);
+
+  // Reject a result if its source changed while work was running.
+  function _assertAudioUnchanged(clipInfo) {
+    if (clipInfo.fileIdentity && !window.BeatMarkerLibrary.sameIdentity(
+        clipInfo.fileIdentity, window.BeatMarkerLibrary.fileIdentity(clipInfo.mediaPath))) {
+      throw new Error(I18n.t("analysis.fileChanged"));
+    }
+  }
+  // Music combines profile and S-KEY results. Long agreeing inputs omit
+  // chords; disagreement requests that witness before the same vote rule.
+  // Worker errors recover through the full detector.
+  function _detectKey(samples44100, material, adaptive) {
+
+    var conditional = material === "music" && adaptive !== false && samples44100.length >= 120 * 44100;
+    var keyPromise = runAnalyzeWorker(conditional ? "keyVote" : "key", samples44100, null, null, material);
     var skeyPromise = material === "music"
       ? window.BeatMarkerAudio.resampleMono(samples44100, window.BeatMarkerAudio.TARGET_SAMPLE_RATE, 22050)
         .then(runSkeyWorker)
@@ -543,10 +563,28 @@
       : Promise.resolve(null);
     return Promise.all([keyPromise, skeyPromise]).then(function (both) {
       var result = both[0], skey = both[1];
-      if (!skey || !result.camelot) {
-        return result;
+      if (conditional && (!skey || !result.camelot)) {
+        return runAnalyzeWorker("key", samples44100, null, null, material);
       }
+      if (!skey || !result.camelot) { return result; }
       var skeyCamelot = window.BeatMarkerCamelot.toCamelotCode(skey.key, skey.scale);
+      if (conditional && !skeyCamelot) { return runAnalyzeWorker("key", samples44100, null, null, material); }
+      if (conditional && skeyCamelot !== result.camelot) {
+        return runAnalyzeWorker("keyChord", samples44100, null, null, material).then(function (chords) {
+          result.chordCamelot = chords.chordCamelot;
+          result.witnessAvailable = !!chords.chordCamelot;
+          result.corroborated = chords.chordCamelot === result.camelot;
+          return finishKey(result, skey, skeyCamelot);
+        }).catch(function () {
+          return runAnalyzeWorker("key", samples44100, null, null, material).then(function (full) {
+            return finishKey(full, skey, skeyCamelot);
+          });
+        });
+      }
+      if (conditional) { result.witnessSkipped = true; }
+      return finishKey(result, skey, skeyCamelot);
+    });
+    function finishKey(result, skey, skeyCamelot) {
       var decision = window.BeatMarkerKeyCombine.combineMusicKey(result.camelot, result.chordCamelot, skeyCamelot);
       result.skeyCamelot = skeyCamelot;
       result.voteCamelot = result.camelot;
@@ -558,10 +596,9 @@
         result.key = skey.key;
         result.scale = skey.scale;
         result.strength = null;
-      // KeyExtractor's strength described the vote, not this answer
       }
       return result;
-    });
+    }
   }
   // Builds a click track of `durationSec` seconds with one short decaying
   // click per beat at `bpm`, used by the Test essentia diagnostic.
@@ -899,6 +936,7 @@
       runAnalyzeWorker("beats", monoSamples, audioPath, _narrowForcedWindow(bpm * 2))
     ]).then(function (results) {
       if (generation !== _activeOperationGeneration || lastAnalysis !== origin) { return false; }
+      _assertAudioUnchanged(origin.clipInfo);
       var slowResult = results[0], fastResult = results[1];
       var slowConf = slowResult.confidence, fastConf = fastResult.confidence;
       if (fastConf > 0 && (slowConf / fastConf) >= RETEMPO_AUTOCORRECT_MARGIN) {
@@ -1246,6 +1284,7 @@
     return getClipInfo()
       .then(function (clipInfo) {
         clipInfoForPlacement = clipInfo;
+        clipInfo.fileIdentity = window.BeatMarkerLibrary.fileIdentity(clipInfo.mediaPath);
         log("Reading file: " + clipInfo.mediaPath);
         return window.BeatMarkerAudio.decodeFileToMono44100(clipInfo.mediaPath, {
           onRead: function (bytes) { log("Read " + bytes + " bytes. Decoding..."); },
@@ -1266,6 +1305,7 @@
         return runAnalyzeWorker("beats", decoded.samples, clipInfoForPlacement.mediaPath);
       })
       .then(function (analysis) {
+        _assertAudioUnchanged(clipInfoForPlacement);
         var beatCount = analysis.beatsArray.length;
         log("Analysis ok: bpm=" + analysis.cuesheet.bpm + ", " + beatCount + " beats detected.");
         log("Downbeat phase picked: " + analysis.phase +
@@ -1416,6 +1456,7 @@
     return snapshot;
   }
   function _applyBeatFieldsAndRefreshUI(fields, audioPath, clipInfo) {
+    _assertAudioUnchanged(clipInfo);
     for (var i = 0; i < BEAT_FIELD_KEYS.length; i++) {
       lastAnalysis[BEAT_FIELD_KEYS[i]] = fields[BEAT_FIELD_KEYS[i]];
     }
@@ -1450,6 +1491,7 @@
     var analysis = lastAnalysis;
     var audioPath = analysis.audioPath;
     var clipInfo = analysis.clipInfo;
+    try { _assertAudioUnchanged(clipInfo); } catch (changed) { log(changed.message); return Promise.resolve(false); }
     var originalBeatsArray = analysis.beatsArray;
     var preSnapshot = _snapshotBeatFields(analysis);
     var samples44100 = lastDecodedSamples;
@@ -1513,6 +1555,7 @@
           log("Alternative analysis finished after the clip changed - discarded.");
           return false;
         }
+        _assertAudioUnchanged(clipInfo);
         lastAnalysis._preBeatThisSnapshot = preSnapshot;
         lastAnalysis.beatThisApplied = true;
         lastAnalysis.beatThisAuto = !!automatic;
@@ -1564,6 +1607,7 @@
     }
     var audioPath = lastAnalysis.audioPath;
     var clipInfo = lastAnalysis.clipInfo;
+    try { _assertAudioUnchanged(clipInfo); } catch (changed) { log(changed.message); return; }
     // Second click after Beat This! was already applied = revert, not re-run
     // - restores the snapshot taken just before the first apply, no
     // essentia/Beat This! call needed.
@@ -1614,6 +1658,10 @@
   // of moving it. (A real analysis has beats across the whole source file.)
   var MANUAL_BPM_GRID_PAD_BEATS = 8;
   function _restoreManualBpmSnapshot(snap) {
+    try {
+      _assertAudioUnchanged(snap.clipInfo);
+      if (snap.lastAnalysis) { _assertAudioUnchanged(snap.lastAnalysis.clipInfo); }
+    } catch (changed) { log(changed.message); return; }
     lastAnalysis = snap.lastAnalysis;
     _setBpmText(snap.bpmText);
     beatCountDisplay.textContent = snap.beatCountText;
@@ -1660,6 +1708,7 @@
           log("Set BPM: a newer Analyze/Detect key/Set BPM was started before this one finished - discarding this one.");
           return;
         }
+        clipInfo.fileIdentity = window.BeatMarkerLibrary.fileIdentity(clipInfo.mediaPath);
         var libraryEntryBefore = window.BeatMarkerLibrary.get(clipInfo.mediaPath);
         var preSnapshot = {
           clipInfo: clipInfo,
@@ -1672,6 +1721,7 @@
             beatsArray: libraryEntryBefore.beatsArray,
             confidence: libraryEntryBefore.confidence,
             phase: libraryEntryBefore.phase,
+            downbeatTimes: libraryEntryBefore.downbeatTimes,
             clipInfo: libraryEntryBefore.clipInfo
           } : null,
           libraryHadOtherData: !!(libraryEntryBefore && libraryEntryBefore.camelot)
@@ -1886,7 +1936,9 @@
   // snapshot is invalidated if Beat This! is applied or reverted in between.
   function _retempoViaRecompute(factor, currentBpm) {
     var origin = lastAnalysis, generation = _activeOperationGeneration;
+    try { _assertAudioUnchanged(origin.clipInfo); } catch (err) { log(err.message); return; }
     var reverseFactor = factor === 2 ? 0.5 : 2;
+
     var pending = lastAnalysis._preRetempoSnapshot;
     if (pending && pending.reverseFactor === factor) {
       lastAnalysis._preRetempoSnapshot = null;
@@ -1907,12 +1959,14 @@
     runAnalyzeWorker("beats", lastDecodedSamples, lastAnalysis.audioPath, tempoWindow)
       .then(function (analysis) {
         if (generation !== _activeOperationGeneration || lastAnalysis !== origin) { return; }
+        _assertAudioUnchanged(origin.clipInfo);
         _maybePreserveBetterPhase(analysis, currentBpm);
         _applyRecomputedBeatsAnalysis(analysis, "Tempo re-derived (constrained re-analysis, not a naive ×2/÷2): now ");
         lastAnalysis._preRetempoSnapshot = { reverseFactor: reverseFactor, fields: preSnapshot, bpmText: preBpmText };
       })
       .catch(function (err) {
         if (generation !== _activeOperationGeneration || lastAnalysis !== origin) { return; }
+        try { _assertAudioUnchanged(origin.clipInfo); } catch (changed) { log(changed.message); return; }
         log("Tempo re-derive failed (" + (err && err.message ? err.message : err) +
             ") - falling back to a plain ×2/÷2 of the existing grid instead.");
         _retempoNaive(factor);
@@ -1928,6 +1982,7 @@
       log("½×/2× tempo: run Analyze or Set BPM first.");
       return;
     }
+    try { _assertAudioUnchanged(lastAnalysis.clipInfo); } catch (err) { log(err.message); return; }
     var canRecompute = !lastAnalysis.manualBpm && lastDecodedSamples &&
       lastDecodedSamplesPath === lastAnalysis.audioPath;
     var currentBpm = canRecompute ? _estimateBpmFromBeats(lastAnalysis.beatsArray) : 0;
@@ -2481,8 +2536,10 @@
       });
   });
   renderPitch();
-  // replaces the markup's placeholder before any key is known
+
   function renderKeyResult() {
+    var reset = document.getElementById("clearKeyOverrideBtn");
+    reset.hidden = !(lastKeyResult && lastKeyResult.manual);
     if (!lastKeyResult) {
       keyResultDisplay.textContent = "-";
       _renderHeardKey();
@@ -2551,6 +2608,7 @@
     if (r.shortClip) {
       return { text: I18n.t("key.confShort", { sec: r.durationSec.toFixed(1) }), warn: false };
     }
+    if (r.witnessSkipped) { return { text: I18n.t("key.confTwoChecked"), warn: false }; }
     if (r.material === "music" && r.agreement3) {
       var other = r.dissent ? r.dissent : null;
       if (r.agreement3 === "all3") {
@@ -2597,20 +2655,45 @@
     keyMaterialSfxBtn.classList.toggle("is-active", keyMaterial === "sfx");
     if (!isInitialBoot) {
       persistSettings({ keyMaterial: keyMaterial });
+      getClipInfo().then(_restoreCachedKey).catch(function () {
+        lastKeyResult = null; renderKeyResult();
+      });
     }
   }
   keyMaterialMusicBtn.addEventListener("click", function () { applyKeyMaterial("music"); });
   keyMaterialSfxBtn.addEventListener("click", function () { applyKeyMaterial("sfx"); });
   applyKeyMaterial(initialSettings.keyMaterial, true);
+
+  var keyScopeSelect = document.getElementById("keyScopeSelect");
+  var keyScope = initialSettings.keyScope === "clip" ? "clip" : "file";
+  keyScopeSelect.value = keyScope;
+  function _keyScopeFor(clipInfo, scope, material) {
+    return window.BeatMarkerAnalysisCache.scopeKey(scope || keyScope, material || keyMaterial,
+      clipInfo, window.BeatMarkerAudio.TARGET_SAMPLE_RATE);
+  }
+  function _restoreCachedKey(clipInfo) {
+    var cached = window.BeatMarkerLibrary.getKey(clipInfo.mediaPath, _keyScopeFor(clipInfo));
+    lastKeyResult = cached ? Object.assign({}, cached, { mediaPath: clipInfo.mediaPath,
+      scopeKey: _keyScopeFor(clipInfo), clipSpeed: Number(clipInfo.speed) > 0 ? Number(clipInfo.speed) : 1 }) : null;
+    renderKeyResult();
+  }
+  keyScopeSelect.addEventListener("change", function () {
+    keyScope = keyScopeSelect.value === "clip" ? "clip" : "file";
+    persistSettings({ keyScope: keyScope });
+    getClipInfo().then(_restoreCachedKey).catch(function () { lastKeyResult = null; renderKeyResult(); });
+  });
+
   var detectKeyBtn = document.getElementById("detectKeyBtn");
   detectKeyBtn.addEventListener("click", function () {
     detectKeyBtn.disabled = true;
     showBusy("busy.detectKey");
     var myGeneration = ++_activeOperationGeneration;
     var clipInfoForKey = null;
+    var requestedScope = keyScope, requestedMaterial = keyMaterial;
     getClipInfo()
       .then(function (clipInfo) {
         clipInfoForKey = clipInfo;
+        clipInfo.fileIdentity = window.BeatMarkerLibrary.fileIdentity(clipInfo.mediaPath);
         log("Reading file for key detection: " + clipInfo.mediaPath);
         return window.BeatMarkerAudio.decodeFileToMono44100(clipInfo.mediaPath, {
           onFallback: function () { log("The panel's decoder could not read this file; using the plugin's own WAV / AIFF reader."); }
@@ -2620,17 +2703,26 @@
         log("Decoded (" + decoded.original.durationSec.toFixed(2) + "s). Running KeyExtractor...");
         if (myGeneration === _activeOperationGeneration) {
           lastDecodedSamples = decoded.samples;
-          // reused later without a re-decode
           lastDecodedSamplesPath = clipInfoForKey.mediaPath;
         }
-        return _detectKey(decoded.samples, keyMaterial);
+        var input = decoded.samples;
+        if (requestedScope === "clip") {
+          try {
+            input = window.BeatMarkerAnalysisCache.interval(decoded.samples,
+              window.BeatMarkerAudio.TARGET_SAMPLE_RATE, clipInfoForKey).samples;
+          } catch (intervalError) { throw new Error(I18n.t("key.scopeInvalid")); }
+        }
+        log("Key analysis scope: " + requestedScope + ", " + (input.length / 44100).toFixed(2) + "s.");
+        return _detectKey(input, requestedMaterial);
       })
       .then(function (result) {
-        // Library upsertKey below is unconditional (see
-        // _activeOperationGeneration's own comment); only the foreground
-        // lastKeyResult/renderKeyResult() are gated on still being the
-        // latest-started operation.
-        if (myGeneration !== _activeOperationGeneration) {
+        _assertAudioUnchanged(clipInfoForKey);
+        result.scopeKey = _keyScopeFor(clipInfoForKey, requestedScope, requestedMaterial);
+
+
+
+
+        if (myGeneration !== _activeOperationGeneration || requestedScope !== keyScope || requestedMaterial !== keyMaterial) {
           log("Detect key: a newer Analyze/Detect key was started before this one finished - " +
               "cached its result, but not showing it since a different clip is now selected.");
           if (result.camelot) {
@@ -2649,6 +2741,7 @@
           // The clip's speed, so the key can also be shown as the
           // timeline plays it.
           clipSpeed: Number(clipInfoForKey.speed) > 0 ? Number(clipInfoForKey.speed) : 1,
+          scopeKey: result.scopeKey,
           manual: false,
           // Music/SFX vote + chord witness - see js/analyze.js's detectKey().
           // Not persisted to the library, so a cached entry simply shows no
@@ -2665,6 +2758,7 @@
           totalProfiles: result.totalProfiles,
           perProfile: result.perProfile,
           // S-KEY third opinion (Music mode, js/key-combine.js)
+          witnessSkipped: result.witnessSkipped || false,
           skeyCamelot: result.skeyCamelot || null,
           voteCamelot: result.voteCamelot || null,
           agreement3: result.agreement3 || null,
@@ -2680,7 +2774,7 @@
               "a low strength is normal for sounds without a clear pitch). " +
               result.material + " profiles: " + result.perProfile.map(function (r) { return r.profile + "=" + r.camelot; }).join(", ") +
               " (" + result.votes + "/" + result.totalProfiles + " votes, " + result.profileAgreement + "). " +
-              "Chord witness: " + (result.witnessAvailable ? result.chordCamelot + (result.corroborated ? " (agrees)" : " (disagrees)") : "unavailable") +
+              "Chord witness: " + (result.witnessSkipped ? "not run (vote and S-KEY agree)" : result.witnessAvailable ? result.chordCamelot + (result.corroborated ? " (agrees)" : " (disagrees)") : "unavailable") +
               ". " + (result.skeyCamelot ? "S-KEY: " + result.skeyCamelot + " -> " + result.agreement3 + " agree" +
                 (result.keySource !== "vote" ? " (S-KEY + chords outvoted the profile vote " + result.voteCamelot + ")" : "") + ". " : "") +
               result.durationSec.toFixed(1) + "s" + (result.shortClip ? " - short clip, flagged as unreliable." : "."));
@@ -2689,6 +2783,8 @@
           );
           renderLibrary();
           persistLibrary();
+          var confirmed = window.BeatMarkerLibrary.getKey(clipInfoForKey.mediaPath, result.scopeKey);
+          if (confirmed && confirmed.manual) { lastKeyResult = Object.assign({}, lastKeyResult, confirmed); }
         }
         renderKeyResult();
       })
@@ -2709,10 +2805,29 @@
       log("Key override: '" + raw + "' isn't a valid Camelot code (expected like '8A' or '11B').");
       return;
     }
-    lastKeyResult = { key: null, scale: null, strength: null, camelot: raw, manual: true, clipSpeed: _clipSpeed() || 1,
-      mediaPath: lastKeyResult ? lastKeyResult.mediaPath : null };
-    renderKeyResult();
-    log("Key manually set to " + raw + ".");
+    var scope = keyScope, material = keyMaterial;
+    var overrideButton = document.getElementById("applyKeyOverrideBtn");
+    overrideButton.disabled = true;
+    getClipInfo().then(function (clipInfo) {
+      var scopeKey = _keyScopeFor(clipInfo, scope, material);
+      window.BeatMarkerLibrary.confirmKey(clipInfo.mediaPath, basename(clipInfo.mediaPath), raw, scopeKey);
+      _restoreCachedKey(clipInfo);
+      renderLibrary();
+      persistLibrary();
+      log("Key confirmed by user: " + raw + " (" + scope + ").");
+    }).catch(function (err) { _flashSelectionError(err.message || String(err)); })
+      .then(function () { overrideButton.disabled = false; });
+  });
+  document.getElementById("clearKeyOverrideBtn").addEventListener("click", function () {
+    var resetButton = document.getElementById("clearKeyOverrideBtn");
+    resetButton.disabled = true;
+    getClipInfo().then(function (clipInfo) {
+      window.BeatMarkerLibrary.clearConfirmedKey(clipInfo.mediaPath, _keyScopeFor(clipInfo));
+      _restoreCachedKey(clipInfo);
+      renderLibrary();
+      persistLibrary();
+    }).catch(function (err) { _flashSelectionError(err.message || String(err)); })
+      .then(function () { resetButton.disabled = false; });
   });
   function _resetResultsForSelfTest() {
     lastAnalysis = null;
@@ -2832,8 +2947,16 @@
     lastKeyResult = null;
     renderKeyResult();
   }
+
   function _applyCachedEntry(entry, freshClipInfo) {
+    freshClipInfo.fileIdentity = entry ? entry.fileIdentity : null;
+    if (!entry && lastDecodedSamplesPath === freshClipInfo.mediaPath) {
+      lastDecodedSamples = null;
+      lastDecodedSamplesPath = null;
+      _bpmPassCache.clear();
+    }
     var statusParts = [basename(freshClipInfo.mediaPath)];
+
     if (entry && entry.beatsArray && entry.clipInfo) {
       lastAnalysis = {
         beatsArray: entry.beatsArray,
@@ -2860,14 +2983,10 @@
     _updateGridConfidenceHint(entry && entry.beatsArray ? entry.confidence : null);
     _updateRetempoLikelyHint(null, null);
     _refreshBeatClickPreview();
-    if (entry && entry.camelot) {
-      lastKeyResult = { key: entry.key, scale: entry.scale, strength: entry.strength, camelot: entry.camelot, manual: false,
-                        mediaPath: entry.mediaPath, clipSpeed: Number(freshClipInfo.speed) > 0 ? Number(freshClipInfo.speed) : 1 };
-      statusParts.push(entry.camelot);
-    } else {
-      lastKeyResult = null;
-    }
-    renderKeyResult();
+
+    _restoreCachedKey(freshClipInfo);
+    if (lastKeyResult && lastKeyResult.camelot) { statusParts.push(lastKeyResult.camelot); }
+
     if (!entry) {
       statusParts.push(function () { return I18n.t("selection.notAnalyzed"); });
     }
@@ -2893,7 +3012,7 @@
       wasBusy = false;
       getClipInfo()
         .then(function (clipInfo) {
-          lastSelectionKey = clipInfo.mediaPath + "|" + clipInfo.inPointSeconds + "|" + clipInfo.outPointSeconds;
+          lastSelectionKey = clipInfo.mediaPath + "|" + clipInfo.inPointSeconds + "|" + clipInfo.outPointSeconds + "|" + window.BeatMarkerLibrary.identityKey(clipInfo.mediaPath);
           var entry = window.BeatMarkerLibrary.get(clipInfo.mediaPath);
           var parts = [basename(clipInfo.mediaPath)];
           if (entry && entry.bpm) {
@@ -2911,7 +3030,7 @@
     }
     getClipInfo()
       .then(function (clipInfo) {
-        var key = clipInfo.mediaPath + "|" + clipInfo.inPointSeconds + "|" + clipInfo.outPointSeconds;
+        var key = clipInfo.mediaPath + "|" + clipInfo.inPointSeconds + "|" + clipInfo.outPointSeconds + "|" + window.BeatMarkerLibrary.identityKey(clipInfo.mediaPath);
         if (key === lastSelectionKey) {
           return;
         }

@@ -60,6 +60,7 @@
         if (files[p].status === "done" && files[p].nameChecked !== NAME_TAGS_VERSION) {
           applyNameTags(p);
         }
+        _applyConfirmed(files[p]);
       }
     }
   }
@@ -79,6 +80,9 @@
     var rec = state.files[path];
     if (!rec) {
       return null;
+    }
+    if (rec.detected && (rec.confirmedKey || rec.confirmedBpm)) {
+      ["bpm", "bpmConfidence", "bpmFrom", "key", "scale", "camelot", "strength", "keyFrom", "keyAgreement"].forEach(function (k) { rec[k] = rec.detected[k]; });
     }
     var bf = _baseAndFolder(path);
     var tags = parseNameTags(bf.base, bf.folder);
@@ -112,6 +116,11 @@
       rec.bpmFrom = "name";
     }
     rec.nameChecked = NAME_TAGS_VERSION;
+    if (rec.confirmedKey || rec.confirmedBpm) {
+      rec.detected = {};
+      ["bpm", "bpmConfidence", "bpmFrom", "key", "scale", "camelot", "strength", "keyFrom", "keyAgreement"].forEach(function (k) { rec.detected[k] = rec[k]; });
+      _applyConfirmed(rec);
+    }
     return tags;
   }
   // True when the file name already states the key (and, for music, the BPM):
@@ -155,6 +164,7 @@
       var mine = state.files[p];
       if (!mine || (mine.status !== "done" && rec.status === "done")) {
         state.files[p] = rec;
+        _applyConfirmed(rec);
         added.files++;
       }
     }
@@ -315,6 +325,7 @@
         rec.size = f.size;
         rec.mtimeMs = f.mtimeMs;
         rec.status = "pending";
+        clearConfirmed(f.path);
         result.changed++;
       } else if (rec.status === "done" && (rec.v || 1) !== ANALYSIS_VERSION[section]) {
         rec.status = "pending"; // analyzed by an older method
@@ -345,6 +356,40 @@
   }
   // result: the worker's answer for one file ({ ok, error, durationSec, bpm,
   // bpmConfidence, key, scale, camelot, strength }).
+  function _applyConfirmed(rec) {
+    var key = rec.confirmedKey, bpm = rec.confirmedBpm;
+    if (key && key.source === "user" && /^([1-9]|1[0-2])[AB]$/.test(key.camelot)) {
+      var name = global.BeatMarkerCamelot.fromCamelotCode(key.camelot);
+      rec.camelot = key.camelot; rec.key = name.key; rec.scale = name.scale;
+      rec.strength = null; rec.keyAgreement = null; rec.keyFrom = "user";
+    } else { rec.confirmedKey = null; }
+    if (bpm && bpm.source === "user" && typeof bpm.value === "number" && isFinite(bpm.value) && bpm.value > 0 && bpm.value <= 999) {
+      rec.bpm = bpm.value; rec.bpmFrom = "user"; rec.bpmConfidence = null;
+    } else { rec.confirmedBpm = null; }
+  }
+  function confirm(path, code, bpm) {
+    var rec = state.files[path];
+    if (!rec || rec.status !== "done") { throw new Error("Analyze this file first."); }
+    if (code && !/^([1-9]|1[0-2])[AB]$/.test(code)) { throw new Error("Invalid Camelot code."); }
+    if (bpm !== null && (typeof bpm !== "number" || !isFinite(bpm) || bpm <= 0 || bpm > 999)) { throw new Error("Invalid BPM."); }
+    if (!code && bpm === null) { return; }
+    if (!rec.detected) {
+      rec.detected = {};
+      ["bpm", "bpmConfidence", "bpmFrom", "key", "scale", "camelot", "strength", "keyFrom", "keyAgreement"].forEach(function (k) { rec.detected[k] = rec[k]; });
+    }
+    if (code) { rec.confirmedKey = { camelot: code, source: "user" }; }
+    if (bpm !== null) { rec.confirmedBpm = { value: bpm, source: "user" }; }
+    _applyConfirmed(rec);
+  }
+  function clearConfirmed(path) {
+    var rec = state.files[path];
+    if (!rec) { return; }
+    if (rec.detected) {
+      ["bpm", "bpmConfidence", "bpmFrom", "key", "scale", "camelot", "strength", "keyFrom", "keyAgreement"].forEach(function (k) { rec[k] = rec.detected[k]; });
+    }
+    rec.confirmedKey = null; rec.confirmedBpm = null; rec.detected = null;
+  }
+
   function setResult(path, result) {
     var rec = state.files[path];
     if (!rec) {
@@ -359,6 +404,7 @@
     rec.error = null;
     rec.v = ANALYSIS_VERSION[rec.section];
     rec.durationSec = result.durationSec;
+    rec.bpmFrom = null; rec.keyFrom = null;
     rec.bpm = result.bpm || null;
     rec.bpmConfidence = result.bpmConfidence === undefined ? null : result.bpmConfidence;
     rec.camelot = result.camelot || null;
@@ -368,6 +414,11 @@
     rec.pitchCrest = result.pitchCrest === undefined ? null : result.pitchCrest;
     rec.pitchFlatness = result.pitchFlatness === undefined ? null : result.pitchFlatness;
     rec.keyAgreement = result.keyAgreement || null;
+    if (rec.confirmedKey || rec.confirmedBpm) {
+      rec.detected = {};
+      ["bpm", "bpmConfidence", "bpmFrom", "key", "scale", "camelot", "strength", "keyFrom", "keyAgreement"].forEach(function (k) { rec.detected[k] = rec[k]; });
+      _applyConfirmed(rec);
+    }
   }
   // Does this record's key mean anything? An SFX has a pitch when one pitch
   // class stands out (crest) or its spectrum is peaky rather than noisy
@@ -377,7 +428,7 @@
   // record without these measures (scanned without them, or a timeline clip).
   var PITCH_GATE = { crest: 3.9, flatness: 0.003, strength: 0.6 };
   function hasPitch(rec) {
-    if (!rec || rec.section === "music" || rec.keyFrom === "name") {
+    if (!rec || rec.section === "music" || (rec.keyFrom === "name" || rec.keyFrom === "user")) {
       return true;
     }
     if (typeof rec.pitchCrest !== "number" || typeof rec.pitchFlatness !== "number") {
@@ -613,6 +664,8 @@
     offlineFolders: offlineFolders,
     syncFiles: syncFiles,
     pendingPaths: pendingPaths,
+    confirm: confirm,
+    clearConfirmed: clearConfirmed,
     setResult: setResult,
     setFavorite: setFavorite,
     hasPitch: hasPitch,

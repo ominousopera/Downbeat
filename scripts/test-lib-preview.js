@@ -139,6 +139,10 @@ waitFor(function () { return rows().length === 2; }, "listing the SFX folder")
       Math.abs(lastSource().playbackRate.value - Math.pow(2, 2 / 12)) < 1e-9 && !$.libPanePitchReset.hidden);
     check("with a pitch, the line under it says what the key becomes (A minor +2 = B minor)",
       !$.libPaneKey.hidden && /8A A minor → 10A B minor/.test($.libPaneKey.textContent), $.libPaneKey.textContent);
+    $.libConfirmKey.value = "10A"; $.libConfirmBpm.value = "128"; $.libConfirmApplyBtn._fire("click");
+    check("confirming a loaded sound refreshes the pitched key without reloading audio", /10A B minor → 12A/.test($.libPaneKey.textContent), $.libPaneKey.textContent);
+    $.libConfirmResetBtn._fire("click");
+    check("resetting a loaded sound restores its name key in the pane", /8A A minor → 10A B minor/.test($.libPaneKey.textContent), $.libPaneKey.textContent);
     const forward = lastSource().buffer;
     $.libPaneReverse.checked = true;
     $.libPaneReverse._fire("change");
@@ -217,7 +221,7 @@ waitFor(function () { return rows().length === 2; }, "listing the SFX folder")
     $.libPaneAddBtn._fire("click");
     return waitFor(function () { return inserts.length === 5; }, "Add with a part and Reverse");
   })
-  .then(function () {
+  .then(async function () {
     const o4 = inserts[4].opts || {};
     check("Reverse with a part selected: the host gets the part of the file itself (0.4-1.4 s), not its mirror image",
       o4.reverse === true && Math.abs(o4.inSec - 0.4) < 1e-9 && Math.abs(o4.outSec - 1.4) < 1e-9, JSON.stringify(o4));
@@ -230,20 +234,24 @@ waitFor(function () { return rows().length === 2; }, "listing the SFX folder")
     $.libPaneInKeyBtn._fire("click");
     check("In key with no clip key yet says what to do and stays off",
       /detect its key first/.test($.libPaneNote.textContent) && !$.libPaneInKeyBtn.classList.contains("is-active"), $.libPaneNote.textContent);
-    const setClipKey = function (code) { $.keyOverrideInput.value = code; $.applyKeyOverrideBtn._fire("click"); };
-    setClipKey("10A"); // the music clip is in B minor
+    const setClipKey = async function (code) { $.keyOverrideInput.value = code; $.applyKeyOverrideBtn._fire("click"); await waitFor(function () { return $.keyResultDisplay.textContent.indexOf(code) === 0; }, "confirmed clip key"); };
+    await setClipKey("10A"); // the music clip is in B minor
     $.libPaneInKeyBtn._fire("click");
     check("In key pitches the A minor tone +2 to the clip's B minor",
       $.libPaneInKeyBtn.classList.contains("is-active") && $.libPanePitchValue.textContent === "+2" &&
       /8A A minor → 10A B minor/.test($.libPaneKey.textContent) && /In key 10A/.test($.libPaneInKeyBtn.textContent) && $.libPaneNote.hidden,
       $.libPanePitchValue.textContent + " | " + $.libPaneKey.textContent + " | " + $.libPaneInKeyBtn.textContent);
+    $.libConfirmKey.value = "10A"; $.libConfirmBpm.value = ""; $.libConfirmApplyBtn._fire("click");
+    check("confirming the loaded sound recomputes In key immediately", $.libPanePitchValue.textContent === "0", $.libPanePitchValue.textContent);
+    $.libConfirmResetBtn._fire("click");
+    check("resetting the loaded sound recomputes In key from its name again", $.libPanePitchValue.textContent === "+2", $.libPanePitchValue.textContent);
     $.libPaneInKeyBtn._fire("click");
     check("... and off again goes back to the sound's own pitch", $.libPanePitchValue.textContent === "0" && !$.libPaneInKeyBtn.classList.contains("is-active"));
-    setClipKey("10B"); // D major: a minor sound goes to its relative, B minor
+    await setClipKey("10B"); // D major: a minor sound goes to its relative, B minor
     $.libPaneInKeyBtn._fire("click");
     check("a major clip takes a minor sound to the clip's relative minor (same Camelot number)",
       $.libPanePitchValue.textContent === "+2" && /10A B minor/.test($.libPaneKey.textContent), $.libPaneKey.textContent);
-    setClipKey("8A");
+    await setClipKey("8A");
     $.libPaneInKeyBtn._fire("click");
     $.libPaneInKeyBtn._fire("click");
     check("a sound already in the clip's key stays as it is and says so",

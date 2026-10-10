@@ -6,7 +6,7 @@
 // the panel's own code; and a crash or hang can be handled from outside with
 // a real OS-level timeout that kills the process, which is impossible for
 // code living in the same thread as the hang.
-// Usage: analyze-worker.js <beats|key|onsets|phase|tempoChange|library>
+// Usage: analyze-worker.js <beats|key|keyVote|keyChord|onsets|phase|tempoChange|library>
 //   <rawSamplesFile> [audioPath] [tempoConstraintJson] [beatsArrayJson]
 //   [keyMaterial]
 // rawSamplesFile: a file of raw Float32Array bytes (native byte order; it is
@@ -14,8 +14,8 @@
 // (44100 Hz), as js/audio.js's decodeToMono44100() produces. In "library"
 // mode it is a JSON manifest of items instead, and each item answers on its
 // own: one bad file never fails the batch. keyMaterial: "music" (default) or
-// "sfx", "key" mode only; it picks the profile set (js/analyze.js's
-// KEY_PROFILE_SETS).
+// "sfx" for key/keyVote selects the profile set in js/analyze.js.
+// keyVote omits chords; keyChord computes only the chord witness.
 // Always prints exactly one line of JSON to stdout: {ok, error, data}, the
 // same contract as every jsx/host.jsx function.
 "use strict";
@@ -57,10 +57,10 @@ async function main() {
     // detectLocalTempoChange() is pure arithmetic on an already-detected
     // beatsArray, see below.
     if (!mode || (mode !== "tempoChange" && !samplesFile)) {
-      throw new Error("Usage: analyze-worker.js <beats|key|onsets|phase|tempoChange|library> <rawSamplesFile> [audioPath] [tempoConstraintJson] [beatsArrayJson] [keyMaterial]");
+      throw new Error("Usage: analyze-worker.js <beats|key|keyVote|keyChord|onsets|phase|tempoChange|library> <rawSamplesFile> [audioPath] [tempoConstraintJson] [beatsArrayJson] [keyMaterial]");
     }
-    if (["beats", "key", "onsets", "phase", "tempoChange", "library"].indexOf(mode) === -1) {
-      throw new Error("Unknown mode '" + mode + "' - expected beats, key, onsets, phase, tempoChange, or library.");
+    if (["beats", "key", "keyVote", "keyChord", "onsets", "phase", "tempoChange", "library"].indexOf(mode) === -1) {
+      throw new Error("Unknown mode '" + mode + "' - expected beats, key, keyVote, keyChord, onsets, phase, tempoChange, or library.");
     }
 
     const baseDir = pathMod.join(__dirname, "..");
@@ -131,10 +131,12 @@ async function main() {
       const analysis = await global.BeatMarkerAnalyze.analyzeBeatsToCuesheet(samples, audioPath || null, tempoConstraint);
       result.ok = true;
       result.data = analysis;
-    } else if (mode === "key") {
-      const keyResult = await global.BeatMarkerAnalyze.detectKey(samples, keyMaterial === "sfx" ? "sfx" : "music");
+    } else if (mode === "keyChord") {
+      result.data = { chordCamelot: await global.BeatMarkerAnalyze.chordKeyOnly(samples) };
       result.ok = true;
-      result.data = keyResult;
+    } else if (mode === "key" || mode === "keyVote") {
+      result.data = await global.BeatMarkerAnalyze.detectKey(samples, keyMaterial === "sfx" ? "sfx" : "music", { skipWitness: mode === "keyVote" });
+      result.ok = true;
     } else if (mode === "onsets") {
       const onsetResult = await global.BeatMarkerAnalyze.detectOnsets(samples);
       result.ok = true;

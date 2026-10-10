@@ -1,0 +1,31 @@
+"use strict";
+// Pass identity, failures and mutable consumer results must remain independent.
+const assert = require("assert");
+const path = require("path");
+require(path.join(process.env.DOWNBEAT_ROOT || path.join(__dirname, ".."), "js/analysis-cache.js"));
+const A = global.BeatMarkerAnalysisCache;
+(async function () {
+  const cache = A.create(2), samples = new Float32Array(44100);
+  let calls = 0;
+  const execute = function () { calls++; return { beatsArray: [0, 1], phase: 0 }; };
+  const constraint = { minTempo: 80, maxTempo: 160 };
+  const answers = await Promise.all([cache.run(samples, "a.wav", constraint, execute), cache.run(samples, "a.wav", constraint, execute)]);
+  assert.strictEqual(calls, 1);
+  answers[0].beatsArray[0] = 99;
+  assert.strictEqual(answers[1].beatsArray[0], 0);
+  assert.strictEqual((await cache.run(samples, "a.wav", constraint, execute)).beatsArray[0], 0);
+  await cache.run(samples, "a.wav", { minTempo: 81, maxTempo: 160 }, execute);
+  await cache.run(samples.slice(), "a.wav", constraint, execute);
+  assert.strictEqual(calls, 3, "different window and PCM must run independently");
+  await cache.run(samples, "a.wav", constraint, execute);
+  assert.strictEqual(calls, 4, "switching decoded audio releases previous entries");
+  cache.clear();
+  await assert.rejects(cache.run(samples, "a.wav", constraint, function () { throw new Error("worker failed"); }));
+  await cache.run(samples, "a.wav", constraint, execute);
+  assert.strictEqual(calls, 5, "failures can be retried");
+  const clip = A.interval(new Float32Array([0,1,2,3,4,5]), 2, { inPointSeconds: 1, outPointSeconds: 2.5 });
+  assert.deepStrictEqual(Array.from(clip.samples), [2,3,4]);
+  assert.strictEqual(clip.startSample, 2);
+  assert.throws(function () { A.interval(samples, 44100, { inPointSeconds: 2, outPointSeconds: 1 }); });
+  console.log("PASS: exact constrained passes coalesce, clone, evict and retry; source intervals slice correctly.");
+})().catch(function (err) { console.error(err); process.exitCode = 1; });

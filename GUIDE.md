@@ -485,3 +485,34 @@ Logs include local file paths. Review the log before sharing it publicly.
 Saved track entries with invalid tempo or beat data keep usable key metadata, but their beat grid must be analyzed again. Library excerpt requests stay within the source file.
 
 Tempo correction belongs to the analysis that started it. If you select another clip or start a new analysis while a correction is running, its delayed result will not replace the current grid.
+
+Cached results are checked against file size and modification time. Replacing the file invalidates its results; old entries without file identity need a new analysis. Changes during analysis are rejected.
+
+### Analysis scope and confirmed values
+
+In Key, choose **Whole file** or **Selected clip**. Selected clip analyzes only
+its source in/out interval; changing the trim uses a separate result. This does
+not change beat analysis or the preview. Speed is shown separately. Very short
+or musically mixed intervals can give unreliable keys.
+
+Key overrides are saved for the chosen file/interval. **Use detected key**
+restores the latest automatic answer. In Library, select a completed row, enter
+its Camelot key and/or BPM and choose **Confirm values**. These values are used
+for matching and saved with backups; **Use detected values** restores the
+underlying detector or file-name values. Confirming BPM does not move existing
+beats. Use Analyze or Set BPM when you need a new timeline grid. Replacing audio
+resets its analysis and confirmations; size/mtime checks cannot detect changes
+that preserve both attributes.
+
+For Music of at least two minutes, chord analysis runs only when the profile
+vote and S-KEY differ. Agreement guarantees the same final key under the voting
+rule, so that extra pass is skipped. The confidence line then describes two
+opinions, never three. Short clips and sound effects retain the full pass. A
+missing S-KEY or failed extra worker falls back to the full pass. This saves work
+on agreeing tracks; disagreeing tracks can take longer. It does not promise
+higher accuracy. Identical constrained BPM passes reuse their result only on
+the same decoded samples and tempo limits; failures are retried.
+
+**Pitch the clip** sits beside the semitone/cents/speed readout and wraps below
+it in a narrow panel. Settings actions share control spacing and separators;
+status text adds space only when there is a message.

@@ -351,3 +351,7 @@ public-domain initiative (see its entry above).
 The metronome synthesizer uses the detected beat grid and built-in arithmetic;
 it adds no third-party library or audio asset. Its WAV files are local and
 written to the finished-audio destination selected in Settings.
+
+User-confirmed analysis metadata and source-interval key caches are local library
+data. Identical constrained BPM passes can reuse an in-memory worker result;
+conditional chord checking adds no model, dependency or network service.

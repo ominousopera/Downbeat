@@ -160,7 +160,8 @@
         if (!e.bpm && !e.camelot) {
           continue;
         }
-        out.push({ path: e.mediaPath, name: e.label, bpm: e.bpm || null, camelot: e.camelot || null,
+        out.push({ path: e.mediaPath, name: e.label, bpm: e.confirmedBpm ? e.confirmedBpm.value : (e.bpm || null), camelot: e.camelot || null,
+                   confirmedKey: e.confirmedKey || null, confirmedBpm: e.confirmedBpm || null,
                    key: e.key || null, scale: e.scale || null, status: "done", fromTimeline: true });
       }
       return out;
@@ -201,7 +202,7 @@
       if (!(item.bpm > 0)) {
         return null;
       }
-      if (item.section === "sfx" && item.bpmFrom !== "name") {
+      if (item.section === "sfx" && item.bpmFrom !== "name" && item.bpmFrom !== "user") {
         return null;
       }
       return item.bpm;
@@ -606,8 +607,64 @@
       }
       return -1;
     }
+
+    var libConfirmPanel = document.getElementById("libConfirmPanel");
+    var libConfirmKey = document.getElementById("libConfirmKey");
+    var libConfirmBpm = document.getElementById("libConfirmBpm");
+    var libConfirmStatus = document.getElementById("libConfirmStatus");
+    function _showConfirmation(path) {
+      var item = SL.getState().files[path] || window.BeatMarkerLibrary.get(path);
+      libConfirmPanel.hidden = !item || !!(item.status && item.status !== "done");
+      if (libConfirmPanel.hidden) { return; }
+      libConfirmKey.value = item.camelot || "";
+      libConfirmBpm.value = item.confirmedBpm ? item.confirmedBpm.value : (item.bpm || "");
+      setTranslatedText(libConfirmStatus, item.confirmedKey || item.confirmedBpm ? "library.confirmed" : "library.detected");
+      document.getElementById("libConfirmResetBtn").hidden = !(item.confirmedKey || item.confirmedBpm);
+    }
+    function _saveConfirmation(reset) {
+      if (!libSelectedPath || libScan.running) { return; }
+      try {
+        var path = libSelectedPath, fs = window.cep_node.require("fs"), st = fs.statSync(path);
+        var folder = SL.getState().files[path];
+        var key = libConfirmKey.value.trim().toUpperCase();
+        var raw = String(libConfirmBpm.value).trim(), bpm = raw ? Number(raw) : null;
+        if (!reset && ((key && !/^([1-9]|1[0-2])[AB]$/.test(key)) ||
+            (bpm !== null && (!isFinite(bpm) || bpm <= 0 || bpm > 999)))) {
+          throw new Error(I18n.t("library.confirmInvalid"));
+        }
+        if (folder) {
+          if (folder.status !== "done") { throw new Error(I18n.t("selection.needAnalyze")); }
+          if (folder.size !== st.size || folder.mtimeMs !== Math.round(st.mtimeMs)) {
+            throw new Error(I18n.t("analysis.fileChanged"));
+          }
+          if (reset) { SL.clearConfirmed(path); } else { SL.confirm(path, key, bpm); }
+        } else {
+          var track = window.BeatMarkerLibrary.get(path);
+          if (!track) { throw new Error(I18n.t("analysis.fileChanged")); }
+          if (reset) {
+            window.BeatMarkerLibrary.clearConfirmedKey(path);
+            window.BeatMarkerLibrary.clearConfirmedBpm(path);
+          } else {
+            if (key) { window.BeatMarkerLibrary.confirmKey(path, track.label, key, track.material || "music"); }
+            if (bpm !== null) { window.BeatMarkerLibrary.confirmBpm(path, track.label, bpm); }
+          }
+        }
+        if (!folder) { ctx.refreshTimelineKey(path); }
+        var effective = folder || window.BeatMarkerLibrary.get(path);
+        if (_libPaneItem && _libPaneItem.path === path && effective) {
+          ["camelot", "key", "scale", "strength", "keyFrom", "bpmFrom"].forEach(function (field) { _libPaneItem[field] = effective[field]; });
+          _libPaneItem.bpm = effective.confirmedBpm ? effective.confirmedBpm.value : effective.bpm;
+          _libApplyInKey(); _libPaneRefresh();
+        }
+        persistSoundLibrary(); persistLibrary(); renderLibrary(); _showConfirmation(path);
+      } catch (err) { libConfirmStatus.textContent = err.message || String(err); }
+    }
+    document.getElementById("libConfirmApplyBtn").addEventListener("click", function () { _saveConfirmation(false); });
+    document.getElementById("libConfirmResetBtn").addEventListener("click", function () { _saveConfirmation(true); });
+
     function _libSelect(path, scroll) {
       libSelectedPath = path;
+      _showConfirmation(path);
       _libUpdateRowStates();
       _libPaneSelect(path);
       var i = _libShownIndex(path);
@@ -693,9 +750,10 @@
       renderLibrary();
       _libShowSearchExpansions();
     });
-    // Re-filters and repaints the list. keepRows: leave "Show N more" as it
-    // is; every other call starts from the first page.
+
     function renderLibrary(keepRows) {
+      if (libConfirmPanel && libSelectedPath && !SL.getState().files[libSelectedPath] &&
+          !window.BeatMarkerLibrary.get(libSelectedPath)) { libConfirmPanel.hidden = true; }
       if (keepRows !== true) {
         libExtraRows = 0;
       }
@@ -806,6 +864,7 @@
       libSection = section;
       persistSettings({ librarySection: section });
       libSelectedPath = null;
+      if (libConfirmPanel) { libConfirmPanel.hidden = true; }
       renderLibrarySortSelect();
       renderLibrary();
     }
@@ -847,9 +906,19 @@
     }
     // The key of the music clip on the timeline: what Detect key or Analyze
     // last found for it (the same source as Match clip and In key).
+    function _libClipEntry() {
+      var analysis = ctx.lastAnalysis(), key = ctx.lastKeyResult();
+      var mediaPath = analysis && analysis.audioPath ? analysis.audioPath : key && key.mediaPath;
+      return mediaPath ? window.BeatMarkerLibrary.get(mediaPath) : null;
+    }
     function _libClipCamelot() {
-      var entry = ctx.lastAnalysis() && ctx.lastAnalysis().audioPath ? window.BeatMarkerLibrary.get(ctx.lastAnalysis().audioPath) : null;
-      return (ctx.lastKeyResult() && ctx.lastKeyResult().camelot) || (entry && entry.camelot) || null;
+      var key = ctx.lastKeyResult();
+      if (key && key.mediaPath) {
+        var saved = window.BeatMarkerLibrary.getKey(key.mediaPath, key.scopeKey || key.material);
+        return saved ? saved.camelot : null;
+      }
+      var entry = _libClipEntry();
+      return entry && entry.camelot || null;
     }
     libMatchClipBtn.addEventListener("click", function () {
       if (_libMatched) {
@@ -860,9 +929,9 @@
         renderLibrary();
         return;
       }
-      var entry = ctx.lastAnalysis() && ctx.lastAnalysis().audioPath ? window.BeatMarkerLibrary.get(ctx.lastAnalysis().audioPath) : null;
+      var entry = _libClipEntry();
       var camelot = _libClipCamelot();
-      var bpm = (entry && entry.bpm) || (ctx.lastAnalysis() ? parseFloat(ctx.bpmDisplay().textContent) : null) || null;
+      var bpm = (entry && (entry.confirmedBpm ? entry.confirmedBpm.value : entry.bpm)) || (ctx.lastAnalysis() ? parseFloat(ctx.bpmDisplay().textContent) : null) || null;
       if (!camelot && !bpm) {
         setTranslatedText(libScanStatus, "library.matchClipNone");
         return;
@@ -2165,7 +2234,9 @@
     document.getElementById("saveLibraryBackupBtn").addEventListener("click", function () {
       var tracks = window.BeatMarkerLibrary.getAll().map(function (e) {
         return { mediaPath: e.mediaPath, label: e.label, bpm: e.bpm || null, key: e.key || null, scale: e.scale || null,
-                 strength: e.strength === undefined ? null : e.strength, camelot: e.camelot || null, material: e.material || null };
+                 strength: e.strength === undefined ? null : e.strength, camelot: e.camelot || null, material: e.material || null,
+                 fileIdentity: e.fileIdentity || null, detectedKey: e.detectedKey || null, confirmedKey: e.confirmedKey || null,
+                 confirmedBpm: e.confirmedBpm || null, intervalKeys: e.intervalKeys || [] };
       });
       var fileCount = Object.keys(SL.getState().files).length;
       if (fileCount === 0 && tracks.length === 0) {
@@ -2238,6 +2309,7 @@
       _libPersistTimer = null;
       SL.loadState(null);
       libSelectedPath = null;
+      if (libConfirmPanel) { libConfirmPanel.hidden = true; }
       renderLibrary();
     }
     function applySettings(settings) {

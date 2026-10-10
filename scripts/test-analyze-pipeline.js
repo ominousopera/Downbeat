@@ -343,8 +343,10 @@ analyze("track 1")
       const line = (newLog.match(/Key detected:[^\n]*/) || [""])[0];
       check("track 1: Music mode asks S-KEY for a third opinion", /S-KEY: \d{1,2}[AB] -> (all3|two|none) agree/.test(line),
         (line.match(/S-KEY:[^.]*/) || ["no S-KEY in the log"])[0]);
-      check("track 1: the confidence line uses the three-way levels",
-        /(Three independent analyses agree|Two of three analyses agree|The three analyses disagree)/.test($.keyAgreementDisplay.textContent),
+      const skippedWitness = /Chord witness: not run/.test(line);
+      check("track 1: confidence describes the checks actually performed",
+        skippedWitness ? $.keyAgreementDisplay.textContent === "Two independent analyses agree."
+          : /(Three independent analyses agree|Two of three analyses agree|The three analyses disagree)/.test($.keyAgreementDisplay.textContent),
         $.keyAgreementDisplay.textContent.slice(0, 60));
       const sfxLogBefore = logText().length;
       $.keyMaterialSfxBtn._fire("click");

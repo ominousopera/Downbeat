@@ -588,3 +588,19 @@ Downbeat/processed next to the saved project, or a custom folder. Settings,
 libraries and temporary analysis files stay in Documents/Downbeat. Existing
 audio is never overwritten; generated WAVs are kept when you delete panel data.
 Pitch and Reverse change host clip parameters and do not render audio copies.
+
+Cached analysis is invalidated when file size or modification time changes.
+Older entries without file identity require analysis again.
+
+### Analysis controls
+
+Key can analyze the whole source or the selected clip's source interval, with
+separate cached answers for trims. Key overrides are retained. Select a Library
+row to confirm Camelot/BPM or restore the detector/file-name values; backups
+keep those confirmations. BPM confirmation is for matching and never relabels
+an existing beat grid. Changed media invalidates saved results and confirmations
+using file size/modification time; unchanged attributes cannot reveal a change.
+Identical constrained BPM passes reuse the same decoded audio and limits.
+Long Music analyses skip the chord witness when profiles and S-KEY agree, using
+the same final-key decision; short clips and SFX keep the full pass. This reduces
+work on agreeing tracks rather than claiming an accuracy improvement.

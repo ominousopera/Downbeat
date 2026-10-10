@@ -961,6 +961,7 @@
     analyzeBeatsToCuesheet: analyzeBeatsToCuesheet,
     pickPhaseForExternalBeats: pickPhaseForExternalBeats,
     detectKey: detectKey,
+    chordKeyOnly: _chordKeyOnly,
     KEY_PROFILE_SETS: KEY_PROFILE_SETS,
     KEY_FRAMING: KEY_FRAMING,
     KEY_SHORT_CLIP_SECONDS: KEY_SHORT_CLIP_SECONDS,

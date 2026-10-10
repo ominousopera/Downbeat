@@ -535,3 +535,35 @@ El registro incluye rutas locales. Revísalo antes de compartirlo públicamente.
 Si una pista guardada contiene un tempo o tiempos inválidos, conserva los datos válidos de tonalidad, pero hay que analizar de nuevo su rejilla de tiempos. Los fragmentos de análisis de la biblioteca permanecen dentro del archivo original.
 
 La corrección de tempo pertenece al análisis que la inició. Si seleccionas otro clip o inicias un nuevo análisis mientras se ejecuta, el resultado tardío no sustituirá la cuadrícula actual.
+
+Los resultados guardados se comprueban por tamaño y fecha de modificación. Reemplazar el archivo invalida sus resultados; las entradas antiguas sin identidad requieren otro análisis. Los cambios durante el análisis descartan el resultado.
+
+### Intervalo de análisis y valores confirmados
+
+En Key, elige **Archivo completo** o **Clip seleccionado**. El segundo usa solo
+el intervalo de entrada/salida en el archivo de origen y guarda cada recorte por
+separado. Los beats y la escucha siguen usando todo el archivo. La velocidad se
+muestra aparte. Los intervalos muy breves o con cambios de tonalidad pueden ser
+poco fiables.
+
+La tonalidad manual se guarda para el archivo o intervalo; **Usar tonalidad
+detectada** recupera el último análisis. En Library, selecciona una fila
+analizada, introduce Camelot y/o BPM y pulsa **Confirmar valores**. Se usan para
+buscar coincidencias y se conservan en las copias. **Usar valores detectados**
+recupera el análisis o las etiquetas del nombre. Confirmar BPM no mueve los
+beats existentes: usa Analyze o Set BPM para una cuadrícula nueva. Reemplazar
+el audio borra el análisis y sus confirmaciones. Tamaño/fecha no detectan un
+cambio que conserve ambos atributos.
+
+Para música de al menos dos minutos, los acordes se analizan solo si los
+perfiles y S-KEY discrepan. Cuando coinciden, la regla garantiza la misma
+tonalidad final y se omite ese paso; la confianza describe dos opiniones, no
+tres. Los clips cortos y SFX conservan el análisis completo. Si falta S-KEY o
+falla el proceso adicional se vuelve al análisis completo. Las coincidencias
+ahorran trabajo; las discrepancias pueden tardar más. No se promete mayor
+precisión. Los pases de BPM idénticos se reutilizan solo con las mismas muestras
+y límites de tempo; los errores se vuelven a intentar.
+
+**Cambiar tono del clip** aparece junto a semitonos, cents y velocidad; en un
+panel estrecho pasa debajo. Los botones de ajustes comparten espaciado y
+separadores; el estado ocupa espacio adicional solo cuando contiene texto.

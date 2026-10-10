@@ -43,12 +43,12 @@
     </div>
 
     <div class="row">
-      <button id="replayTourBtn" type="button" class="ghost settings-full-btn g-last" data-i18n="settings.replayTour">Replay the tour</button>
+      <button id="replayTourBtn" type="button" class="ghost settings-full-btn" data-i18n="settings.replayTour">Replay the tour</button>
     </div>
 
     <hr>
 
-    <p class="panel-title" data-i18n="settings.language">Language</p>
+    <p class="panel-title settings-follow-action" data-i18n="settings.language">Language</p>
     <div id="languageSwitch" class="lang-switch lang-switch-big">
       <button type="button" class="lang-btn" data-lang="en">EN</button>
       <button type="button" class="lang-btn" data-lang="ru">RU</button>
@@ -133,7 +133,7 @@
       </div>
     </div>
     <div class="row">
-      <button id="copyLogBtn" type="button" class="ghost settings-full-btn g-last" data-i18n="settings.copyLog">Copy log</button>
+      <button id="copyLogBtn" type="button" class="ghost settings-full-btn" data-i18n="settings.copyLog">Copy log</button>
     </div>
     <pre id="log" hidden></pre>
     <!-- The individual diagnostic buttons below are hidden from the visible
@@ -162,7 +162,7 @@
 
     <hr>
 
-    <p class="panel-title" data-i18n="settings.about">About</p>
+    <p class="panel-title settings-follow-action" data-i18n="settings.about">About</p>
     <div class="row">
       <button id="feedbackBtn" type="button" class="ghost settings-full-btn" data-i18n="settings.feedback">Give Feedback</button>
     </div>
@@ -176,7 +176,7 @@
     <hr>
 
     <div class="row">
-      <button id="thirdPartyNoticesBtn" type="button" class="ghost settings-full-btn g-last" data-i18n="settings.thirdPartyNotices">Third-party licenses</button>
+      <button id="thirdPartyNoticesBtn" type="button" class="ghost settings-full-btn" data-i18n="settings.thirdPartyNotices">Third-party licenses</button>
     </div>
 
     <hr>
@@ -464,6 +464,14 @@
     </div>
 
     <div class="row">
+      <label class="hint" for="keyScopeSelect" data-i18n="key.scope">Analyze</label>
+      <select id="keyScopeSelect">
+        <option value="file" data-i18n="key.scopeFile">Whole file</option>
+        <option value="clip" data-i18n="key.scopeClip">Selected clip</option>
+      </select>
+    </div>
+    <div class="row"><span class="hint" data-i18n="key.scopeHint">Selected clip uses its source in/out points. Beat analysis and preview still use the whole file.</span></div>
+    <div class="row">
       <button id="detectKeyBtn" type="button" class="primary" data-i18n="key.run">Detect key</button>
     </div>
 
@@ -495,6 +503,7 @@
       <span class="hint" data-i18n="key.overrideLabel">Override</span>
       <input id="keyOverrideInput" type="text" placeholder="8A" style="width:3.5em">
       <button id="applyKeyOverrideBtn" type="button" class="ghost" data-i18n="key.overrideApply">Apply</button>
+      <button id="clearKeyOverrideBtn" type="button" class="ghost" data-i18n="key.overrideReset">Use detected key</button>
       <span class="hint" data-i18n="key.overrideHint">if you already know the key</span>
     </div>
   </div>
@@ -515,20 +524,18 @@
       <span class="hint pitch-label" data-i18n="key.pitchTo">To</span>
       <select id="pitchToSelect" class="pitch-select"></select>
     </div>
+    <div class="pitch-action">
+      <div class="pitch-action-result">
     <div class="pitch-readout">
       <span class="pitch-main" id="pitchSemitones">–</span>
       <span class="pitch-units" id="pitchUnits"></span>
     </div>
+      </div>
+      <button id="pitchApplyBtn" type="button" class="g-main pitch-apply" data-i18n="key.pitchApply">Pitch the clip</button>
+    </div>
+    <div class="row g-status-row"><span id="pitchApplyStatus" class="hint" aria-live="polite"></span></div>
     <p class="pitch-alt" id="pitchAlt"></p>
     <p class="pitch-note" id="pitchNote"></p>
-    <!-- Apply: places the selected clip's own file on a free track at the
-         clip's position at the speed that gives the shift (pitch follows
-         speed, like the Library preview); the original is switched off, not
-         deleted. Handler: pitchApplyBtn in js/main.js. -->
-    <div class="row g-pitch-apply">
-      <button id="pitchApplyBtn" type="button" class="g-link" data-i18n="key.pitchApply">Pitch the clip</button>
-      <span id="pitchApplyStatus" class="hint"></span>
-    </div>
     <div class="row">
       <span class="hint" data-i18n="key.pitchApplyHint">Like the Library preview: higher also plays faster and shorter. The clip's own file goes on a free track at the clip's place, at the speed that gives the shift (no copy is made); the original stays, switched off.</span>
     </div>
@@ -620,6 +627,20 @@
       <div id="libraryDisplay"></div>
       <div class="row g-lib-keys">
         <span class="hint" data-i18n="library.keysHint">↑ ↓ choose a file · Space listens · Enter inserts</span>
+      </div>
+      <div id="libConfirmPanel" hidden>
+        <div class="row">
+          <label class="hint" for="libConfirmKey" data-i18n="library.keyLabel">Key</label>
+          <input id="libConfirmKey" type="text" placeholder="8A" style="width:3.5em" maxlength="3">
+          <label class="hint" for="libConfirmBpm" data-i18n="library.bpmLabel">BPM</label>
+          <input id="libConfirmBpm" type="number" min="0.01" max="999" step="0.01" style="width:5em">
+        </div>
+        <div class="row">
+          <button id="libConfirmApplyBtn" type="button" class="ghost" data-i18n="library.confirmApply">Confirm values</button>
+          <button id="libConfirmResetBtn" type="button" class="ghost" data-i18n="library.confirmReset">Use detected values</button>
+        </div>
+        <div class="row"><span id="libConfirmStatus" class="hint" aria-live="polite"></span></div>
+        <div class="row"><span class="hint" data-i18n="library.confirmHint">Saved for matching. This does not change the beat grid; use Analyze or Set BPM for timeline markers.</span></div>
       </div>
     </div>
     <audio id="libPreviewAudio" preload="none"></audio>
@@ -759,6 +780,7 @@
   <script src="js/audio-output.js"></script>
   <script src="js/metronome.js"></script>
   <script src="js/self-test.js"></script>
+  <script src="js/analysis-cache.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>
