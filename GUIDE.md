@@ -520,3 +520,7 @@ status text adds space only when there is a message.
 ### Tour and support log
 
 Replay the tour includes metronome tracks, key scope and saved values, Pitch the clip, output folders and release-page updates. To report a problem, reproduce it in the current session, then use Settings → Diagnostics → Copy log and send it with the steps and a screenshot. The log contains plugin/host versions and runtime errors; it is not an automatic test and nothing is sent online. Local file paths may appear: review them before sharing.
+
+### Source key and timeline pitch
+
+Detect key measures the source file or its selected source interval. Pitch the clip changes playback speed without rewriting that file: an A-minor source remains 8A, while +2 semitones plays as B minor, 10A. The Source key result stays unchanged; the line below shows the timeline key at the selected clip speed. Speed changes refresh that view. Audio effects and pitch-preserving stretch are not measured from the file.

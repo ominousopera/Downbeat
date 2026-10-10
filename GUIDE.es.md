@@ -571,3 +571,7 @@ separadores; el estado ocupa espacio adicional solo cuando contiene texto.
 ### Recorrido y registro para soporte
 
 El recorrido incluye metrónomo, intervalo de análisis y valores guardados, cambio de tono, carpeta de audio y actualizaciones mediante la página de la versión. Para informar de un problema, reprodúcelo en esta sesión y usa Ajustes → Diagnóstico → Copiar registro; envíalo con los pasos y una captura. El registro contiene versiones del complemento y de la aplicación y errores; no ejecuta pruebas ni envía nada por Internet. Puede contener rutas locales: revísalas antes de compartirlo.
+
+### Tonalidad del original y tono en la línea de tiempo
+
+Detectar tonalidad analiza el archivo original o el intervalo seleccionado del original. Cambiar el tono del clip ajusta la velocidad sin modificar el archivo: un original en la menor conserva 8A y +2 semitonos suenan como si menor, 10A. El resultado Tonalidad del original no cambia; la línea inferior indica la tonalidad a la velocidad del clip seleccionado. Los cambios de velocidad actualizan esta vista. Los efectos de audio y el estiramiento que conserva el tono no se miden desde el archivo.

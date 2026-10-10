@@ -608,3 +608,7 @@ work on agreeing tracks rather than claiming an accuracy improvement.
 ### Tour and support
 
 Replay the tour covers the metronome, key scope/confirmations, pitch application, output folders and release-page updates. For support, reproduce the problem, then copy the current session log from Settings → Diagnostics and include steps and a screenshot. Copy log does not run tests or send data online; review local file paths before sharing.
+
+### Source key and timeline key
+
+Detect key measures source audio. Pitch the clip leaves the file unchanged; Source key therefore remains the detected source key, with the timeline key shown underneath at the selected clip speed. For example, A minor (8A) at +2 semitones plays as B minor (10A). Audio effects and pitch-preserving stretch are not measured from the file.

@@ -792,7 +792,8 @@
   }
   function _renderHeardKey() {
     var camelot = lastKeyResult && lastKeyResult.camelot ? lastKeyResult.camelot : null;
-    var heard = window.BeatMarkerPitch.heardOnTimeline(_clipSpeed(), null, camelot);
+    var speed = lastKeyResult && Number(lastKeyResult.clipSpeed) > 0 ? Number(lastKeyResult.clipSpeed) : null;
+    var heard = window.BeatMarkerPitch.heardOnTimeline(speed, null, camelot);
     // A speed within a hair of a whole octave-free semitone of 0 (say
     // 100.2%) moves no key, so there is nothing to say about the key.
     if (!heard || !camelot || (heard.onSemitone && heard.semitones === 0)) {
@@ -3012,7 +3013,15 @@
       wasBusy = false;
       getClipInfo()
         .then(function (clipInfo) {
-          lastSelectionKey = clipInfo.mediaPath + "|" + clipInfo.inPointSeconds + "|" + clipInfo.outPointSeconds + "|" + window.BeatMarkerLibrary.identityKey(clipInfo.mediaPath);
+          var currentSpeed = Number(clipInfo.speed) > 0 ? Number(clipInfo.speed) : 1;
+          if (lastKeyResult && lastKeyResult.mediaPath === clipInfo.mediaPath && lastKeyResult.scopeKey === _keyScopeFor(clipInfo)) {
+            lastKeyResult.clipSpeed = currentSpeed;
+          }
+          if (lastAnalysis && lastAnalysis.audioPath === clipInfo.mediaPath && lastAnalysis.clipInfo) {
+            lastAnalysis.clipInfo.speed = currentSpeed;
+          }
+          _renderHeard();
+          lastSelectionKey = clipInfo.mediaPath + "|" + clipInfo.inPointSeconds + "|" + clipInfo.outPointSeconds + "|" + clipInfo.speed + "|" + window.BeatMarkerLibrary.identityKey(clipInfo.mediaPath);
           var entry = window.BeatMarkerLibrary.get(clipInfo.mediaPath);
           var parts = [basename(clipInfo.mediaPath)];
           if (entry && entry.bpm) {
@@ -3030,7 +3039,7 @@
     }
     getClipInfo()
       .then(function (clipInfo) {
-        var key = clipInfo.mediaPath + "|" + clipInfo.inPointSeconds + "|" + clipInfo.outPointSeconds + "|" + window.BeatMarkerLibrary.identityKey(clipInfo.mediaPath);
+        var key = clipInfo.mediaPath + "|" + clipInfo.inPointSeconds + "|" + clipInfo.outPointSeconds + "|" + clipInfo.speed + "|" + window.BeatMarkerLibrary.identityKey(clipInfo.mediaPath);
         if (key === lastSelectionKey) {
           return;
         }
