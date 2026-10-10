@@ -10,9 +10,9 @@ by Adobe.
 
 Update policy: components are pinned by hand and never auto-updated.
 Plugin release checks are optional in the background or explicit through
-Check now. Only requested ZXP downloads contact GitHub; audio stays local.
-Verified downloads can be reopened after a local checksum recheck.
-Installation is performed by the external ZXP installer.
+Check now. These requests contact GitHub for release metadata; audio stays
+local. The release link opens in the browser after confirmation. Packages
+are downloaded and installed manually, outside the panel.
 Re-verify (diff and rehash) before any change.
 
 ## js/CSInterface.js

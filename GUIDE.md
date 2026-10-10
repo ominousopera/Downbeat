@@ -359,16 +359,10 @@ The gear icon, top right:
   request even when background notifications are off. **Tell me when a new
   version is out** enables a check every three days; it does not download or
   install automatically. Analysis stays offline.
-  **Download and open the update** fetches the package from GitHub, verifies
-  its checksum and saves it in Downloads before opening your ZXP installer.
-  Confirm installation there, then restart Premiere Pro or After Effects.
-  Existing packages are preserved; repeated downloads use a separate name.
-  If installation was postponed, **Open downloaded update** verifies the
-  saved file again and opens it without downloading. **Show downloaded file**
-  opens its folder. A missing or changed package must be downloaded again.
-  macOS needs ZXP Installer; Windows uses the ZXP file association. An opening
-  failure keeps the verified package. **Open the release page** is the manual
-  fallback. Download verification is not confirmation of installation.
+  **Open the release page** opens the new release in your browser after
+  confirmation. Download the package for your operating system and install it
+  with a ZXP installer yourself, then restart Premiere Pro or After Effects.
+  The panel does not download packages or launch an installer.
 - **Delete my data** — removes the settings, both libraries (the analyzed
   clips, and Music / SFX with their folders and analysis results) and any
   leftover temp files Downbeat saved in Documents/Downbeat, and nothing else —

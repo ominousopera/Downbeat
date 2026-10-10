@@ -399,16 +399,10 @@ El icono del engranaje, arriba a la derecha:
   sola vez aunque los avisos estén desactivados. **Avisarme de una versión
   nueva** activa una comprobación cada tres días, sin descargas ni instalación
   automáticas. El análisis funciona sin internet.
-  **Descargar y abrir la actualización** obtiene el paquete de GitHub,
-  comprueba su suma y lo guarda en Descargas antes de abrir el instalador ZXP.
-  Confirma allí y reinicia Premiere Pro o After Effects. Los paquetes
-  existentes se conservan; otra descarga recibe un nombre separado.
-  **Abrir actualización descargada** verifica de nuevo el archivo y lo abre
-  sin descargar. **Mostrar archivo descargado** abre su carpeta. Si falta o
-  ha cambiado, debes descargarlo otra vez. macOS necesita ZXP Installer;
-  Windows usa la asociación de archivos ZXP. Un error al abrir conserva el
-  paquete verificado. **Abrir la página de la versión** permite instalar
-  manualmente. Verificar el archivo no confirma que la instalación terminó.
+  **Abrir la página de la versión** abre la nueva versión en el navegador
+  tras confirmar. Descarga el paquete de tu sistema e instálalo con un
+  instalador ZXP; después reinicia Premiere Pro o After Effects. El panel
+  no descarga paquetes ni abre el instalador.
 - **Eliminar mis datos**: quita los ajustes, las dos bibliotecas (los
   clips analizados, y Música / SFX con sus carpetas y resultados) y los
   archivos temporales que hayan quedado y que Downbeat guardó en

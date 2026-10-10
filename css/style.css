@@ -1112,8 +1112,9 @@ hr {
   color: var(--text-dim);
   font-variant-numeric: tabular-nums;
 }
-.pitch-alt { margin: 5px 0 0; font-size: 10px; line-height: 1.45; color: var(--text-faint); }
-.pitch-note { margin: 6px 0 0; font-size: 10px; line-height: 1.45; color: var(--text-dim); }
+.pitch-alt { margin: var(--space-tight) 0 0; color: var(--text-faint); }
+.pitch-note { margin: var(--space-tight) 0 0; color: var(--text-dim); }
+.pitch-alt, .pitch-note { font-size: 10.5px; line-height: var(--leading-prose); letter-spacing: 0.2px; }
 .pitch-note:empty, .pitch-alt:empty { display: none; }
 .pitch-note.is-caveat {
   color: var(--accent);
@@ -2409,16 +2410,17 @@ body.on-library #tabContentLibrary .g-lib-body > #libFolderList:empty { display:
 /* Shared spacing for prose, parameters and numbered settings sections. */
 .hint { line-height: var(--leading-prose); }
 p.hint { margin: 0 0 var(--space-row); }
+.settings-panel p.hint { margin-bottom: var(--space-tight); }
 .g-opt, .g-opt-btn, .db-select-btn, .settings-full-btn { line-height: var(--leading-control); }
 .settings-panel .panel-title {
-  margin-top: var(--space-group);
-  margin-bottom: var(--space-row);
-  padding-top: var(--space-row);
+  margin-top: var(--space-row);
+  margin-bottom: var(--space-tight);
+  padding-top: var(--space-tight);
 }
 .settings-panel-head .panel-title { margin: 0; padding-top: 0; }
 .settings-panel .row { margin-bottom: var(--space-tight); gap: var(--space-row); }
-.settings-panel .settings-hint-row { margin-top: var(--space-tight); margin-bottom: var(--space-row); }
+.settings-panel .settings-hint-row { margin-top: var(--space-tight); margin-bottom: var(--space-tight); }
 .settings-panel .hint { overflow-wrap: anywhere; }
 .settings-panel .g-status-row { margin: 0; }
-.settings-panel .g-status-row > span:not(:empty) { margin: var(--space-tight) 0 var(--space-row); }
-#updateSavedPath:empty, #audioOutputPath:empty { display: none; }
+.settings-panel .g-status-row > span:not(:empty) { margin: var(--space-tight) 0 var(--space-tight); }
+#audioOutputPath:empty { display: none; }

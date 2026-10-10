@@ -305,97 +305,24 @@
       _confirmAndOpenUrl("https://linktr.ee/nkolesov");
     });
     // Manual checks make one request; optional notices check every three days.
-    // Verified downloads stay available for installer retry without fetching
-    // the package again. Installation belongs to the external ZXP installer.
+    // A newer release opens through the shared browser-link confirmation.
+    // Download and installation are manual outside the panel.
     var UC = window.BeatMarkerUpdateCheck;
     var updateCheckCheckbox = document.getElementById("updateCheckCheckbox");
     var updateStatus = document.getElementById("updateStatus");
     var updateCheckNowBtn = document.getElementById("updateCheckNowBtn");
     var updateOpenBtn = document.getElementById("updateOpenBtn");
-    var updateDownloadBtn = document.getElementById("updateDownloadBtn");
     var settingsGearBtn = document.getElementById("settingsGearBtn");
     var _updateUrl = null;
-    var _updateLatest = null;
     var _updateBusy = false;
-    var _updateDownloading = false;
     var _updateGeneration = 0;
-    var updateReopenBtn = document.getElementById("updateReopenBtn");
-    var updateFolderBtn = document.getElementById("updateFolderBtn");
-    var updateSavedPath = document.getElementById("updateSavedPath");
-    function _savedUpdate() {
-      var saved = ctx.initialSettings().downloadedUpdate;
-      var path = window.cep_node.require("path");
-      return saved && UC.isNewer(saved.version, getPluginVersion()) && typeof saved.path === "string" &&
-        path.isAbsolute(saved.path) && /^Downbeat-\d{1,4}\.\d{1,4}\.\d{1,4}-(mac|win)(-\d+)?\.zxp$/.test(path.basename(saved.path)) &&
-        /^[a-f0-9]{64}$/.test(saved.sha256 || "") ? saved : null;
-    }
-    function _showSavedUpdate() {
-      var saved = _savedUpdate();
-      updateReopenBtn.hidden = !saved || _updateDownloading;
-      updateFolderBtn.hidden = !saved || _updateDownloading;
-      updateSavedPath.hidden = !saved;
-      updateSavedPath.textContent = saved ? saved.path : "";
-      if (saved && _updateLatest && saved.version === _updateLatest.version) { updateDownloadBtn.hidden = true; }
-      [updateDownloadBtn, updateOpenBtn, updateReopenBtn, updateFolderBtn].forEach(function (button) {
-        if (button.parentNode) { button.parentNode.hidden = button.hidden; }
-      });
-    }
-    function _nodePlatform() {
-      try {
-        return window.cep_node.require("os").platform();
-      } catch (e) {
-        return null;
-      }
-    }
-    // Downloads, else the home folder when there is no such folder.
-    function _downloadsDir() {
-      var os = window.cep_node.require("os");
-      var fs = window.cep_node.require("fs");
-      var path = window.cep_node.require("path");
-      var dir = path.join(os.homedir(), "Downloads");
-      try {
-        if (fs.statSync(dir).isDirectory()) {
-          return dir;
-        }
-      } catch (e) {
-      /* no Downloads folder: fall through */
-      }
-      return os.homedir();
-    }
-    // Select ZXP Installer explicitly on macOS rather than trusting a file
-    // association. The verified file is kept if OS handoff fails.
-    function _openDownloadedFile(filePath) {
-      return new Promise(function (resolve, reject) {
-        var cp = window.cep_node.require("child_process");
-        var platform = _nodePlatform();
-        var child = platform === "win32"
-          ? cp.spawn("explorer.exe", [filePath], { detached: true, stdio: "ignore" })
-          : cp.spawn("open", ["-b", "com.aescripts.ZXP-Installer", filePath], { detached: true, stdio: "ignore" });
-        child.on("error", reject);
-        if (platform === "win32") {
-          child.on("spawn", resolve);
-        } else {
-          child.on("close", function (code) {
-            if (code === 0) { resolve(); }
-            else { reject(new Error("the system could not open the package (exit " + code + ")")); }
-          });
-        }
-        child.unref();
-      });
-    }
     function _showUpdateState(seen) {
       var current = getPluginVersion();
       var newer = !!(seen && UC.isNewer(seen.version, current));
       _updateUrl = newer ? seen.url : null;
-      _updateLatest = newer ? seen : null;
       updateOpenBtn.hidden = !newer;
-      var pkg = newer ? UC.packageFor(seen, _nodePlatform()) : null;
-      updateDownloadBtn.hidden = !pkg || _updateDownloading;
-      if (pkg) {
-        setTranslatedText(updateDownloadBtn, "settings.updateDownload", { size: Math.max(1, Math.round(pkg.size / (1024 * 1024))) });
-      }
+      if (updateOpenBtn.parentNode) { updateOpenBtn.parentNode.hidden = !newer; }
       settingsGearBtn.classList.toggle("has-update", newer);
-      _showSavedUpdate();
       if (newer) {
         setTranslatedText(updateStatus, "settings.updateNew", { latest: seen.version, version: current });
       } else if (seen) {
@@ -434,81 +361,10 @@
       }
     });
     updateCheckNowBtn.addEventListener("click", _runUpdateCheck);
-    updateDownloadBtn.addEventListener("click", function () {
-      if (_updateDownloading || !_updateLatest) {
-        return;
-      }
-      var latest = _updateLatest;
-      _updateDownloading = true;
-      var generation = _updateGeneration;
-      updateDownloadBtn.hidden = true;
-      _showSavedUpdate();
-      setTranslatedText(updateStatus, "settings.updateDownloading", { percent: "0" });
-      var lastShown = -1;
-      UC.downloadPackage(latest, {
-        platform: _nodePlatform(),
-        dir: _downloadsDir(),
-        modules: { open: _openDownloadedFile },
-        onProgress: function (fraction) {
-          var percent = Math.floor(fraction * 100);
-          if (percent !== lastShown && generation === _updateGeneration) {
-            lastShown = percent;
-            setTranslatedText(updateStatus, "settings.updateDownloading", { percent: String(percent) });
-          }
-        }
-      }, function (err, saved) {
-        _updateDownloading = false;
-        _showUpdateState(generation === _updateGeneration ? latest : null);
-        if (err) {
-          log("Update download: " + err.message);
-          setTranslatedText(updateStatus, "settings.updateDownloadFailed", { error: err.message });
-          return;
-        }
-        persistSettings({ downloadedUpdate: { path: saved.path, name: saved.name, sha256: saved.sha256, size: saved.size || 0, version: latest.version } });
-        _showSavedUpdate();
-        log("Update download: saved and checked " + saved.path + " (sha256 " + saved.sha256 + ")" + (saved.openError ? "; opening it failed: " + saved.openError : "") + ".");
-        setTranslatedText(updateStatus, saved.openError ? "settings.updateDownloadedNoOpen" : "settings.updateDownloaded", { name: saved.name });
-      });
-    });
     updateOpenBtn.addEventListener("click", function () {
       if (_updateUrl) {
         _confirmAndOpenUrl(_updateUrl);
       }
-    });
-    updateReopenBtn.addEventListener("click", function () {
-      var saved = _savedUpdate();
-      if (!saved || _updateDownloading) { return; }
-      _updateDownloading = true;
-      _showSavedUpdate();
-      setTranslatedText(updateStatus, "settings.updateVerifying");
-      UC.verifyDownloaded(saved, {}, function (err) {
-        if (err) {
-          _updateDownloading = false;
-          persistSettings({ downloadedUpdate: null });
-          _showUpdateState(_updateLatest);
-          setTranslatedText(updateStatus, "settings.updateSavedInvalid");
-          log("Saved update unavailable: " + err.message);
-          return;
-        }
-        _openDownloadedFile(saved.path).then(function () {
-          setTranslatedText(updateStatus, "settings.updateDownloaded", { name: saved.name });
-        }, function (error) {
-          setTranslatedText(updateStatus, "settings.updateDownloadedNoOpen", { name: saved.name });
-          log("Opening saved update failed: " + error.message);
-        }).then(function () { _updateDownloading = false; _showSavedUpdate(); });
-      });
-    });
-    updateFolderBtn.addEventListener("click", function () {
-      var saved = _savedUpdate();
-      if (!saved) { return; }
-      var path = window.cep_node.require("path");
-      if (!path.isAbsolute(saved.path) || !/^Downbeat-\d{1,4}\.\d{1,4}\.\d{1,4}-(mac|win)(-\d+)?\.zxp$/.test(path.basename(saved.path))) { return; }
-      var cp = window.cep_node.require("child_process");
-      var child = _nodePlatform() === "win32"
-        ? cp.spawn("explorer.exe", [path.dirname(saved.path)], { detached: true, stdio: "ignore" })
-        : cp.spawn("open", [path.dirname(saved.path)], { detached: true, stdio: "ignore" });
-      child.on("error", function (error) { log("Opening Downloads failed: " + error.message); });
-      child.unref();
     });
     var audioOutputMode = document.getElementById("audioOutputModeSelect");
     var audioOutputFolderBtn = document.getElementById("audioOutputFolderBtn");
@@ -550,9 +406,7 @@
       var on = settings.updateCheck === true;
       updateCheckCheckbox.checked = on;
       updateCheckNowBtn.hidden = false;
-      var saved = settings.downloadedUpdate;
-      if (saved && !UC.isNewer(saved.version, getPluginVersion())) { persistSettings({ downloadedUpdate: null }); }
-      _showSavedUpdate();
+      _showUpdateState(null);
       if (!on) {
         return;
       }

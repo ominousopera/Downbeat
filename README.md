@@ -306,10 +306,10 @@ components and their licenses are listed in [`NOTICE.md`](NOTICE.md).
 Analysis and Library work offline. Nothing is uploaded, there is no account
 and no analytics. **Settings → Updates → Check now** makes a one-time GitHub
 request. Optional notifications check every three days; they are off by
-default. Downloading happens only when you ask: the package is verified,
-saved in Downloads and opened in your ZXP installer. You confirm there and
-restart the Adobe app. A retained package can be verified and opened again
-without another download. No personal content is sent (GitHub sees your IP
+default. **Open the release page** opens the new release in your browser
+for manual download and installation with a ZXP installer. Restart the
+Adobe app afterwards. The panel does not download or install packages.
+No personal content is sent (GitHub sees your IP
 address, as any website does). Feedback and release-page links open in your
 browser after a confirmation.
 </details>
@@ -404,8 +404,8 @@ developer sections further down this page.
 <summary><b>Privacy and security</b></summary>
 
 Everything runs on your computer. The panel makes no network calls except the
-optional update notice and the download it offers (your choice at the first
-start), and `scripts/check-code.js` fails the build if any other code that
+explicit release checks and optional background notifications (off by
+default), and `scripts/check-code.js` fails the build if any other code that
 could is added. Saved data
 (settings, track library, temporary files) lives in `Documents/Downbeat`,
 never inside the plugin's own folder. Report a vulnerability privately through
@@ -532,7 +532,7 @@ comments, is this repository.
 
 The bundled runtimes are fetched once, manually, by the two scripts above
 (pinned versions, hash-checked), never automatically. The plugin itself
-goes online only for a requested release check/download or optional periodic
+goes online only for a requested release check or optional periodic
 update notices. Analysis and Library stay offline.
 
 ## Uninstall
@@ -588,7 +588,3 @@ Downbeat/processed next to the saved project, or a custom folder. Settings,
 libraries and temporary analysis files stay in Documents/Downbeat. Existing
 audio is never overwritten; generated WAVs are kept when you delete panel data.
 Pitch and Reverse change host clip parameters and do not render audio copies.
-
-On macOS, the update button targets ZXP Installer explicitly. If it is not
-installed, the verified package stays in Downloads for manual installation.
-Windows uses the system ZXP file association.

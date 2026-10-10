@@ -101,25 +101,15 @@
       <label><input type="checkbox" id="updateCheckCheckbox"> <span data-i18n="settings.updateCheck">Tell me when a new version is out</span></label>
     </div>
     <div class="row settings-hint-row">
-      <span class="hint" data-i18n="settings.updateHint">Check now makes a one-time request to GitHub. Turn on notifications for a check every three days. Analysis stays offline. Updates are downloaded only when you ask; your ZXP installer handles installation.</span>
+      <span class="hint" data-i18n="settings.updateHint">Check now makes a one-time request to GitHub. Turn on notifications for a check every three days. Analysis stays offline. Open the release page to download and install the update yourself.</span>
     </div>
     <div class="row g-status-row">
       <span id="updateStatus" class="hint"></span>
     </div>
     <div class="row">
-      <button id="updateDownloadBtn" type="button" class="primary settings-full-btn" hidden>Download and open the update</button>
-    </div>
-    <div class="row">
       <button id="updateOpenBtn" type="button" class="ghost settings-full-btn" data-i18n="settings.updateOpen" hidden>Open the release page</button>
     </div>
 
-    <div class="row">
-      <button id="updateReopenBtn" type="button" class="ghost settings-full-btn" data-i18n="settings.updateReopen" hidden>Open downloaded update</button>
-    </div>
-    <div class="row">
-      <button id="updateFolderBtn" type="button" class="ghost settings-full-btn" data-i18n="settings.updateFolder" hidden>Show downloaded file</button>
-    </div>
-    <p id="updateSavedPath" class="hint" hidden></p>
     <hr>
     <p class="panel-title" data-i18n="settings.savedData">Saved data</p>
     <div class="row">

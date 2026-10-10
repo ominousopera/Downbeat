@@ -20,10 +20,10 @@ Review the log for local file paths before posting it publicly.
 - Code, comments and docs are in English. User-facing text goes through
   `js/i18n.js` in all three languages (English first).
 - The panel must stay offline: no network calls, no telemetry. The one
-  exception is the optional, off-by-default update notice in
-  `js/update-check.js`, which reads this project's latest release number and,
-  when the user presses the button, downloads that release's package and checks
-  it against the published checksum before opening it. Nothing writes into
+  exception is release metadata in `js/update-check.js`: explicit Check now
+  or optional background notices (off by default). The release page opens
+  through shared browser-link confirmation; download and installation are
+  manual outside the panel. Nothing writes into
   the extension folder (it would break the signature); saved data lives in
   `Documents/Downbeat`. Generated metronome WAVs use the selected Finished
   audio destination and are kept when panel data is deleted.

@@ -152,7 +152,7 @@ node "$HERE/scripts/test-library-tab.js" > /dev/null 2>&1 \
   || { echo "  Library tab test FAILED - run: node scripts/test-library-tab.js"; exit 1; }
 node "$HERE/scripts/test-update-check.js" > /dev/null 2>&1 \
   || { echo "  Update notice test FAILED - run: node scripts/test-update-check.js"; exit 1; }
-for CHECK in test-update-reliability test-update-state test-library-input test-analysis-stale test-beat-preview test-library-backup-safety test-downbeat-input test-metronome test-native-phase test-audio-output-ui test-worker-errors; do
+for CHECK in test-update-state test-library-input test-analysis-stale test-beat-preview test-library-backup-safety test-downbeat-input test-metronome test-native-phase test-audio-output-ui test-worker-errors; do
   node "$HERE/scripts/$CHECK.js" > /dev/null 2>&1 \
     || { echo "  $CHECK FAILED"; exit 1; }
 done

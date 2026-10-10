@@ -4,12 +4,10 @@ Downbeat is a local panel with no server or account. Analysis and Library
 work offline. Background release checks are off by default; enabling the
 optional notification asks this project's GitHub release API every three
 days. Check now makes one explicit request independently of that preference.
-Downloads occur only on request, follow HTTPS redirects on GitHub hosts,
-and are checked against the release's SHA-256 before opening an installer.
-Only the current download's uniquely created temporary file is cleaned up
-on failure. Existing packages and unrelated temporary files are preserved.
-A saved update is checked again before reopening. The installer confirms
-installation; Downbeat does not modify its signed installation in place.
+The release button opens the new release page in the browser after
+confirmation. Download and installation are manual, outside the panel.
+Downbeat does not download packages, launch installers or modify its signed
+installation in place.
 No audio, library or project content is transmitted. GitHub receives the
 network request and its IP address. Feedback/release links open in the
 browser after confirmation. The build rejects network code outside the
