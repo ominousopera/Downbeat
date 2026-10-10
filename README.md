@@ -604,3 +604,7 @@ Identical constrained BPM passes reuse the same decoded audio and limits.
 Long Music analyses skip the chord witness when profiles and S-KEY agree, using
 the same final-key decision; short clips and SFX keep the full pass. This reduces
 work on agreeing tracks rather than claiming an accuracy improvement.
+
+### Tour and support
+
+Replay the tour covers the metronome, key scope/confirmations, pitch application, output folders and release-page updates. For support, reproduce the problem, then copy the current session log from Settings → Diagnostics and include steps and a screenshot. Copy log does not run tests or send data online; review local file paths before sharing.

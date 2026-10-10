@@ -516,3 +516,7 @@ the same decoded samples and tempo limits; failures are retried.
 **Pitch the clip** sits beside the semitone/cents/speed readout and wraps below
 it in a narrow panel. Settings actions share control spacing and separators;
 status text adds space only when there is a message.
+
+### Tour and support log
+
+Replay the tour includes metronome tracks, key scope and saved values, Pitch the clip, output folders and release-page updates. To report a problem, reproduce it in the current session, then use Settings → Diagnostics → Copy log and send it with the steps and a screenshot. The log contains plugin/host versions and runtime errors; it is not an automatic test and nothing is sent online. Local file paths may appear: review them before sharing.

@@ -567,3 +567,7 @@ y límites de tempo; los errores se vuelven a intentar.
 **Cambiar tono del clip** aparece junto a semitonos, cents y velocidad; en un
 panel estrecho pasa debajo. Los botones de ajustes comparten espaciado y
 separadores; el estado ocupa espacio adicional solo cuando contiene texto.
+
+### Recorrido y registro para soporte
+
+El recorrido incluye metrónomo, intervalo de análisis y valores guardados, cambio de tono, carpeta de audio y actualizaciones mediante la página de la versión. Para informar de un problema, reprodúcelo en esta sesión y usa Ajustes → Diagnóstico → Copiar registro; envíalo con los pasos y una captura. El registro contiene versiones del complemento y de la aplicación y errores; no ejecuta pruebas ni envía nada por Internet. Puede contener rutas locales: revísalas antes de compartirlo.

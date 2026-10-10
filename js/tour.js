@@ -21,10 +21,12 @@
     { target: "#phaseCells", tab: "analyze", titleKey: "tour.phaseTitle", bodyKey: "tour.phaseBody" },
     { target: "#placeMarkersBtn", tab: "analyze", titleKey: "tour.placeTitle", bodyKey: "tour.placeBody" },
     { target: "#cutDownbeatsBtn", tab: "analyze", hiddenFeature: true, titleKey: "tour.cutTitle", bodyKey: "tour.cutBody" },
+    { target: "#metronomeBtn", tab: "analyze", titleKey: "tour.metronomeTitle", bodyKey: "tour.metronomeBody" },
     { target: "#clearMarkersBtn", tab: "analyze", titleKey: "tour.clearMarkersTitle", bodyKey: "tour.clearMarkersBody" },
     { target: "#detectKeyBtn", tab: "key", titleKey: "tour.keyTitle", bodyKey: "tour.keyBody" },
     { target: "#camelotWheel", tab: "key", titleKey: "tour.wheelTitle", bodyKey: "tour.wheelBody" },
     { target: "#compatibleKeysRow", tab: "key", titleKey: "tour.compatibleTitle", bodyKey: "tour.compatibleBody" },
+    { target: "#pitchApplyBtn", tab: "key", titleKey: "tour.pitchTitle", bodyKey: "tour.pitchBody" },
     { target: "#libSectionSwitch", tab: "library", titleKey: "tour.libraryTitle", bodyKey: "tour.libraryBody" },
     { target: "#settingsGearBtn", tab: null, titleKey: "tour.settingsTitle", bodyKey: "tour.settingsBody" },
     { target: null, tab: null, titleKey: "tour.finishTitle", bodyKey: "tour.finishBody" }
