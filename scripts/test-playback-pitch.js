@@ -8,6 +8,17 @@ fs.writeFileSync(media, "fixture");
 fs.mkdirSync(path.join(docs, "Downbeat"), { recursive: true });
 fs.writeFileSync(path.join(docs, "Downbeat/settings.json"), JSON.stringify({ language: "en", onboardingCompleted: true }));
 const fake = mocks.makePremiereHost({ mediaPath: media, durationSec: 8, clipStart: 3, audioTrackCount: 8 });
+const originalItem = fake.audioTrack.clips[0].projectItem;
+const originalMarkers = originalItem.getMarkers();
+originalMarkers.createMarker(1).name = "D";
+const editorMarker = originalMarkers.createMarker(2);
+editorMarker.name = "Editor note"; editorMarker.comments = "Keep this";
+const importFiles = fake.context.app.project.importFiles;
+fake.context.app.project.importFiles = function (paths, suppressUI, bin) {
+  const answer = importFiles(paths, suppressUI, bin);
+  bin.children[bin.children.length - 1].getMarkers().createMarker(1).name = "D";
+  return answer;
+};
 const bridge = mocks.loadHost(fake.context), inserts = [];
 const panel = require("./panel-harness.js").bootPanel({ docsDir: docs, realTimeouts: true, realIntervals: false,
   evalScript: function (script, callback) {
@@ -36,6 +47,13 @@ async function pitch(to) {
     await pitch("8A");
     assert.ok(Math.abs(info().speed - Math.pow(2, 2 / 12)) < 1e-9);
     assert.strictEqual(wheel(), "8A"); assert.strictEqual($.pitchFromSelect.value, "8A");
+    const pitchedItem = fake.sequence.audioTracks[info().trackIndex].clips[0].projectItem;
+    assert.notStrictEqual(pitchedItem, originalItem, "Pitch owns an independent marker collection");
+    assert.strictEqual(originalMarkers.numMarkers, 2, "Original markers stay intact");
+    const copiedMarkers = pitchedItem.getMarkers();
+    assert.strictEqual(copiedMarkers.numMarkers, 1);
+    assert.strictEqual(copiedMarkers.getFirstMarker().name, "Editor note");
+    assert.strictEqual(copiedMarkers.getFirstMarker().comments, "Keep this");
     assert.ok($.keyResultDisplay.textContent.startsWith("6A"));
     assert.strictEqual($.pitchApplyBtn.disabled, true, "Existing target is a no-op");
     await pitch("10A");
@@ -57,6 +75,25 @@ async function pitch(to) {
     const result = JSON.parse(bridge.run("insertAudioAtPlayhead(" + JSON.stringify(JSON.stringify(media)) + ", 8, " +
       JSON.stringify(JSON.stringify({ speed: 1.2, pitchReference: reference })) + ")"));
     assert.strictEqual(result.ok, false, "Host revalidates selection before insertion");
-    console.log("PASS: consecutive pitch, no-op target, source preservation and stale-plan rejection.");
+    const ae = mocks.makeAeHost({ mediaPath: media, durationSec: 8, insertDurationSec: 8 });
+    const aeOriginal = ae.comp.selectedLayers[0];
+    aeOriginal.markers.setValueAtTime(1, { comment: "D" });
+    const addLayer = ae.comp.layers.add;
+    ae.comp.layers.add = function (item) {
+      const layer = addLayer(item);
+      layer.markers.setValueAtTime(1, { comment: "D" });
+      layer.markers.setValueAtTime(2, { comment: "Editor note" });
+      return layer;
+    };
+    const aeBridge = mocks.loadHost(ae.context);
+    const aeReference = JSON.parse(aeBridge.run("getSelectedAudioInfo()")).data;
+    const aeResult = JSON.parse(aeBridge.run("insertAudioAtPlayhead(" + JSON.stringify(JSON.stringify(media)) + ", 8, " +
+      JSON.stringify(JSON.stringify({ speed: 1.2, muteSelected: true, selectInserted: true, pitchReference: aeReference })) + ")"));
+    assert.ok(aeResult.ok, aeResult.error);
+    const aeMarkers = ae.comp.selectedLayers[0].markers;
+    assert.strictEqual(aeMarkers.numKeys, 1);
+    assert.strictEqual(aeMarkers.keyValue(1).comment, "Editor note");
+    assert.strictEqual(aeOriginal.markers.numKeys, 1, "AE original markers remain intact");
+    console.log("PASS: cumulative pitch, marker isolation in both hosts, source preservation and stale-plan rejection.");
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 })().catch(function (error) { console.error(error); process.exitCode = 1; });

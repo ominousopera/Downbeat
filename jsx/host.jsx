@@ -1277,6 +1277,40 @@ function _dbAssertPitchReference(reference) {
     }
 }
 
+// Pitch needs a separate project item: Premiere shares markers between instances.
+// Preserve editor markers while discarding source beat labels on the new item.
+function _dbPreparePitchMarkers(item, original) {
+    if (!item.getMarkers) { throw new Error("Premiere cannot clear markers on the pitched media item."); }
+    if (original && (item === original.projectItem || (item.nodeId && item.nodeId === original.projectItem.nodeId))) { throw new Error("Premiere reused the original media item for pitch."); }
+    var markers = item.getMarkers();
+    _removeOwnMarkersInRange(markers, -1e20, 1e20);
+    if (_countOwnMarkersInRange(markers, -1e20, 1e20)) { throw new Error("Premiere did not clear the pitched clip markers."); }
+    if (!original || !original.projectItem.getMarkers) { return; }
+    var source = original.projectItem.getMarkers();
+    var m = source.getFirstMarker();
+    while (m) {
+        if (!LABEL_COLOR_INDEX.hasOwnProperty(m.name)) {
+            var exists = false;
+            var prior = markers.getFirstMarker();
+            while (prior) {
+                if (Math.abs(prior.start.seconds - m.start.seconds) < 0.0005 && prior.name === m.name && prior.comments === m.comments) { exists = true; break; }
+                prior = markers.getNextMarker(prior);
+            }
+            if (!exists) {
+                var copy = markers.createMarker(m.start.seconds);
+                copy.name = m.name;
+                copy.comments = m.comments;
+                copy.end = m.end.seconds;
+                if (m.getColorByIndex && copy.setColorByIndex) { copy.setColorByIndex(m.getColorByIndex()); }
+                if (m.type === "Chapter" && copy.setTypeAsChapter) { copy.setTypeAsChapter(); }
+                if (m.type === "Segmentation" && copy.setTypeAsSegmentation) { copy.setTypeAsSegmentation(); }
+                if (m.type === "WebLink" && copy.setTypeAsWebLink) { copy.setTypeAsWebLink(m.url, m.frameTarget); }
+            }
+        }
+        m = source.getNextMarker(m);
+    }
+}
+
 function insertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
     if (_dbIsAe()) {
         return dbAeInsertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson);
@@ -1358,7 +1392,9 @@ function insertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
             throw new Error("No free audio track at the playhead for this " + length.toFixed(1) + " s sound. Add an audio track or move the playhead.");
         }
         var bin = _findOrCreateDownbeatBin();
-        var item = _findItemInBinByPath(bin, mediaPath);
+        var cleanPitch = !!(opts && opts.pitchReference);
+        if (cleanPitch) { bin = bin.createBin("Pitched audio"); }
+        var item = cleanPitch ? null : _findItemInBinByPath(bin, mediaPath);
         var imported = false;
         if (!item) {
             app.project.importFiles([file.fsName], true, bin, false);
@@ -1368,6 +1404,8 @@ function insertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
             }
             imported = true;
         }
+        if (cleanPitch) { _dbPreparePitchMarkers(item, toMute); }
+
         if (trim) {
             try {
                 item.setInPoint(inSec, 4);
@@ -1401,12 +1439,27 @@ function insertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
             throw new Error("Premiere did not place the clip on A" + (target + 1) + ".");
         }
         if (opts && (inSec > 0 || outSec !== null)) {
+            // Project-item In/Out can quantize an audio selection to video frames.
+            // Set Time values on the inserted instance before checking the trim.
+            try {
+                var exactIn = new Time();
+                exactIn.seconds = inSec;
+                placedClip.inPoint = exactIn;
+                if (outSec !== null) {
+                    var exactOut = new Time();
+                    exactOut.seconds = outSec;
+                    placedClip.outPoint = exactOut;
+                }
+                var exactEnd = new Time();
+                exactEnd.seconds = startSeconds + sourceLength;
+                placedClip.end = exactEnd;
+            } catch (exactTrimErr) { /* readback below rejects a refused trim */ }
             var placedLength = placedClip.end.seconds - placedClip.start.seconds;
             var placedIn = placedClip.inPoint ? placedClip.inPoint.seconds : 0;
             if (Math.abs(placedLength - sourceLength) > Math.max(0.05, 2 / Math.max(1, _getFrameRate(sequence))) || Math.abs(placedIn - inSec) > 0.05) {
                 try { placedClip.remove(false, false); } catch (removeErr) { /* reported below */ }
                 result.ok = true;
-                result.data = { trimFailed: true, where: "A" + (target + 1), placedLength: placedLength, placedIn: placedIn };
+                result.data = { trimFailed: true, where: "A" + (target + 1), placedLength: placedLength, placedIn: placedIn, requestedLength: sourceLength, requestedIn: inSec, requestedOut: outSec };
                 return JSON.stringify(result);
             }
         }

@@ -153,6 +153,9 @@ function MarkerCollection() { this.list = []; }
 MarkerCollection.prototype.createMarker = function (seconds) {
   const m = { start: T(seconds), end: T(seconds), name: "", comments: "", colorIndex: -1,
     setColorByIndex: function (i) { this.colorIndex = i; } };
+  let markerEnd = m.end;
+  Object.defineProperty(m, "end", { get: function () { return markerEnd; },
+    set: function (value) { markerEnd = typeof value === "number" ? T(value) : value; } });
   this.list.push(m);
   this.list.sort(function (a, b) { return a.start.seconds - b.start.seconds; });
   return m;
@@ -197,9 +200,19 @@ function makePremiereHost(opts) {
     track.isLocked = function () { return track.locked; };
     track.overwriteClip = function (item, time) {
       const at = typeof time === "object" ? time.seconds : Number(time);
-      const inS = typeof item._in === "number" ? item._in : 0;
-      const outS = typeof item._out === "number" ? item._out : inS + (opts.insertDurationSec || 5);
+      let inS = typeof item._in === "number" ? item._in : 0;
+      let outS = typeof item._out === "number" ? item._out : inS + (opts.insertDurationSec || 5);
+      if (opts.quantizeImportedTrim) {
+        inS = Math.max(0, (Math.floor(inS * fps) - 1) / fps);
+        outS = Math.max(inS, (Math.floor(outS * fps) - 1) / fps);
+      }
       const clip = new PClip(item, at, at + (outS - inS), inS, false);
+      if (opts.rejectClipTrim) {
+        ["inPoint", "outPoint", "end"].forEach(function (key) {
+          const value = clip[key];
+          Object.defineProperty(clip, key, { get: function () { return value; }, set: function () {} });
+        });
+      }
       clip.remove = function () { track.clips.splice(track.clips.indexOf(clip), 1); return true; };
       track.clips.push(clip);
       track.clips.sort(function (a, b) { return a.start.seconds - b.start.seconds; });
@@ -241,7 +254,9 @@ function makePremiereHost(opts) {
     app: { project: { activeSequence: sequence, rootItem: rootItem,
       importFiles: function (paths, suppressUI, bin) {
         paths.forEach(function (p) {
-          const it = { type: 1, name: path.basename(p), getMediaPath: function () { return p; } };
+          const importedMarkers = new MarkerCollection();
+          const it = { type: 1, name: path.basename(p), getMediaPath: function () { return p; },
+            getMarkers: function () { return importedMarkers; } };
           if (!opts.noInOut) {
             it.setInPoint = function (s) { it._in = Number(s); };
             it.setOutPoint = function (s) { it._out = Number(s); };

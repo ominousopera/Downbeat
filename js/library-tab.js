@@ -1066,7 +1066,9 @@
           if (data.trimFailed) {
             setTranslatedText(libScanStatus, "library.trimFailed", { name: item.name });
             log("Library: the host did not trim " + item.name + " (placed " + (data.placedLength || 0).toFixed(2) +
-                " s from " + (data.placedIn || 0).toFixed(2) + " s) - it was taken away again, nothing inserted.");
+                " s from " + (data.placedIn || 0).toFixed(2) + " s; requested " +
+                (typeof data.requestedLength === "number" ? data.requestedLength.toFixed(3) : "?") +
+                " s from " + (typeof data.requestedIn === "number" ? data.requestedIn.toFixed(3) : "?") + " s) - it was taken away again, nothing inserted.");
             return;
           }
           if (data.speedFailed) {

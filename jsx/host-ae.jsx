@@ -538,6 +538,11 @@ function dbAeInsertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
                 item.parentFolder = folder;
             }
             var added = comp.layers.add(item);
+            if (opts && opts.pitchReference) {
+                try {
+                    _dbAeRemoveOwnMarkers(added.property("Marker"), -1e20, 1e20);
+                } catch (markerErr) { added.remove(); throw markerErr; }
+            }
             // Keep the metronome immediately below its selected music layer.
             if (opts && typeof opts.belowLayerIndex === "number") {
                 try {

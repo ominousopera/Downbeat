@@ -616,3 +616,7 @@ Detect key measures source audio. Pitch the clip leaves the file unchanged; Sour
 Pitch the clip selects the new clip/layer after a successful insert. If automatic selection cannot be confirmed, select the new clip manually before Detect key. Diagnostics records selected playback speed alongside source analysis.
 
 The main Key result, Camelot wheel, compatible keys, Match clip and In key use the selected clip's calculated playback key. Source key and manual source confirmations stay attached to the unchanged file or source interval. Pitch the clip starts from the current playback speed: a second +2-semitone shift after 112.25% gives 125.99%, rather than resetting to 112.25%. The calculator shows final clip speed and current-to-new BPM. If selection or speed changes before insertion, review the refreshed plan and click again. Between-semitone speeds have no exact Camelot target. The calculation assumes speed changes pitch; Maintain audio pitch and pitch effects are not measured.
+
+Pitch creates a separate media item in Premiere and removes Downbeat clip markers from the new copy. Editor markers and markers on the original remain intact; sequence/composition markers are unchanged. Analyze and place fresh beat markers for the pitched clip.
+
+Selected Library regions use exact source-time bounds on the inserted Premiere clip before fades and speed are applied; the insertion is read back and refused if trimming does not take.

@@ -45,6 +45,17 @@ try {
   check("Premiere: a locked track is skipped", !r.ok && /No free audio track/.test(r.error), r.error);
   r = JSON.parse(ph.run("insertAudioAtPlayhead(" + js(path.join(dir, "gone.wav")) + ", 5)"));
   check("Premiere: a file that is gone is a clear error", !r.ok && /not there any more/.test(r.error), r.error);
+  const rounded = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60,
+    playheadSeconds: 150, audioTrackCount: 2, insertDurationSec: 10.33, quantizeImportedTrim: true });
+  const roundedHost = mocks.loadHost(rounded.context);
+  const exactResult = JSON.parse(roundedHost.run("insertAudioAtPlayhead(" + js(sound) + ", 10.33, " +
+    js({ inSec: 5.86, outSec: 9.28, fadeInSec: 0.1, fadeOutSec: 0.3 }) + ")"));
+  const exactClip = rounded.audioTrack.clips.filter(function (c) { return c.start.seconds === 150; })[0];
+  check("Premiere: repair quantized source bounds before applying the fades",
+    exactResult.ok && !exactResult.data.trimFailed && exactClip && exactClip.inPoint.seconds === 5.86 &&
+    exactClip.outPoint.seconds === 9.28 && Math.abs(exactClip.end.seconds - 153.42) < 1e-9 &&
+    exactClip.transitions.length === 2, JSON.stringify(exactResult.data || exactResult.error));
+
   // The preview pane's part with fades: the original, trimmed through the bin
   // item's in / out (cleared again), with Premiere transitions on its edges -
   // editable on the timeline.
@@ -132,7 +143,7 @@ try {
   // A Premiere that cannot set in / out: the whole file lands, is taken out
   // again, and the result reports that the trim failed (checked below, after
   // the pitched-insert case).
-  const p2 = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60, playheadSeconds: 10, audioTrackCount: 2, insertDurationSec: 5, noInOut: true });
+  const p2 = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60, playheadSeconds: 10, audioTrackCount: 2, insertDurationSec: 5, noInOut: true, rejectClipTrim: true });
   const ph2 = mocks.loadHost(p2.context);
   r = JSON.parse(ph2.run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + js(({ inSec: 1, outSec: 3 })) + ")"));
   // The Key tab's pitched insert: at the selected clip's own place, the
