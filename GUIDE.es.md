@@ -33,10 +33,7 @@ Todo se ejecuta en tu equipo: nunca se sube nada.
    marcador por instante, así que un tiempo que cae justo sobre uno de tus
    marcadores se omite allí (el registro lo cuenta). Para empezar de cero,
    **Borrar** quita los marcadores de Downbeat del clip —de cada trozo
-   después de un corte— y deja los tuyos. En Premiere Pro, Deshacer (⌘Z /
-   Ctrl+Z) no recupera los marcadores que Downbeat colocó o quitó: Premiere
-   no registra los cambios de marcadores de un plugin; pulsa **Colocar
-   marcadores** otra vez. En After Effects, Deshacer funciona.
+   después de un corte— y deja los tuyos.
 5. Corta en los marcadores en Premiere: con el ajuste activado (S), la
    herramienta Cuchilla (C) se ajusta a los marcadores. Cada marcador está
    al inicio del fotograma de vídeo en el que empieza su tiempo, así que

@@ -249,11 +249,6 @@ shrinks to the sounds that fit it.
   Library, but not inserted.
 - **After Effects.** A smaller set of features, listed in the note at the top:
   whole-frame markers, constant positive stretch, cutting by hand.
-- **Undo in Premiere Pro.** Premiere does not record a plug-in's marker
-  changes, so ⌘Z / Ctrl+Z does not bring back markers Downbeat placed or
-  cleared; press Place markers again. In After Effects, Undo works.
-- **Arrow keys in the Library (Premiere Pro).** Premiere can keep ↑ ↓ for its
-  timeline; choose sounds with the mouse there. Enter and Space work.
 
 ## FAQ
 

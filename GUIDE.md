@@ -31,10 +31,7 @@ Everything runs locally on your machine — nothing is ever uploaded.
    so a beat that falls exactly on one of your markers is left out there
    (the log counts it). To start over, **Clear** removes
    Downbeat's markers from the clip — from every piece of it after a cut —
-   and leaves yours. In Premiere Pro, Edit > Undo (⌘Z / Ctrl+Z) does not
-   bring back markers Downbeat placed or cleared — Premiere does not record
-   a plug-in's marker changes; press **Place markers** again instead. In
-   After Effects, Undo works.
+   and leaves yours.
 5. Cut at the markers in Premiere: with snapping on (S), the Razor tool (C)
    snaps to markers. Each marker sits on the start of the video frame its
    beat begins in, so a cut lands on the beat or just before it, never
