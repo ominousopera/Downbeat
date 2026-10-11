@@ -53,7 +53,7 @@ const before = h.fake.sequence.audioTracks.map(function (t) { return t.clips.len
 r = insert(h, 0);
 check("with no length anywhere, the insert is refused and nothing is placed",
   !r.ok && /did not insert/.test(r.error) && h.fake.sequence.audioTracks.map(function (t) { return t.clips.length; }).join() === before, r.error);
-// 4. A known length that fits: unchanged behaviour (A2 before the editor's clip is free for 1.5 s).
+// 4. A known length that fits: the normal case (A2 before the editor's clip is free for 1.5 s).
 h = setup({ mediaLength: 1.5, insertDurationSec: 1.5 });
 r = insert(h, 1.5);
 check("a sound that fits before the editor's clip still goes on the first free track", r.ok && r.data.where === "A2" && overlaps(h).length === 0, JSON.stringify(r.data || r.error));

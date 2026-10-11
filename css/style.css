@@ -2024,7 +2024,6 @@ button.g-cell:disabled { opacity: 0.35; }
   color: var(--text-dim);
 }
 
-
 /* ==========================================================================
    TEXT LEVELS. Four levels: 1. values (BPM, key) - large, --text; 2. main
    text (names, buttons, the chosen option) - --text; 3. labels (section
@@ -2416,9 +2415,6 @@ p.hint { margin: 0 0 var(--space-row); }
 .settings-panel .g-status-row { margin: 0; }
 .settings-panel .g-status-row > span:not(:empty) { margin: var(--space-tight) 0 var(--space-tight); }
 #audioOutputPath:empty { display: none; }
-
-
-
 
 /* Action separators belong to their buttons; the following title has no second rule. */
 .settings-panel .panel-title.settings-follow-action { margin-top: 0; border-top: none; padding-top: var(--space-tight); }

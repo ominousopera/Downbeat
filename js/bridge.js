@@ -69,10 +69,8 @@
     // Path of the Node binary bundled in runtime/node/<platform>-<arch>/, or
     // null when this platform has no bundled build or the file is missing.
     function _bundledNodePath(fs, os, extensionRoot) {
-      var platform = os.platform();
-      // "darwin" | "win32" (Node's own naming, even on 64-bit Windows)
-      var arch = os.arch();
-      // "arm64" | "x64"
+      var platform = os.platform(); // "darwin" | "win32" (Node's own naming, even on 64-bit Windows)
+      var arch = os.arch(); // "arm64" | "x64"
       var platformArch = null;
       if (platform === "darwin" && (arch === "arm64" || arch === "x64")) {
         platformArch = "darwin-" + arch;
@@ -80,8 +78,7 @@
         platformArch = "win-x64";
       }
       if (!platformArch) {
-        return null;
-      // no bundled build for this platform/arch - falls through to the candidate list below
+        return null; // no bundled build for this platform/arch - falls through to the candidate list below
       }
       var fileName = platform === "win32" ? "node.exe" : "node";
       var candidate = extensionRoot + "/runtime/node/" + platformArch + "/" + fileName;
@@ -114,14 +111,10 @@
         return _cachedNodeExecutable;
       }
       var candidates = [
-        "/opt/homebrew/bin/node",
-        // Homebrew, Apple Silicon
-        "/usr/local/bin/node",
-        // Homebrew Intel, or the official Node.js macOS installer
-        "/opt/local/bin/node",
-        // MacPorts
-        "C:\\Program Files\\nodejs\\node.exe"
-      // official Node.js Windows installer default
+        "/opt/homebrew/bin/node", // Homebrew, Apple Silicon
+        "/usr/local/bin/node", // Homebrew Intel, or the official Node.js macOS installer
+        "/opt/local/bin/node", // MacPorts
+        "C:\\Program Files\\nodejs\\node.exe" // official Node.js Windows installer default
       ];
       for (var i = 0; i < candidates.length; i++) {
         try {
@@ -133,8 +126,7 @@
         // Keep checking the rest of the list.
         }
       }
-      _cachedNodeExecutable = "node";
-      // last resort: look "node" up on PATH
+      _cachedNodeExecutable = "node"; // last resort: look "node" up on PATH
       return _cachedNodeExecutable;
     }
     // Number of temp files currently in use by running workers (see

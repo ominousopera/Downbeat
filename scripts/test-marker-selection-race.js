@@ -1,7 +1,7 @@
 "use strict";
 // Place before the next selection poll must not modify a different source.
 const fs=require("fs"),path=require("path"),os=require("os"),assert=require("assert");
-const root=process.env.DOWNBEAT_ROOT || path.resolve(__dirname,".."),tmp=fs.mkdtempSync(path.join(os.tmpdir(),"downbeat-audit-place-"));
+const root=process.env.DOWNBEAT_ROOT || path.resolve(__dirname,".."),tmp=fs.mkdtempSync(path.join(os.tmpdir(),"downbeat-place-race-"));
 const media=path.join(tmp,"source.wav"),target=path.join(tmp,"target.wav");
 fs.writeFileSync(media,"source");fs.writeFileSync(target,"target");
 fs.mkdirSync(path.join(tmp,"Downbeat"));fs.writeFileSync(path.join(tmp,"Downbeat/settings.json"),JSON.stringify({language:"en",onboardingCompleted:true}));

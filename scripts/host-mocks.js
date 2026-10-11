@@ -182,7 +182,6 @@ function PClip(projectItem, start, end, inPoint, selected) {
 PClip.prototype.isSelected = function () { return this.selected; };
 PClip.prototype.setSelected = function (selected) { this.selected = !!selected; };
 
-
 PClip.prototype.getSpeed = function () { return this._speed || 1; };
 PClip.prototype.isSpeedReversed = function () { return !!this._reversed; };
 // A sequence with the audio file as one selected clip on A1 at `clipStart`,

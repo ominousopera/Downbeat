@@ -127,7 +127,6 @@
     }
     return { clipInfoChanged: clipInfoChanged, previousClipInfo: previousClipInfo };
   }
-  // Single-entry lookup by media path (null when absent).
   // The entry for a file that is there and unchanged. Only a file that IS
   // there with another size or modification time drops its entry (it was
   // replaced). A file that cannot be reached right now - an unplugged
@@ -140,7 +139,7 @@
     var current = fileIdentity(mediaPath);
     if (!current) {
       // Out of reach now. An entry with a recorded identity waits until the
-      // file is back; one without (nothing to compare) stays usable as before.
+      // file is back; one without (nothing to compare) stays usable.
       return { entry: entry, usable: !entry.fileIdentity };
     }
     if (!entry.fileIdentity) {
@@ -153,6 +152,7 @@
     }
     return { entry: entry, usable: true };
   }
+  // Single-entry lookup by media path (null when absent).
   function get(mediaPath) {
     var c = _check(mediaPath);
     return c.usable ? c.entry : null;

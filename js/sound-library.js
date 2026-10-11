@@ -405,7 +405,7 @@
       present[f.path] = true;
       var rec = state.files[f.path];
       if (rec && rec.section !== section) {
-        continue; // retain records from older states with overlapping folders
+        continue; // a record stays in the section it was scanned in
       }
       if (!rec) {
         state.files[f.path] = { path: f.path, section: section, name: _basename(f.path), size: f.size, mtimeMs: f.mtimeMs, status: "pending", updatedAt: _now() };

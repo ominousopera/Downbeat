@@ -130,8 +130,7 @@ function _dbAeMarkerValue(label) {
     var mv = new MarkerValue(text);
     if (typeCode !== null && AE_LABEL_COLOR_INDEX[typeCode] !== undefined) {
         try {
-            mv.label = AE_LABEL_COLOR_INDEX[typeCode];
-        // best-effort; without it the marker keeps the default color
+            mv.label = AE_LABEL_COLOR_INDEX[typeCode]; // best-effort; without it the marker keeps the default color
         } catch (labelErr) {
         // the marker itself is still created
         }
@@ -631,8 +630,7 @@ function dbAeInsertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
         }
         // Set to "speedFailed" or "trimFailed" when the layer did not come out as asked.
         var failure = null;
-        var reverseLayout = null;
-        // what the reversed layer's check saw (for the log)
+        var reverseLayout = null; // what the reversed layer's check saw (for the log)
         var layer = _dbAeWithUndo("Downbeat: insert sound", function () {
             if (!item) {
                 item = app.project.importFile(new ImportOptions(file));
@@ -683,8 +681,7 @@ function dbAeInsertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
             var speed = opts && Number(opts.speed) > 0 ? Number(opts.speed) : 1;
             var reverse = !!(opts && opts.reverse);
             var sped = Math.abs(speed - 1) > 1e-6 || reverse;
-            var factor = 1 / speed;
-            // comp seconds per source second
+            var factor = 1 / speed; // comp seconds per source second
             var wantStretch = (reverse ? -100 : 100) * factor;
             var wantOut = null;
             try {

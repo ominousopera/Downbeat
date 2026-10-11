@@ -373,8 +373,6 @@
       "library.folderOnlyTitle": "click: show only this folder",
       "library.clear": "Clear",
 
-
-
       "busy.default": "Working…",
       "busy.stuckHint": "This is taking longer than expected.",
       "busy.dismiss": "Dismiss",
@@ -403,7 +401,7 @@
       "tour.clearMarkersTitle": "Clear markers",
       "tour.clearMarkersBody": "Cleans up the markers this plugin placed, if you want to start over on the same clip. Your own markers stay.",
       "tour.keyTitle": "Detect key",
-      "tour.keyBody": "Choose Music or Sound effect, then Whole file or Selected clip. Selected clip analyzes its source in/out points. Override saves a known key; Use detected key restores the analysis.",
+      "tour.keyBody": "Choose Music or Sound effect, then Whole file or Selected clip. Selected clip analyzes its source in/out points. Source override saves a known key; Use detected key restores the analysis.",
       "tour.wheelTitle": "The wheel",
       "tour.wheelBody": "A visual map of musical keys. The selected clip's calculated timeline key lights up, along with its compatible keys.",
       "tour.compatibleTitle": "Goes well with",
@@ -785,8 +783,6 @@
       "library.folderOnlyTitle": "клик — показать только эту папку",
       "library.clear": "Очистить",
 
-
-
       "busy.default": "Идёт обработка…",
       "busy.stuckHint": "Это занимает больше времени, чем обычно.",
       "busy.dismiss": "Закрыть",
@@ -815,7 +811,7 @@
       "tour.clearMarkersTitle": "Очистить маркеры",
       "tour.clearMarkersBody": "Убирает маркеры, поставленные плагином, если хотите начать заново на том же клипе. Ваши собственные маркеры остаются.",
       "tour.keyTitle": "Определить тональность",
-      "tour.keyBody": "Выберите «Музыка» или «Звуковой эффект», затем весь файл или выбранный клип. Для клипа анализируются исходные точки входа и выхода. «Задать вручную» сохраняет известную тональность; «Вернуть определённую тональность» возвращает результат анализа.",
+      "tour.keyBody": "Выберите «Музыка» или «Звуковой эффект», затем весь файл или выбранный клип. Для клипа анализируются исходные точки входа и выхода. «Задать тональность исходника» сохраняет известную тональность; «Вернуть определённую тональность» возвращает результат анализа.",
       "tour.wheelTitle": "Колесо",
       "tour.wheelBody": "Наглядная карта тональностей. Подсвечиваются расчётная тональность выделенного клипа на таймлайне и совместимые с ней тональности.",
       "tour.compatibleTitle": "Хорошо сочетается с",
@@ -826,7 +822,7 @@
       "tour.settingsBody": "Выберите язык и папку готового аудио. «Проверить сейчас» ищет релиз на GitHub; уведомления необязательны, анализ работает офлайн. После воспроизведения проблемы «Скопировать лог» копирует журнал этой сессии для поддержки.",
       "tour.metronomeTitle": "Дорожка метронома",
       "tour.metronomeBody": "После анализа добавьте дорожку щелчков по найденной сетке в After Effects или Premiere. Она помогает слышать метки при монтаже. Раздел готового аудио задаёт папку для созданного WAV.",
-      "tour.pitchTitle": "Изменить питч клипа",
+      "tour.pitchTitle": "Поднять тон клипа",
       "tour.pitchBody": "Выберите исходную и нужную тональности, затем проверьте полутоны, скорость и BPM. Кнопка добавляет исходный файл с этой скоростью и отключает прежний клип. Скорость меняет питч и длительность; обработанная копия не создаётся.",
       "tour.finishTitle": "Готово",
       "tour.finishBody": "Обучение можно пройти заново в любой момент через настройки. Выберите клип на таймлайне, чтобы начать.",
@@ -1195,8 +1191,6 @@
       "library.folderOnlyTitle": "clic: mostrar solo esta carpeta",
       "library.clear": "Borrar",
 
-
-
       "busy.default": "Procesando…",
       "busy.stuckHint": "Esto está tardando más de lo esperado.",
       "busy.dismiss": "Descartar",
@@ -1225,7 +1219,7 @@
       "tour.clearMarkersTitle": "Borrar marcadores",
       "tour.clearMarkersBody": "Limpia los marcadores que colocó este plugin, si quieres empezar de nuevo en el mismo clip. Tus propios marcadores se quedan.",
       "tour.keyTitle": "Detectar tonalidad",
-      "tour.keyBody": "Elige Música o Efecto de sonido, y después Archivo completo o Clip seleccionado. El clip usa sus puntos de entrada y salida del original. El ajuste manual guarda una tonalidad conocida; Usar tonalidad detectada restaura el análisis.",
+      "tour.keyBody": "Elige Música o Efecto de sonido, y después Archivo completo o Clip seleccionado. El clip usa sus puntos de entrada y salida del original. Ajustar tonalidad del original guarda una tonalidad conocida; Usar tonalidad detectada restaura el análisis.",
       "tour.wheelTitle": "La rueda",
       "tour.wheelBody": "Un mapa visual de tonalidades musicales. Se iluminan la tonalidad calculada del clip seleccionado en la línea de tiempo y sus tonalidades compatibles.",
       "tour.compatibleTitle": "Combina bien con",

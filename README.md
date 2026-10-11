@@ -58,7 +58,7 @@
 > a time signature other than 4/4 (Downbeat assumes four beats to a bar;
 > **Bars + beats** is the safer choice there), or very short sounds. Press play on the click track and listen. If something
 > is off, fix it: half / double tempo, the beat that is the "1", **Shift**, or
-> set the key by hand (**Override**). The key of a sound effect is only a hint,
+> set the key by hand (**Source override**). The key of a sound effect is only a hint,
 > because many effects have no clear pitch. **Match clip** and **In key** give
 > you a shortlist to audition, not a promise that two sounds will blend.
 
@@ -214,14 +214,14 @@ shrinks to the sounds that fit it.
   it knows the sound-effect categories and their synonyms.
 - **Filters and shortcuts.** Filter by key (exact or compatible) and by BPM
   (a range, also half and double tempo), show only favorites (★) or only
-  pitched sounds, sort by match, name, length or tempo. ↑ ↓, Space and Enter
-  work without the mouse.
+  pitched sounds, sort by match, name, length or tempo. After a click on a
+  row, Space listens and Enter inserts.
 - **Folders you can scope.** Tick folders to search only those. Files that are
   not there any more are marked, not forgotten, and **Settings → Library →
   Save a copy / Load a copy** backs the whole library up. Music and SFX use
   separate, non-overlapping audio folders; a whole drive, card or network share
   can be added, the system disk cannot. Unreadable
-  folders retain records and favourites; Start scan retries failed files.
+  folders retain records and favorites; Start scan retries failed files.
 - **Preview in the panel** with play, loop, reverse and volume. Drag across the
   waveform to pick just a part of the sound, and drag the fade handles to add
   a fade in and a fade out.
@@ -384,7 +384,7 @@ Copying never removes markers from the source. Transfer
 uses audible offsets rather than absolute source time, preserves supported
 metadata in the same host, and skips starts outside the target clip. A duration
 can extend past the clip end. Changing the selection or timing during a host
-request refuses the operation before mutation.
+request refuses the operation before anything changes.
 </details>
 
 <details>
@@ -406,8 +406,8 @@ Any folder with audio files (WAV, AIFF, MP3, M4A, AAC, FLAC, OGG), added as
 Sound effects get no tempo; most of them have no pitch either, so they show
 "no clear pitch" and are skipped by a key search. Files your host cannot import
 (for example FLAC and OGG in Premiere Pro) can be scanned and previewed, but
-not inserted. Choose a folder inside a drive rather than its root, and keep
-Music and SFX folders separate. Start scan retries failed files. A folder that
+not inserted. A whole drive, memory card or network share can be added (not
+the system disk); keep Music and SFX folders separate. Start scan retries failed files. A folder that
 cannot be read keeps its saved records; Cancel stops queued work. If a file is
 replaced at the same path, its preview reloads before insertion.
 </details>
@@ -676,49 +676,57 @@ spaces), and `scripts/check-code.js` checks it before every build.
   for the next change. Delete my data in one host stays done in the other one,
   even after new data was saved there.
 
-### Metronome audio and destination
+### Metronome track
 
 **Analyze → Add metronome track** renders the current beat grid as a mono
-44.1 kHz WAV, with accented downbeats, and places it below the selected music.
-Trim, constant speed, the beat phase and grid adjustments are included.
-In Premiere, an unlocked audio track below the music must have room for the
-whole click track; add one if needed. The WAV remains available if insertion
-fails. Rendering is limited to 30 minutes.
+44.1 kHz WAV with accented downbeats and places it below the selected music.
+Trim, constant speed, the beat phase and grid adjustments are included. In
+Premiere, an unlocked audio track below the music needs room for the whole
+click track; add one if needed. The WAV stays on disk if the insert fails.
+Up to 30 minutes.
+
+### Where new audio goes
 
 **Settings → Finished audio** chooses Documents/Downbeat/processed,
-Downbeat/processed next to the saved project, or a custom folder. Settings,
-libraries and temporary analysis files stay in Documents/Downbeat. Existing
-audio is never overwritten; generated WAVs are kept when you delete panel data.
-Pitch and Reverse change host clip parameters and do not render audio copies.
+Downbeat/processed next to the saved project, or a folder of your own.
+Settings, libraries and temporary analysis files stay in Documents/Downbeat.
+Existing audio is never overwritten, and Delete my data keeps the WAVs it
+made. Pitch and Reverse are set on the clip; no audio copy is rendered.
 
-Cached analysis is invalidated when file size or modification time changes.
-Older entries without file identity require analysis again.
+### Key: source and timeline
 
-### Analysis controls
+- Detect key measures the source audio, for the whole file or only the
+  selected clip's in/out interval. **Source override** saves a key you know;
+  **Use detected key** brings the analysis back.
+- The main Key result, Camelot wheel, compatible keys, Match clip and In key
+  use the key the selected clip plays at, worked out from its speed: A minor
+  (8A) at +2 semitones plays as B minor (10A). Maintain audio pitch and pitch
+  effects are not taken into account.
+- Pitch the clip starts from the clip's current speed, so two +2-semitone
+  shifts give +4 (125.99%), and selects the new clip afterwards. If the
+  selection or speed changed before the click, check the new plan and click
+  again.
+- In Premiere the pitched clip is a separate item without Downbeat's clip
+  markers; your own markers and the original's stay. Analyze and place
+  markers on it again.
+- Results are tied to the file's size and date: replacing a file clears its
+  analysis and key overrides.
+- Long music tracks skip the chord pass when the profile vote and S-KEY
+  agree; the final key is the same.
 
-Key can analyze the whole source or the selected clip's source interval, with
-separate cached answers for trims. Key overrides are retained.
-Changed media invalidates saved results and key overrides using file
-size/modification time; unchanged attributes cannot reveal a change.
-Identical constrained BPM passes reuse the same decoded audio and limits.
-Long Music analyses skip the chord witness when profiles and S-KEY agree, using
-the same final-key decision; short clips and SFX keep the full pass. This reduces
-work on agreeing tracks rather than claiming an accuracy improvement.
+### Library and markers
+
+- A selected part of a Library sound is trimmed exactly on the inserted
+  Premiere clip; if the host refuses the trim, the insert is taken back.
+- Copied markers keep their place relative to what you hear, follow the
+  target's trim and speed, and keep comments and length within one host.
+- Music and SFX folders must not overlap. Start scan retries failed files,
+  folders that cannot be read keep their records, and a replaced file
+  reloads its preview.
 
 ### Tour and support
 
-Replay the tour covers the metronome, key scope/confirmations, pitch application, output folders and release-page updates. For support, reproduce the problem, then copy the current session log from Settings → Diagnostics and include steps and a screenshot. Copy log does not run tests or send data online; review local file paths before sharing.
-
-### Source key and timeline key
-
-Detect key measures source audio. Pitch the clip leaves the file unchanged; Source key therefore remains the detected source key, with the main timeline key calculated at the selected clip speed. For example, A minor (8A) at +2 semitones plays as B minor (10A). Audio effects and pitch-preserving stretch are not measured from the file.
-
-Pitch the clip selects the new clip/layer after a successful insert. If automatic selection cannot be confirmed, select the new clip manually before Detect key. Diagnostics records selected playback speed alongside source analysis.
-
-The main Key result, Camelot wheel, compatible keys, Match clip and In key use the selected clip's calculated playback key. Source key and manual source confirmations stay attached to the unchanged file or source interval. Pitch the clip starts from the current playback speed: a second +2-semitone shift after 112.25% gives 125.99%, rather than resetting to 112.25%. The calculator shows final clip speed and current-to-new BPM. If selection or speed changes before insertion, review the refreshed plan and click again. Between-semitone speeds have no exact Camelot target. The calculation assumes speed changes pitch; Maintain audio pitch and pitch effects are not measured.
-
-Pitch creates a separate media item in Premiere and removes Downbeat clip markers from the new copy. Editor markers and markers on the original remain intact; sequence/composition markers are unchanged. Analyze and place fresh beat markers for the pitched clip.
-
-Selected Library regions use exact source-time bounds on the inserted Premiere clip before fades and speed are applied; the insertion is read back and refused if trimming does not take.
-
-Marker transfers use offsets from the audible clip start, preserve comments and duration, and stay within the same host. Music and SFX folders must not overlap; a whole drive, card or share can be added, the system disk cannot. Scans retain records in unreadable folders and retry failed files; replaced audio reloads its preview.
+Replay the tour covers the metronome, key scope, Pitch the clip, the audio
+folder and updates. For support, copy the session log from **Settings →
+Diagnostics** and send it with the steps and a screenshot; the log has local
+file paths, so look through it first.

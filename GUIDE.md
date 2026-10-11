@@ -243,9 +243,8 @@ To find something:
 
 Best matches come first. The list shows the first 300 files, and **Show
 300 more** at the bottom adds the next ones; once you pick a key it shows
-every match (up to 3,000). On the Library tab the keyboard works too:
-**↑ ↓** choose a file, **Space** listens (while one plays, ↑ ↓ play the
-next), **Enter** inserts it. Click ▶ to listen. **Insert** (or a double-click
+every match (up to 3,000). Click a row to choose a file; **Space** then
+listens and **Enter** inserts it. Click ▶ to listen. **Insert** (or a double-click
 on the row) puts the file on the timeline at the playhead: in Premiere on
 the first audio track that is empty for the whole sound — nothing is
 overwritten; if there is no such track, it says so — and in After Effects
@@ -279,8 +278,8 @@ and stays in view while the list scrolls:
   note, a line under it says what the pitch turns it into ("Key: 8A A
   minor → 10A B minor");
 - **In key** — pitches every sound you listen to into the key of the music
-  selected clip (calculated from its saved source key and playback speed), so you browse with ↑
-  ↓ and already hear each sound in key; **Add** then places the file itself at
+  selected clip (calculated from its saved source key and playback speed), so every sound
+  you listen to is already in key; **Add** then places the file itself at
   that pitch. A sound goes the shortest way to the clip's key; a major sound
   on a minor song goes to the song's relative major (the same Camelot number,
   which mixes with it) — no pitch shift can turn major into minor. Sounds with
@@ -307,9 +306,8 @@ list grows with the panel (on a second monitor too), and only the list
 scrolls. When the panel is at least 900 px wide, the preview pane sits to
 the right of the list, with a taller waveform.
 
-**The keyboard** (↑ ↓ to choose, Space, Enter) works after any click on the
-Library tab except into the search or BPM fields — Premiere otherwise
-keeps those keys for its timeline.
+**The keyboard** (Space, Enter) works after a click on a row of the
+Library — not while you type in the search or BPM fields.
 
 The pane plays WAV (8 to 32-bit, 32/64-bit float) and AIFF / AIFF-C with
 the plugin's own reader, in stereo at their own sample rate. MP3, M4A /
@@ -499,11 +497,11 @@ Pitch and Reverse use host clip parameters and do not render audio copies.
 
 Logs include local file paths. Review the log before sharing it publicly.
 
-Saved track entries with invalid tempo or beat data keep usable key metadata, but their beat grid must be analyzed again. Library excerpt requests stay within the source file.
+Saved track entries with invalid tempo or beat data keep usable key metadata, but their beat grid must be analyzed again.
 
 Tempo correction belongs to the analysis that started it. If you select another clip or start a new analysis while a correction is running, its delayed result will not replace the current grid.
 
-Cached results are checked against file size and modification time. Replacing the file invalidates its results; old entries without file identity need a new analysis. Changes during analysis are rejected.
+Cached results are checked against file size and modification time. Replacing the file invalidates its results; results saved by an earlier version are kept and take the file's size and date on first use. Changes during analysis are rejected.
 
 ### Analysis scope and confirmed values
 
@@ -522,13 +520,11 @@ vote and S-KEY differ. Agreement guarantees the same final key under the voting
 rule, so that extra pass is skipped. The confidence line then describes two
 opinions, never three. Short clips and sound effects retain the full pass. A
 missing S-KEY or failed extra worker falls back to the full pass. This saves work
-on agreeing tracks; disagreeing tracks can take longer. It does not promise
-higher accuracy. Identical constrained BPM passes reuse their result only on
+on agreeing tracks; disagreeing tracks can take longer. Identical constrained BPM passes reuse their result only on
 the same decoded samples and tempo limits; failures are retried.
 
 **Pitch the clip** sits beside the semitone/cents/speed readout and wraps below
-it in a narrow panel. Settings actions share control spacing and separators;
-status text adds space only when there is a message.
+it in a narrow panel.
 
 ### Tour and support log
 

@@ -266,10 +266,9 @@ Para encontrar algo:
 
 Las mejores coincidencias van primero. La lista muestra los primeros 300
 archivos, y **Mostrar 300 más** abajo añade los siguientes; cuando eliges
-una tonalidad, muestra todas las coincidencias (hasta 3.000). En la
-pestaña Biblioteca también funciona el teclado: **↑ ↓** eligen un
-archivo, **Espacio** lo escucha (mientras suena uno, ↑ ↓ reproducen el
-siguiente), **Intro** lo inserta. Pulsa ▶ para escuchar. **Insertar** (o
+una tonalidad, muestra todas las coincidencias (hasta 3.000). Un clic en
+una fila elige el archivo; **Espacio** lo escucha e **Intro** lo inserta.
+Pulsa ▶ para escuchar. **Insertar** (o
 un doble clic en la fila) pone el archivo en la línea de tiempo en el
 cursor: en Premiere, en la primera pista de audio que esté libre durante
 todo el sonido —no se sobrescribe nada; si no hay una pista así, lo
@@ -309,8 +308,8 @@ y se queda a la vista mientras la lista se desplaza:
   menor»);
 - **En tono**: transpone cada sonido que escuchas a la tonalidad del clip
   de música seleccionado (según la tonalidad guardada del original
-  y la velocidad actual), así que recorres la lista con ↑ ↓ y ya oyes cada sonido en
-  tono; **Añadir** coloca entonces el propio archivo con ese tono. Un sonido va
+  y la velocidad actual), así que cada sonido que escuchas
+  ya suena en tono; **Añadir** coloca entonces el propio archivo con ese tono. Un sonido va
   por el camino más corto a la tonalidad del clip; un sonido mayor sobre
   una canción menor va a la relativa mayor de la canción (el mismo
   número Camelot, que combina con ella): ningún cambio de tono convierte
@@ -342,9 +341,9 @@ solo se desplaza la lista. Cuando el panel mide al menos 900 px de ancho,
 el panel de escucha se coloca a la derecha de la lista, con una forma de
 onda más alta.
 
-**El teclado** (↑ ↓ para elegir, Espacio, Intro) funciona después de
-cualquier clic en la pestaña Biblioteca, salvo en los campos de búsqueda
-o de BPM: si no, Premiere se queda esas teclas para su línea de tiempo.
+**El teclado** (Espacio, Intro) funciona después de un clic en una fila
+de la Biblioteca, pero no mientras escribes en los campos de búsqueda o
+de BPM.
 
 El panel reproduce WAV (de 8 a 32 bits, float de 32/64 bits) y AIFF /
 AIFF-C con el lector propio del plugin, en estéreo y a su propia
@@ -540,7 +539,7 @@ desbloqueada debajo de la música con espacio para todo el WAV; añade una
 si hace falta. La música sigue sonando. Si falla la inserción, se muestra
 la ruta del WAV guardado. El límite es de 30 minutos.
 
-**Ajustes → Archivos de audio terminados** permite elegir
+**Ajustes → Audio terminado** permite elegir
 Documentos/Downbeat/processed, Downbeat/processed junto al proyecto guardado
 o una carpeta personalizada. Guarda el proyecto antes de usar la segunda
 opción. Solo afecta a WAV nuevos: no mueve ni sobrescribe archivos. Los
@@ -550,11 +549,11 @@ del clip y no generan copias de audio.
 
 El registro incluye rutas locales. Revísalo antes de compartirlo públicamente.
 
-Si una pista guardada contiene un tempo o tiempos inválidos, conserva los datos válidos de tonalidad, pero hay que analizar de nuevo su rejilla de tiempos. Los fragmentos de análisis de la biblioteca permanecen dentro del archivo original.
+Si una pista guardada contiene un tempo o tiempos inválidos, conserva los datos válidos de tonalidad, pero hay que analizar de nuevo su rejilla de tiempos.
 
 La corrección de tempo pertenece al análisis que la inició. Si seleccionas otro clip o inicias un nuevo análisis mientras se ejecuta, el resultado tardío no sustituirá la cuadrícula actual.
 
-Los resultados guardados se comprueban por tamaño y fecha de modificación. Reemplazar el archivo invalida sus resultados; las entradas antiguas sin identidad requieren otro análisis. Los cambios durante el análisis descartan el resultado.
+Los resultados guardados se comprueban por tamaño y fecha de modificación. Reemplazar el archivo invalida sus resultados; los resultados guardados por una versión anterior se conservan y toman el tamaño y la fecha del archivo al usarse por primera vez. Los cambios durante el análisis descartan el resultado.
 
 ### Intervalo de análisis y valores confirmados
 
@@ -574,13 +573,11 @@ perfiles y S-KEY discrepan. Cuando coinciden, la regla garantiza la misma
 tonalidad final y se omite ese paso; la confianza describe dos opiniones, no
 tres. Los clips cortos y SFX conservan el análisis completo. Si falta S-KEY o
 falla el proceso adicional se vuelve al análisis completo. Las coincidencias
-ahorran trabajo; las discrepancias pueden tardar más. No se promete mayor
-precisión. Los pases de BPM idénticos se reutilizan solo con las mismas muestras
+ahorran trabajo; las discrepancias pueden tardar más. Los pases de BPM idénticos se reutilizan solo con las mismas muestras
 y límites de tempo; los errores se vuelven a intentar.
 
-**Cambiar tono del clip** aparece junto a semitonos, cents y velocidad; en un
-panel estrecho pasa debajo. Los botones de ajustes comparten espaciado y
-separadores; el estado ocupa espacio adicional solo cuando contiene texto.
+**Cambiar el tono del clip** aparece junto a semitonos, cents y velocidad; en un
+panel estrecho pasa debajo.
 
 ### Recorrido y registro para soporte
 

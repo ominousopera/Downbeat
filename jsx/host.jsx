@@ -170,10 +170,6 @@ function _pad2(n) {
     return (n < 10 ? "0" : "") + n;
 }
 
-// Returns a JSON string (evalScript can only carry strings): always
-// { ok, error, data }. ok=false + a populated error on every failure path -
-// never a silent no-op, per the plan's "always fail with a clear panel
-// message" rule.
 // References remain inside the host; the panel carries only a bounded token.
 var _dbSelectionRefs = {};
 var _dbSelectionSerial = 0;
@@ -281,10 +277,8 @@ function getSelectedAudioInfo() {
 // timeline without reading the names, and so Premiere's own Markers panel
 // (Window > Markers) can filter by color. Uses Marker.setColorByIndex().
 var LABEL_COLOR_INDEX = {
-    "D": 0,
-    // downbeat - Green
-    "b": 6
-// beat - Blue
+    "D": 0, // downbeat - Green
+    "b": 6 // beat - Blue
 };
 var LABEL_COMMENT = {
     "D": "Downbeat (start of a bar/strong beat) - the recommended cut point for a beat-synced edit.",
@@ -966,8 +960,7 @@ function _findItemInBinByPath(bin, mediaPath) {
         try {
             childPath = child.getMediaPath();
         } catch (e) {
-            childPath = null;
-        // bins and other items without media
+            childPath = null; // bins and other items without media
         }
         if (childPath && _dbSamePath(childPath, mediaPath)) {
             return child;
@@ -1450,13 +1443,6 @@ function retryEdgeFades(target, startSeconds, optsJson) {
     }
     return JSON.stringify(result);
 }
-// optsJson: { inSec, outSec, fadeInSec, fadeOutSec, transitionIn,
-// transitionOut, speed, reverse, atSeconds, muteSelected }. The original file
-// is inserted, trimmed to inSec..outSec of the source, with Premiere's own
-// transitions on its edges so the fades stay editable on the timeline.
-// Trimming goes through the project item's in / out points, which are cleared
-// again right after the insert so the bin item stays whole. Times in opts
-// are file seconds; speed / reverse are applied to the placed clip.
 // Validate the displayed pitch plan before importing or changing any clip.
 function _dbAssertPitchReference(reference) {
     var selection = JSON.parse(getSelectedAudioInfo());
@@ -1551,6 +1537,17 @@ function _dbItemMediaEnd(item) {
     return null;
 }
 
+// optsJson: { inSec, outSec, fadeInSec, fadeOutSec, transitionIn,
+// transitionOut, speed, reverse, atSeconds, muteSelected, underTrack,
+// selectInserted, pitchReference }. The original file is inserted, trimmed
+// to inSec..outSec of the source, with Premiere's own transitions on its
+// edges so the fades stay editable on the timeline. Trimming goes through
+// the project item's in / out points, which are cleared again right after
+// the insert so the bin item stays whole. Times in opts are file seconds;
+// speed / reverse are applied to the placed clip. underTrack: the first
+// audio track to try; selectInserted: select only the new clip afterwards;
+// pitchReference: the clip the pitch plan was made for, checked again before
+// anything changes. After Effects reads belowLayerIndex instead of underTrack.
 function insertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
     if (_dbIsAe()) {
         return dbAeInsertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson);
@@ -1597,8 +1594,7 @@ function insertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
         var reverse = !!(opts && opts.reverse);
         var sped = Math.abs(speed - 1) > 1e-6 || reverse;
         var sourceLength = length;
-        length = length / speed;
-        // on the timeline
+        length = length / speed; // on the timeline
         // The clip is first laid down at the file's own length and only then
         // re-sped (shorter when pitched up), so the track must be free for
         // the longer of the two or the insert would overwrite what follows.
@@ -1644,14 +1640,12 @@ function insertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
 
         if (trim) {
             try {
-                item.setInPoint(inSec, 4);
-                // 4 = every media type
+                item.setInPoint(inSec, 4); // 4 = every media type
                 if (outSec !== null) {
                     item.setOutPoint(outSec, 4);
                 }
             } catch (inOutErr) {
-                trim = false;
-            // checked below by the placed clip's length
+                trim = false; // checked below by the placed clip's length
             }
         }
         try {

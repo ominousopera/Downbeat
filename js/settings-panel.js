@@ -162,8 +162,7 @@
       while (i < lines.length) {
         var line = lines[i];
         if (!line.trim()) { i++; continue; }
-        if (/^\s*```/.test(line)) {
-          // fenced block (NOTICE.md's hash lists): shown as-is
+        if (/^\s*```/.test(line)) { // fenced block (NOTICE.md's hash lists): shown as-is
           var code = [];
           i++;
           while (i < lines.length && !/^\s*```/.test(lines[i])) {
@@ -189,8 +188,7 @@
           var first = true;
           while (i < lines.length && isTableRow(lines[i])) {
             var cells = lines[i].trim().replace(/^\||\|$/g, "").split("|");
-            if (!/^[\s:|-]+$/.test(lines[i])) {
-              // skip the |---| separator row
+            if (!/^[\s:|-]+$/.test(lines[i])) { // skip the |---| separator row
               var tr = document.createElement("tr");
               cells.forEach(function (c) {
                 var td = document.createElement(first ? "th" : "td");
@@ -237,8 +235,7 @@
     }
     document.getElementById("textViewerCloseBtn").addEventListener("click", _closeTextViewer);
     textViewerOverlay.addEventListener("click", function (evt) {
-      if (evt.target === textViewerOverlay) { _closeTextViewer(); }
-    // backdrop click only, not clicks inside the card
+      if (evt.target === textViewerOverlay) { _closeTextViewer(); } // backdrop click only, not clicks inside the card
     });
     function _showTextFileOrError(title, relativeName) {
       try {

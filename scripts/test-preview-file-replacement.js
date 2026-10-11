@@ -1,7 +1,9 @@
 "use strict";
 // Replace a loaded WAV and rescan through the real panel handlers.
+// Needs ffmpeg to make the test file; skips without it.
 const fs=require("fs"),path=require("path"),os=require("os"),assert=require("assert"),cp=require("child_process");
-const root=process.env.DOWNBEAT_ROOT || path.resolve(__dirname,".."),tmp=fs.mkdtempSync(path.join(os.tmpdir(),"downbeat-audit-preview-")),docs=path.join(tmp,"docs"),folder=path.join(tmp,"samples"),media=path.join(folder,"tone_Am.wav");
+try { cp.execFileSync("ffmpeg", ["-version"], { stdio: "ignore" }); } catch (e) { console.log("skip - needs ffmpeg"); process.exit(0); }
+const root=process.env.DOWNBEAT_ROOT || path.resolve(__dirname,".."),tmp=fs.mkdtempSync(path.join(os.tmpdir(),"downbeat-preview-replace-")),docs=path.join(tmp,"docs"),folder=path.join(tmp,"samples"),media=path.join(folder,"tone_Am.wav");
 fs.mkdirSync(path.join(docs,"Downbeat"),{recursive:true});fs.mkdirSync(folder);
 function tone(duration){cp.execFileSync("ffmpeg",["-v","error","-y","-f","lavfi","-i","sine=frequency=440:duration="+duration,"-ac","1",media]);}
 tone(1);fs.writeFileSync(path.join(docs,"Downbeat/settings.json"),JSON.stringify({language:"en",onboardingCompleted:true,librarySection:"sfx"}));

@@ -1,7 +1,7 @@
 "use strict";
 // Real Copy/Paste handlers and real Premiere adapter with isolated host data.
 const fs=require("fs"),path=require("path"),os=require("os"),assert=require("assert");
-const root=process.env.DOWNBEAT_ROOT || path.resolve(__dirname,".."),tmp=fs.mkdtempSync(path.join(os.tmpdir(),"downbeat-audit-copy-"));
+const root=process.env.DOWNBEAT_ROOT || path.resolve(__dirname,".."),tmp=fs.mkdtempSync(path.join(os.tmpdir(),"downbeat-transfer-"));
 fs.mkdirSync(path.join(tmp,"Downbeat"));fs.writeFileSync(path.join(tmp,"Downbeat/settings.json"),JSON.stringify({language:"en",onboardingCompleted:true}));
 const mocks=require("./host-mocks.js");
 const fake=mocks.makePremiereHost({mediaPath:"/source.wav",durationSec:4,clipStart:10});

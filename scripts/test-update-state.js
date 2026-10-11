@@ -1,5 +1,6 @@
 "use strict";
-// Manual checks do not enable background networking; legacy receipts are inert.
+// Manual checks do not enable background networking; an unknown
+// downloadedUpdate entry in settings is left untouched.
 const assert = require("assert");
 const fs = require("fs");
 const os = require("os");
@@ -49,6 +50,6 @@ UC.fetchLatest = function (cb) { requests++; answer = cb; };
     });
     assert.deepStrictEqual(settings().downloadedUpdate, oldReceipt);
     assert.strictEqual(fs.readFileSync(oldFile, "utf8"), "existing package");
-    console.log("ok - manual checks, disabled in-flight notices, release confirmation and inert legacy receipts");
+    console.log("ok - manual checks, disabled in-flight notices, release confirmation, unknown settings entries left alone");
   } finally { fs.rmSync(work, { recursive: true, force: true }); }
 })().catch(function (err) { console.error(err); process.exitCode = 1; });

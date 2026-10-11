@@ -39,12 +39,9 @@
     var beatClickToggleBtn = document.getElementById("beatClickToggleBtn");
     var beatClickTime = document.getElementById("beatClickTime");
     var beatClickEnableCheckbox = document.getElementById("beatClickEnableCheckbox");
-    var _beatClickTimes = [];
-    // current track's downbeat times, audio-local seconds
-    var _beatClickWaveformPeaks = null;
-    // Float32Array, one 0..1 peak per horizontal pixel
-    var _beatClickBandPeaks = null;
-    // { low, mid, high }, same shape, one per frequency band
+    var _beatClickTimes = []; // current track's downbeat times, audio-local seconds
+    var _beatClickWaveformPeaks = null; // Float32Array, one 0..1 peak per horizontal pixel
+    var _beatClickBandPeaks = null; // { low, mid, high }, same shape, one per frequency band
     // 1 = fit the whole track in view; higher = zoomed in.
     // _beatClickPanSeconds is the file time at the LEFT edge of the current
     // view; _beatClickVisibleWindow() clamps it into range.
@@ -56,18 +53,14 @@
     var BEAT_CLICK_DEFAULT_ZOOM = 5;
     var _beatClickAudioContext = null;
     var _beatClickSourceNode = null;
-    var _beatClickTrackGain = null;
-    // volume of the track itself, independent of the click
-    var _beatClickGain = null;
-    // volume of the synthesized click, independent of the track
-    var _beatClickBuffer = null;
-    // one short synthesized click, reused for every trigger
+    var _beatClickTrackGain = null; // volume of the track itself, independent of the click
+    var _beatClickGain = null; // volume of the synthesized click, independent of the track
+    var _beatClickBuffer = null; // one short synthesized click, reused for every trigger
     var _beatClickScheduleTimer = null;
     // Scheduled but not yet fired click nodes, so pause can cancel them (Web
     // Audio scheduling continues independently of the <audio> element).
     var _beatClickPendingNodes = [];
-    var _beatClickFiredKeys = {};
-    // beat time -> true, so a beat already triggered this playthrough isn't retriggered on the next scheduler tick
+    var _beatClickFiredKeys = {}; // beat time -> true, so a beat already triggered this playthrough isn't retriggered on the next scheduler tick
     var _beatClickAnimFrame = null;
     // A short, clean metronome click synthesized on the fly instead of a
     // bundled audio asset: a single fundamental with a touch of its 2nd
@@ -79,15 +72,12 @@
       var frameCount = Math.max(1, Math.floor(sampleRate * durationSeconds));
       var buffer = context.createBuffer(1, frameCount, sampleRate);
       var data = buffer.getChannelData(0);
-      var freq = 1500;
-      // a classic, clean, cut-through-a-mix click pitch
+      var freq = 1500; // a classic, clean, cut-through-a-mix click pitch
       for (var i = 0; i < frameCount; i++) {
         var t = i / sampleRate;
-        var envelope = Math.exp(-t * 300);
-        // fast, clean decay - silent well before the buffer ends, so no cutoff pop
+        var envelope = Math.exp(-t * 300); // fast, clean decay - silent well before the buffer ends, so no cutoff pop
         var fundamental = Math.sin(2 * Math.PI * freq * t);
-        var overtone = Math.sin(2 * Math.PI * freq * 2 * t) * 0.25;
-        // a little upper harmonic for definition, not a second distinct pitch
+        var overtone = Math.sin(2 * Math.PI * freq * 2 * t) * 0.25; // a little upper harmonic for definition, not a second distinct pitch
         data[i] = (fundamental + overtone) * envelope * 0.9;
       }
       return buffer;
@@ -132,16 +122,14 @@
       var high = new Float32Array(n);
       var dt = 1 / sampleRate;
       var rcLow = 1 / (2 * Math.PI * WAVEFORM_LOW_CUTOFF_HZ);
-      var alphaLow = dt / (rcLow + dt);
-      // one-pole low-pass
+      var alphaLow = dt / (rcLow + dt); // one-pole low-pass
       var lowPrev = 0;
       for (var i = 0; i < n; i++) {
         lowPrev = lowPrev + alphaLow * (samples[i] - lowPrev);
         low[i] = lowPrev;
       }
       var rcHigh = 1 / (2 * Math.PI * WAVEFORM_HIGH_CUTOFF_HZ);
-      var alphaHigh = rcHigh / (rcHigh + dt);
-      // one-pole high-pass
+      var alphaHigh = rcHigh / (rcHigh + dt); // one-pole high-pass
       var highPrev = 0;
       var xPrev = 0;
       for (var j = 0; j < n; j++) {
@@ -300,8 +288,7 @@
       newZoom = Math.max(BEAT_CLICK_ZOOM_MIN, Math.min(BEAT_CLICK_ZOOM_MAX, newZoom));
       if (anchorSeconds === undefined) {
         var win = _beatClickVisibleWindow();
-        anchorSeconds = win.start + win.duration / 2;
-      // keep the CENTER of the current view anchored when zooming via the buttons
+        anchorSeconds = win.start + win.duration / 2; // keep the CENTER of the current view anchored when zooming via the buttons
       }
       _beatClickZoom = newZoom;
       var newVisibleDuration = duration / _beatClickZoom;
@@ -334,8 +321,7 @@
         canvas.width = targetW;
         canvas.height = targetH;
         _rebuildBeatClickWaveformForView();
-        return;
-      // _rebuildBeatClickWaveformForView() already re-calls this function
+        return; // _rebuildBeatClickWaveformForView() already re-calls this function
       }
       var ctx2d = canvas.getContext("2d");
       ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -349,12 +335,9 @@
         var bands = _beatClickBandPeaks;
         var bandCount = Math.min(bands.low.length, Math.round(cssWidth));
         var bandColors = [
-          { arr: bands.low, color: "rgba(88, 140, 224, 0.55)" },
-          // low - blue
-          { arr: bands.mid, color: "rgba(224, 163, 57, 0.55)" },
-          // mid - amber
-          { arr: bands.high, color: "rgba(234, 231, 225, 0.5)" }
-        // high - bright cream
+          { arr: bands.low, color: "rgba(88, 140, 224, 0.55)" }, // low - blue
+          { arr: bands.mid, color: "rgba(224, 163, 57, 0.55)" }, // mid - amber
+          { arr: bands.high, color: "rgba(234, 231, 225, 0.5)" } // high - bright cream
         ];
         for (var bi = 0; bi < bandColors.length; bi++) {
           ctx2d.fillStyle = bandColors[bi].color;
@@ -368,8 +351,7 @@
         }
       } else if (_beatClickWaveformPeaks && _beatClickWaveformPeaks.length) {
         var mid = cssHeight / 2;
-        ctx2d.fillStyle = "rgba(224, 163, 57, 0.5)";
-        // accent color at reduced alpha
+        ctx2d.fillStyle = "rgba(224, 163, 57, 0.5)"; // accent color at reduced alpha
         var peaks = _beatClickWaveformPeaks;
         var barCount = Math.min(peaks.length, Math.round(cssWidth));
         for (var x2 = 0; x2 < barCount; x2++) {
@@ -380,13 +362,11 @@
       }
       var win = _beatClickVisibleWindow();
       if (win.duration > 0 && _beatClickTimes.length) {
-        ctx2d.fillStyle = "#ff9f2e";
-        // downbeat ticks in orange
+        ctx2d.fillStyle = "#ff9f2e"; // downbeat ticks in orange
         for (var i = 0; i < _beatClickTimes.length; i++) {
           var t = _beatClickTimes[i];
           if (t < win.start || t > win.end) {
-            continue;
-          // only draw ticks actually in the current view
+            continue; // only draw ticks actually in the current view
           }
           var tx = ((t - win.start) / win.duration) * cssWidth;
           ctx2d.fillRect(tx, 0, 1, cssHeight);
@@ -396,8 +376,7 @@
         var currentT = beatClickAudio.currentTime;
         if (currentT >= win.start && currentT <= win.end) {
           var px = ((currentT - win.start) / win.duration) * cssWidth;
-          ctx2d.fillStyle = "#e8e6e1";
-          // the playhead in white, distinct from the orange ticks
+          ctx2d.fillStyle = "#e8e6e1"; // the playhead in white, distinct from the orange ticks
           ctx2d.fillRect(Math.max(0, px - 1), 0, 2, cssHeight);
         }
       }
@@ -541,8 +520,7 @@
     }
     beatClickAudio.addEventListener("loadedmetadata", function () {
       beatClickTime.textContent = _formatPlayerTime(beatClickAudio.currentTime) + " / " + _formatPlayerTime(beatClickAudio.duration);
-      _rebuildBeatClickWaveformForView();
-    // the duration is known only now
+      _rebuildBeatClickWaveformForView(); // the duration is known only now
     });
     beatClickAudio.addEventListener("timeupdate", function () {
       beatClickTime.textContent = _formatPlayerTime(beatClickAudio.currentTime) + " / " + _formatPlayerTime(beatClickAudio.duration);
@@ -553,8 +531,7 @@
     beatClickAudio.addEventListener("play", function () {
       _ensureBeatClickAudioGraph();
       beatClickToggleBtn.textContent = "‖";
-      _beatClickFollow = true;
-      // Play always shows where it plays
+      _beatClickFollow = true; // Play always shows where it plays
       _startBeatClickScheduler();
       if (!_beatClickAnimFrame) {
         _beatClickAnimFrame = requestAnimationFrame(_beatClickAnimTick);
@@ -617,8 +594,7 @@
       retempoRow.style.display = (ctx.lastAnalysis() && ctx.lastAnalysis().beatsArray && ctx.lastAnalysis().beatsArray.length) ? "" : "none";
       _updateMusicVideoNote();
       if (!ctx.lastAnalysis() || !ctx.lastAnalysis().beatsArray || !ctx.lastAnalysis().beatsArray.length) {
-        _hideBeatClickPreview();
-        // also pauses and cancels scheduled clicks
+        _hideBeatClickPreview(); // also pauses and cancels scheduled clicks
         return;
       }
       if (!beatClickAudio.paused) {
@@ -631,8 +607,7 @@
       if (/\.aiff?$/i.test(previewPath)) {
         _loadAiffPlayback(previewPath, generation).then(function (aiff) {
           if (generation !== _beatClickPreviewGeneration || !ctx.lastAnalysis() || ctx.lastAnalysis().audioPath !== previewPath) {
-            return;
-          // another clip was selected meanwhile
+            return; // another clip was selected meanwhile
           }
           if (beatClickAudio.getAttribute("src") !== aiff.url) {
             beatClickAudio.src = aiff.url;
@@ -690,8 +665,7 @@
     // file the preview plays a WAV made in memory from the samples the panel
     // already decoded (mono, 16-bit, 44.1 kHz). It exists only for playback
     // and is never written to disk.
-    var _beatClickAiff = null;
-    // { path, url, samples }
+    var _beatClickAiff = null; // { path, url, samples }
     function _encodeWav16(samples, rate) {
       var n = samples.length;
       var buf = new ArrayBuffer(44 + n * 2);

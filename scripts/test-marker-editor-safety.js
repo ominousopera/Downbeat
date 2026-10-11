@@ -81,7 +81,7 @@ function comments(prop) {
   const mine = pp.clipMarkers.createMarker(3); mine.name = "Verse";
   const seqMine = pp.sequence.markers.createMarker(4); seqMine.name = "Scene";
   ph.run("createClipMarkers(" + arg([1, 2]) + "," + arg(["D", "b"]) + ", true)");
-  let r = JSON.parse(ph.run("getMarkersDataForSelectedClip(true)")); // an old caller asking to move
+  let r = JSON.parse(ph.run("getMarkersDataForSelectedClip(true)")); // the flag is ignored: Copy never removes
   check("Premiere Copy removes nothing, even when asked to move",
     r.ok && pp.clipMarkers.list.length === 3 && pp.sequence.markers.list.length === 1, JSON.stringify(r.data && { seq: r.data.sequenceMarkers.length, clip: r.data.clipMarkers.length }));
   r = JSON.parse(ph.run("clearMarkersForSelectedClip(false)"));

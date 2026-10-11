@@ -1,9 +1,10 @@
 "use strict";
 // Code checks run by build-zxp.sh before every build. Third-party files
 // (js/lib/, js/CSInterface.js, jsx/json2.js, scripts/vendor/) and the
-// generated js/ucs-data.js are left out. The panel makes no network calls: the
-// one exception is js/update-check.js (explicit checks and optional notices), which may use Node's https for this project's GitHub
-// release record only. Run: node scripts/check-code.js.
+// generated js/ucs-data.js are left out. The panel makes no network calls:
+// the one exception is js/update-check.js (explicit checks and optional
+// notices), which may use Node's https for this project's GitHub release
+// record only. Run: node scripts/check-code.js.
 const fs = require("fs");
 const path = require("path");
 const { execFileSync } = require("child_process");

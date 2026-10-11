@@ -2,7 +2,7 @@
 // Simulate ENOSPC at the production scan manifest write.
 const fs=require("fs"),os=require("os"),path=require("path"),assert=require("assert");
 const root=process.env.DOWNBEAT_ROOT || path.resolve(__dirname,"..");
-const tmp=fs.mkdtempSync(path.join(os.tmpdir(),"downbeat-audit-scan-")), docs=path.join(tmp,"docs"),folder=path.join(tmp,"samples");
+const tmp=fs.mkdtempSync(path.join(os.tmpdir(),"downbeat-scan-write-")), docs=path.join(tmp,"docs"),folder=path.join(tmp,"samples");
 fs.mkdirSync(path.join(docs,"Downbeat"),{recursive:true});fs.mkdirSync(folder);
 fs.writeFileSync(path.join(folder,"plain.wav"),"fixture");
 fs.writeFileSync(path.join(docs,"Downbeat/settings.json"),JSON.stringify({language:"en",onboardingCompleted:true}));
@@ -12,7 +12,7 @@ const panel=require("./panel-harness.js").bootPanel({docsDir:docs,realTimeouts:t
 const $=panel.registry, lib=window.BeatMarkerSoundLibrary, errors=[];
 process.on("unhandledRejection",err=>errors.push(String(err)));
 const originalWrite=fs.writeFileSync;
-fs.writeFileSync=function(file,...args){if(/library-\d+-\d+\.json$/.test(String(file)))throw Object.assign(Error("audit simulated disk full"),{code:"ENOSPC"});return originalWrite.call(fs,file,...args);};
+fs.writeFileSync=function(file,...args){if(/library-\d+-\d+\.json$/.test(String(file)))throw Object.assign(Error("simulated disk full"),{code:"ENOSPC"});return originalWrite.call(fs,file,...args);};
 lib.addFolder("music",folder);$.libRescanBtn._fire("click");
 setTimeout(()=>{
   assert.strictEqual(errors.length,0);assert.strictEqual($.libScanOverlay.hidden,true);

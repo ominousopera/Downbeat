@@ -55,8 +55,7 @@
   function _pathKind(fs, path) {
     var stat;
     try {
-      stat = fs.lstatSync(path);
-    // lstat: describes a symlink itself, never what it points to
+      stat = fs.lstatSync(path); // lstat: describes a symlink itself, never what it points to
     } catch (e) {
       if (e.code === "ENOENT") {
         return "missing";
@@ -103,8 +102,7 @@
     var names = fs.readdirSync(dataDir);
     for (var i = 0; i < names.length; i++) {
       if (names[i] === "tmp") {
-        continue;
-      // looked at on its own below
+        continue; // looked at on its own below
       }
       var full = dataDir + "/" + names[i];
       var ownData = ownDataNames.indexOf(names[i]) !== -1 || OWN_SET_ASIDE_PATTERN.test(names[i]);
@@ -127,8 +125,7 @@
         }
       }
     } else if (tmpKind !== "missing") {
-      listing.kept.push(tmpDir);
-    // a tmp that is a link or a file is not ours to look into
+      listing.kept.push(tmpDir); // a tmp that is a link or a file is not ours to look into
     }
     return listing;
   }
@@ -223,8 +220,8 @@
   // one host followed by a fresh save there gives the file a new
   // generation, which tells the other host its copy is gone - noticing
   // only that the file was missing is not enough when the deleting host
-  // saves again before the other one looks. Files from before generations
-  // count as "" and keep it.
+  // saves again before the other one looks. A file without a generation
+  // counts as "" and keeps it.
   var _gen = {}; // file path -> generation this panel last read or wrote
   function _forgetSync() {
     _synced = {};
@@ -439,7 +436,8 @@
   // (bpm, key, camelot, beatsArray, confidence, phase) is a property of the
   // audio file itself and safe to persist.
   // `meta` (optional): the track library's clear and removal times, saved
-  // as one extra element with an empty mediaPath - older versions skip it.
+  // as one extra element with an empty mediaPath - a reader that does not
+  // know it skips it.
   function save(csInterface, entries, meta) {
     try {
       if (!window.cep_node) {
