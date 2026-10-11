@@ -5,12 +5,11 @@
 <h1 align="center">Downbeat</h1>
 
 <p align="center">
-  All you need to speed up the sound design of your videos, in one plugin.<br>
-  Beat markers, musical key and a smart library of your own music and sound effects,
-  inside Premiere Pro and After Effects. Free and offline.
+  <b>All you need to speed up the sound design of your videos, in one plugin.</b>
 </p>
 
 <p align="center">
+  <a href="https://github.com/ominousopera/Downbeat/releases/latest"><img alt="latest release" src="https://img.shields.io/github/v/release/ominousopera/Downbeat?style=flat-square"></a>
   <img alt="license AGPL-3.0" src="https://img.shields.io/badge/license-AGPL--3.0-4c8bf5?style=flat-square">
   <img alt="Premiere Pro 2021+" src="https://img.shields.io/badge/Premiere%20Pro-2021%2B-9999ff?style=flat-square">
   <img alt="After Effects 2021+" src="https://img.shields.io/badge/After%20Effects-2021%2B-cf96fd?style=flat-square">
@@ -26,7 +25,8 @@
 </p>
 
 <p align="center">
-  <sub>User guide:
+  <sub>The analysis is an estimate: listen to the click track, and fix the tempo or the "1" in one click.<br>
+  User guide:
   <a href="GUIDE.md">English</a> &middot;
   <a href="GUIDE.ru.md">Russian</a> &middot;
   <a href="GUIDE.es.md">Spanish</a></sub>
@@ -35,32 +35,6 @@
 <p align="center">
   <img src="docs/images/hero-three-cards.png" alt="Downbeat: find the beat, match the key, find the sound" width="100%">
 </p>
-
-> [!NOTE]
-> **Downbeat works best in Premiere Pro.** It is built around Premiere Pro,
-> where every feature is available. After Effects 2021 and up is supported
-> with a smaller set:
->
-> - Markers go on whole video frames only: no sample-accurate **Exact** timing
->   and no **Shift**.
-> - Constant positive Time Stretch is supported for analysis and markers.
->   Reversed layers and Time Remap are refused.
-> - You cut at the markers by hand with **J / K** and **Split Layer**; there is
->   no Razor tool snapping to them.
-> - A marker keeps only its short label.
-> - Library sounds are added as a new layer; fades become volume keyframes,
->   and pitch and reverse are set through Time Stretch.
-
-> [!IMPORTANT]
-> **The analysis is automatic, so check it by ear.** Downbeat estimates the
-> tempo, beats, bars and key from the audio, and it can be wrong, especially
-> on tracks with a changing tempo, a weak or unusual beat, a long quiet intro,
-> a time signature other than 4/4 (Downbeat assumes four beats to a bar;
-> **Bars + beats** is the safer choice there), or very short sounds. Press play on the click track and listen. If something
-> is off, fix it: half / double tempo, the beat that is the "1", **Shift**, or
-> set the key by hand (**Source override**). The key of a sound effect is only a hint,
-> because many effects have no clear pitch. **Match clip** and **In key** give
-> you a shortlist to audition, not a promise that two sounds will blend.
 
 ## Why editors use it
 
@@ -94,21 +68,16 @@ so you can pick the ones that match, or pitch one into the key of the other.
 | **Finding a sound** | Search by file name, scroll folders, audition one by one | Search by key, tempo and category (type "swoosh", find your whooshes); **Match clip** shows only what fits |
 | **A riser or hit in the right key** | Pitch it in another tool, export, import again | Preview with pitch, reverse and fades, then insert |
 | **Getting it on the timeline** | Leave the app and drag files around | One click at the playhead, as your original file |
-| **Where it happens** | Several apps and windows | One plugin in Premiere Pro and After Effects |
 
 Free, offline and private: nothing is uploaded, and your original files are
 never changed.
 
 ## What it does
 
-<table>
-<tr>
-<td width="42%" valign="top">
-
-<img src="docs/images/analyze.png" alt="The Analyze tab: waveform with beat markers, 124 BPM, marker settings" width="100%">
-
-</td>
-<td valign="top">
+<p align="center">
+  <img src="docs/images/analyze.png" alt="The Analyze tab: waveform with beat markers, 124 BPM, marker settings" width="400">
+  <img src="docs/images/key.png" alt="The Key tab: Camelot wheel, detected key 8A, pitch shift of -5 semitones" width="400">
+</p>
 
 ### Analyze
 
@@ -117,6 +86,9 @@ and the Beat This! model, which runs locally) and puts markers
 where it hears them, so you can cut there; check them with the click track. Then Premiere does the rest: with snapping on
 (<kbd>S</kbd>), the Razor tool (<kbd>C</kbd>) snaps to the markers, so cutting
 to the beat takes minutes.
+
+Check it by ear: press play, listen to the click on every downbeat, and fix
+what is off. See [Known limits](#known-limits).
 
 - **Bars or Bars + beats.** One marker on the "1" of every bar for a calm,
   strong-beat edit, or on every beat, with each downbeat kept apart, for a fast
@@ -142,14 +114,6 @@ to the beat takes minutes.
 - **Add a metronome track.** Render the current grid as a WAV and insert it below
   the selected music; choose the finished-audio folder in Settings.
 
-</td>
-</tr>
-</table>
-
-<table>
-<tr>
-<td valign="top">
-
 ### Key
 
 Musical key in Camelot and note names. For music three analyses vote; for a
@@ -169,35 +133,16 @@ clip itself to another key, like a sampler. Your audio is never rewritten.
   give +4. The pitched clip starts without Downbeat's markers (analyze it
   again); your own markers and the original's stay.
 
-</td>
-<td width="42%" valign="top">
-
-<img src="docs/images/key.png" alt="The Key tab: Camelot wheel, detected key 8A, pitch shift of -5 semitones" width="100%">
-
-</td>
-</tr>
-</table>
-
 ### Library
 
 Your own music and sound effects, with the key of every file written right
 next to it. Pick the song you are cutting, press **Match clip**, and the list
 shrinks to the sounds that fit it.
 
-<table>
-<tr>
-<td width="50%" valign="top">
-
-<img src="docs/images/library-match.png" alt="The Library with Match clip on: only sounds in the song's key or a neighbouring one" width="100%">
-
-</td>
-<td width="50%" valign="top">
-
-<img src="docs/images/library-preview.png" alt="The Library preview: pitch a sound into the song's key, trim it, add fades" width="100%">
-
-</td>
-</tr>
-</table>
+<p align="center">
+  <img src="docs/images/library-match.png" alt="The Library with Match clip on: only sounds in the song's key or a neighbouring one" width="400">
+  <img src="docs/images/library-preview.png" alt="The Library preview: pitch a sound into the song's key, trim it, add fades" width="400">
+</p>
 
 - **Key and tempo on every file**, like `8A · A minor` or `124 BPM`, found
   when you scan your folders.
@@ -238,7 +183,44 @@ shrinks to the sounds that fit it.
   reverse are set on the clip, and no processed copy of your audio is ever
   written.
 
+## Install
+
+1. Download the `.zxp` for your system (`-mac` or `-win`) from the
+   [latest release](https://github.com/ominousopera/Downbeat/releases/latest).
+2. Drag it onto [ZXP Installer](https://aescripts.com/zxpinstaller/) (free),
+   restart Premiere Pro or After Effects, then open
+   `Window > Extensions > Downbeat`.
+
+Signed with a self-signed certificate: no Terminal commands and no
+`PlayerDebugMode`. Each package carries only its own platform's Node.js; the
+wrong one says so when you press Analyze. To remove Downbeat, use Remove in the
+ZXP installer. What changed in each version: [CHANGELOG.md](CHANGELOG.md).
+
+Build from source: see [DEVELOPMENT.md](DEVELOPMENT.md).
+
+<details>
+<summary><b>Privacy and security</b></summary>
+
+Everything runs on your computer. The panel makes no network calls except the
+explicit release checks and optional background notifications (off by
+default), and `scripts/check-code.js` fails the build if any other code that
+could is added. Saved data
+(settings, track library, temporary files) lives in `Documents/Downbeat`,
+never inside the plugin's own folder. Report a vulnerability privately through
+the repository's Security tab; see [`SECURITY.md`](SECURITY.md).
+</details>
+
 ## Known limits
+
+**The analysis is automatic, so check it by ear.** Downbeat estimates the
+tempo, beats, bars and key from the audio, and it can be wrong, especially
+on tracks with a changing tempo, a weak or unusual beat, a long quiet intro,
+a time signature other than 4/4 (see below), or very short sounds. Press play
+on the click track and listen. If something is off, fix it: half / double
+tempo, the beat that is the "1", **Shift**, or set the key by hand
+(**Source override**). The key of a sound effect is only a hint, because many
+effects have no clear pitch. **Match clip** and **In key** give you a
+shortlist to audition, not a promise that two sounds will blend.
 
 - **Time signature.** Downbeat assumes four beats to a bar. On a track that is
   not in 4/4 the bar markers can be wrong; use **Bars + beats** there.
@@ -252,8 +234,17 @@ shrinks to the sounds that fit it.
   MP4 / MOV; other formats need converting first. Files your host cannot import
   (for example FLAC and OGG in Premiere Pro) can be scanned and previewed in the
   Library, but not inserted.
-- **After Effects.** A smaller set of features, listed in the note at the top:
-  whole-frame markers, constant positive stretch, cutting by hand.
+- **After Effects.** Downbeat is built around Premiere Pro, where every feature
+  is available. After Effects 2021 and up has a smaller set:
+  - Markers go on whole video frames only: no sample-accurate **Exact** timing
+    and no **Shift**.
+  - Constant positive Time Stretch is supported for analysis and markers.
+    Reversed layers and Time Remap are refused.
+  - You cut at the markers by hand with **J / K** and **Split Layer**; there is
+    no Razor tool snapping to them.
+  - A marker keeps only its short label.
+  - Library sounds are added as a new layer; fades become volume keyframes,
+    and pitch and reverse are set through Time Stretch.
 
 ## FAQ
 
@@ -262,103 +253,53 @@ shrinks to the sounds that fit it.
 <details>
 <summary><b>Why cut on the beat, and why match the key?</b></summary>
 
-You feel a cut that is off the beat even if you can't say why. Land it on the
-beat and the clip just feels right. Miss by a few frames and it looks like a
-mistake.
-
-It also helps everything built on the cut: text hits, transitions and speed
-ramps all sit on the same beat. With markers you don't tap along and nudge
-every cut by eye.
-
-The beat is only half of a good cut. When you assemble cuts and sounds into one
-track, the notes have to fit too: pieces in different keys sound like separate
-clips, pieces in the same or a neighbouring key sound like one track. Downbeat
-marks the beat to cut on and shows the key to match, so you pick both.
-</details>
-
-<details>
-<summary><b>How do DJs mix tracks, and what can an editor take from that?</b></summary>
-
-A DJ lines up the tempo of two tracks and brings the new one in on the first
-beat of a bar, usually where a phrase starts (every 4, 8 or 16 bars). They also
-pick songs in the same or a neighbouring key, so the two don't fight each
-other.
-
-Do the same when you crossfade music in an edit: start the next track on a bar
-marker, check that the tempos are close, and pick a key that fits. Downbeat
-shows you the tempo, the bar markers and the key.
-</details>
-
-<details>
-<summary><b>Why use sound effects that are in key?</b></summary>
-
-A lot of effects have a pitch: risers, booms, stingers, drones; even a deep
-impact can carry a note. An effect can be right on the beat and still sound
-wrong: if its note doesn't fit the key of the music, you hear that something
-is off, even if you can't tell what. In key, the effect sits inside the track
-instead of on top of it.
-
-The Library shows the key of every tonal effect, can show only the ones that
-fit your song (**Match clip**), and can pitch an effect into its key
-(**In key**). Noise-like sounds, such as most whooshes, footsteps, wind or
-rain, have no clear note: Downbeat tells them apart and shows "no clear
-pitch" instead of a made-up key.
+A cut off the beat feels wrong even when you can't say why; on the beat, the
+clip just feels right. The notes have to fit too: pieces in the same or a
+neighbouring key sound like one track. Downbeat marks the beat and shows the
+key, so you can pick both.
 </details>
 
 <details>
 <summary><b>How do I cut music so the edit can't be heard?</b></summary>
 
-Five rules that work for most songs:
+Stay on the beat, cut on a downbeat, keep the phrases (often 4, 8 or 16 bars),
+use a riser or fill the song already has for a fade, and add a very short
+crossfade so the join doesn't click. Downbeat's markers and click track help
+with the first three.
+</details>
 
-1. **Stay on the beat.** When you join two parts of the same song, keep both
-   on the beat. Even a small shift is heard.
-2. **Cut on a downbeat.** A cut on the "1" of a bar usually sounds the most
-   natural. Take it as a guide, not a strict rule.
-3. **Keep the phrases.** Music is not just beats: it is built of phrases, in
-   many modern songs 4, 8 or 16 bars long. A cut in the middle of a phrase
-   sounds wrong even on the beat; cut where one phrase ends and the next
-   begins.
-4. **Use fades.** Many songs already have a riser or a fill before a new
-   part, and a fade over it hides the join.
-5. **Add a short crossfade.** Two parts that are perfectly on the beat can
-   still click where they meet, because the waveform jumps from one level to
-   another. A very short crossfade removes the click.
+<details>
+<summary><b>How do DJs mix tracks, and what can an editor take from that?</b></summary>
 
-Downbeat helps with the first three: markers on every bar or beat, a click
-track to check them by ear, and bar markers to count phrases. In Premiere Pro,
-turn on **Show Audio Time Units** in the Timeline panel menu and choose
-**Timing → Exact**: the cut can then fall between video frames, right on the
-beat.
+A DJ matches the tempo of two tracks, brings the new one in on the first beat
+of a bar where a phrase starts, and picks a key that fits. Do the same when you
+join music in an edit: Downbeat shows the tempo, the bar markers and the key.
 </details>
 
 <details>
 <summary><b>How do I join two different songs?</b></summary>
 
-Sometimes one song can't carry the whole video, for example a calm intro and
-then an energetic part. Finding two good songs is not enough; they have to
-sound good together. Check two things:
+Check the tempo and the key: close tempos keep the pulse, and the same or a
+neighbouring key on the Camelot wheel blends. Analyze and Detect key give you
+both; for your own music, **Library → Match clip** lists the tracks that fit.
+Phrases and mood still matter.
+</details>
 
-- **Tempo (BPM).** Close tempos keep the pulse going across the join.
-  Analyze gives you the BPM of each song.
-- **Key.** Songs in the same key, or in a neighbouring key on the Camelot
-  wheel, blend; others can clash. Detect key shows the key and the keys that
-  go with it, so you have more choices than one exact key.
+<details>
+<summary><b>Why use sound effects that are in key?</b></summary>
 
-Stock music sites often list the key and BPM. For your own music, add the
-folder to the **Library**, select the song you are cutting and press
-**Match clip** to see the tracks that fit. Matching BPM and key does not
-promise a perfect join: phrases, mood and arrangement still matter, and the
-five rules above still apply.
+Risers, booms, stingers and drones carry a note. If it doesn't fit the key of
+the music, the effect sounds off even on the beat. The Library shows the key of
+every tonal effect, lists the ones that fit (**Match clip**) and can pitch one
+into the key (**In key**).
 </details>
 
 <details>
 <summary><b>Why do I need a plugin for this?</b></summary>
 
-Tempo, bars, key, finding the right sound: most editors do it by ear, by
-tapping along, or in separate apps, and it eats time.
-
-Downbeat does it in one plugin, so the time goes into the edit. And you don't
-need any music theory.
+Most editors find the tempo, the bars, the key and the right sound by ear, by
+tapping along or in separate apps, and it eats time. Downbeat does it in one
+plugin, and you don't need any music theory.
 </details>
 
 ### Using Downbeat
@@ -411,7 +352,7 @@ analysis window and no S-KEY, which is trained on music).
 key and, for music, the tempo, and it decides whether a sound effect has a clear
 pitch at all. A key or tempo written in the file name is used as it is.
 
-The result is an estimate, not a measurement: see "check it by ear" above. The
+The result is an estimate, not a measurement: see [Known limits](#known-limits). The
 components and their licenses are listed in [`NOTICE.md`](NOTICE.md).
 </details>
 
@@ -511,46 +452,6 @@ timeline and the panel can decode: WAV, AIFF, MP3, M4A / AAC, and the audio of
 MP4 / MOV.
 </details>
 
-## Install
-
-1. Download the package for your computer from
-   [Releases](https://github.com/ominousopera/Downbeat/releases/latest):
-   `Downbeat-1.0.4-mac.zxp` or `Downbeat-1.0.4-win.zxp`.
-2. Drag it onto [ZXP Installer](https://aescripts.com/zxpinstaller/) (free),
-   restart Premiere Pro or After Effects, then open
-   `Window > Extensions > Downbeat`.
-
-Signed with a self-signed certificate: no Terminal commands and no
-`PlayerDebugMode`. Each package carries only its own platform's Node.js; the
-wrong one says so when you press Analyze.
-
-<details>
-<summary><b>Build from source</b></summary>
-
-```sh
-git clone https://github.com/ominousopera/Downbeat.git
-cd Downbeat
-scripts/fetch-node-runtime.sh        # Node.js for macOS and Windows, SHA-256 checked
-scripts/fetch-beatthis-runtime.sh    # onnxruntime-web by its committed lockfile
-scripts/build-zxp.sh                 # needs Adobe's ZXPSignCmd, see below
-```
-
-Details, the checks that run before a build and the code layout are in the
-developer sections further down this page.
-</details>
-
-<details>
-<summary><b>Privacy and security</b></summary>
-
-Everything runs on your computer. The panel makes no network calls except the
-explicit release checks and optional background notifications (off by
-default), and `scripts/check-code.js` fails the build if any other code that
-could is added. Saved data
-(settings, track library, temporary files) lives in `Documents/Downbeat`,
-never inside the plugin's own folder. Report a vulnerability privately through
-the repository's Security tab; see [`SECURITY.md`](SECURITY.md).
-</details>
-
 ## Thanks
 
 Special thanks to **Ilya Rogulev**, who tested Downbeat on Windows and
@@ -566,244 +467,10 @@ make the plugin better.
 AGPL-3.0, see [`LICENSE`](LICENSE). Third-party components:
 [`NOTICE.md`](NOTICE.md). Guide: [English](GUIDE.md) ·
 [Russian](GUIDE.ru.md) · [Spanish](GUIDE.es.md). Contributing:
-[`CONTRIBUTING.md`](CONTRIBUTING.md).
+[`CONTRIBUTING.md`](CONTRIBUTING.md). Development: [`DEVELOPMENT.md`](DEVELOPMENT.md).
 
 Built with the help of Claude Code.
 
 ---
 
-## For developers
-
-## Dev install (symlink) — the only case that needs PlayerDebugMode
-
-For iterating on code, where every save should show up on the next panel
-reload without a rebuild:
-
-```sh
-scripts/dev-install.sh
-```
-
-It symlinks this folder into Premiere's extensions folder and sets
-`PlayerDebugMode=1` for CSXS 9-12 (idempotent). A source folder has no
-signature, and `PlayerDebugMode` is what lets CEP load an unsigned one. It
-does that for every unsigned extension on the machine, so don't leave it
-on for a shared computer. `scripts/dev-uninstall.sh` removes the symlink
-only, never a real directory.
-
-**Don't have both at once.** A ZXP installer's Remove only removes the
-copy it installed; a symlink keeps loading regardless. `build-zxp.sh`
-refuses to run while the dev symlink exists.
-
-Attach Chrome DevTools: create a file named `.debug` in the extension
-folder (see Adobe's CEP documentation for the format; it is a
-developer-local file and is not in the repository), and with the panel
-open go to `http://localhost:<port>`.
-
-## Build a release
-
-```sh
-scripts/dev-uninstall.sh   # only if the dev symlink is currently active
-scripts/build-zxp.sh
-```
-
-Bump `ExtensionBundleVersion` in `CSXS/manifest.xml` first. The script refuses
-to overwrite an existing version, because some installers silently skip a
-reinstall with an unchanged version string. Output goes to `zxp-build/` next
-to the repository (the script creates it): `Downbeat-<version>-mac.zxp` and
-`Downbeat-<version>-win.zxp`, each with only its own platform's Node.js.
-
-The build scripts are `sh` and run on macOS; the Windows package is built
-there too (it only swaps in the Windows Node.js). The checks use `git ls-files`,
-so work in a git clone, not an unzipped archive.
-
-From a fresh clone, once:
-
-```sh
-scripts/fetch-node-runtime.sh       # Node.js 24.18.0 for macOS (arm64, x64) and Windows x64, SHA-256 checked
-scripts/fetch-beatthis-runtime.sh   # onnxruntime-web 1.27.0 by its committed lockfile (models/ is in the repository)
-```
-
-Signing needs Adobe's `ZXPSignCmd` (Adobe's CEP resources, or the
-`vite-cep-plugin` npm package): put its path in `scripts/build.local.sh`
-as `ZXPSIGNCMD="..."` (not in git), or in the `ZXPSIGNCMD` environment
-variable, or on the PATH. The first build makes a self-signed certificate
-in `zxp-build/` with a random password kept next to it.
-
-Before packaging, the script refuses to build if any of these fail
-(a pre-build gate):
-
-- manifest is not well-formed XML;
-- `index.html` points at a missing file;
-- a script looks up an element id that does not exist
-  (`scripts/check-dom-ids.py`);
-- any panel script, worker or ExtendScript file does not parse;
-- the panel does not finish booting, or Delete my data touches anything
-  that is not its own, or booting writes into the extension folder
-  (`scripts/test-panel-boot.js`);
-- the delete code can be tricked into touching anything outside its own
-  files (`scripts/test-delete-safety.js`);
-- the host scripts misbehave on mock hosts (`scripts/host-mocks.js`):
-  After Effects functions, Library insert, and placing / clearing markers
-  touching anything but Downbeat's own (`test-host-ae.js`,
-  `test-host-insert.js`, `test-marker-replace.js`);
-- the pitch calculator and Beat This!'s doubled-beat merge drift
-  (`test-pitch.js`, `test-beat-merge.js`);
-- the real workers under the bundled Node fail end to end: worker smoke,
-  a real-track Analyze through the panel, and the Library (scan, search,
-  insert, decode queue, S-KEY music keys, the SFX pitch check, file-name
-  tags, the WAV/AIFF reader) - `test-worker-smoke.js`,
-  `test-analyze-pipeline.js`, `test-library-*.js`, `test-sfx-pitch-gate.js`,
-  `test-name-tags.js`, `test-wav-excerpt.js`. The ones that need ffmpeg or
-  the local test tracks skip without them;
-- the staged package contains symlinks or a `data/` folder.
-
-The full self-test in mock Premiere and After Effects
-(`scripts/test-self-test.js`) is slow; run it by hand after
-touching marker placement, cutting or the host scripts.
-
-After signing, it verifies the signature of each finished `.zxp` and of
-an unpacked copy with `ZXPSignCmd -verify`, and compares the package with
-the staged files byte for byte. Release packages are built with
-`STRIP_COMMENTS=1`, which removes the code comments
-(`scripts/strip-comments.js`, checked token by token by a second parser,
-then the main tests run again on that copy); the full source, with its
-comments, is this repository.
-
-The bundled runtimes are fetched once, manually, by the two scripts above
-(pinned versions, hash-checked), never automatically. The plugin itself
-goes online only for a requested release check or optional periodic
-update notices. Analysis and Library stay offline.
-
-## Uninstall
-
-A ZXP install: remove it in the ZXP installer, or run
-`scripts/uninstall-zxp.sh`. That script checks the folder really is
-`com.downbeat.pro` before removing anything. Neither of them touches
-Documents/Downbeat; use Delete my data in the panel first if the data
-should go too.
-
-## How the code is organized
-
-| Where | What |
-|---|---|
-| `CSXS/manifest.xml` | the CEP manifest (CSXS 11, so Premiere Pro and After Effects 2021+; Node on) |
-| `index.html`, `css/style.css` | the panel's markup and its one stylesheet |
-| `js/main.js` | starts the panel; Analyze and Key tabs; selection poll; shared state |
-| `js/bridge.js` | calls into the host scripts and runs the analysis workers |
-| `js/library-tab.js` | the Library tab: folders, scan, search, list, preview pane, In key |
-| `js/settings-panel.js` | settings, diagnostics, Guide / licenses viewer, Delete my data |
-| `js/beat-preview.js` | the Analyze tab's waveform player with the downbeat click |
-| `js/self-test.js` | the full self-test used by `scripts/test-self-test.js` (hidden in the UI) |
-| `js/analyze.js`, `js/cuesheet.js`, `js/place.js` | analysis results -> marker times -> placement |
-| `js/analysis-cache.js` | reuse of identical tempo passes on the same decoded audio |
-| `js/metronome.js`, `js/audio-output.js` | the metronome track; where finished audio is written, never over an existing file |
-| `js/update-check.js` | the opt-in release check, the panel's only network code |
-| `js/sound-library.js`, `js/sfx-search.js`, `js/ucs-data.js` | Music / SFX library data and search (UCS) |
-| `js/lib-preview.js`, `js/audio.js` | the preview player, pitch / reverse / fades, decoding |
-| `js/camelot.js`, `js/pitch.js`, `js/key-combine.js`, `js/wheel.js` | keys, Camelot wheel, pitch calculator |
-| `js/i18n.js`, `js/tour.js`, `js/ui-select.js` | languages, the first-run tour, drawn dropdowns |
-| `js/persistence.js`, `js/library.js` | saved data, the analyzed-clips list |
-| `jsx/host.jsx`, `jsx/host-ae.jsx` | ExtendScript run by Premiere Pro / After Effects: markers, inserts, fades |
-| `worker/` | Node processes: essentia (tempo, beats, key), Beat This!, S-KEY, WAV / AIFF reader |
-| `models/` | the ONNX models (Beat This!, its mel spectrogram, S-KEY) |
-| `scripts/` | build, fetch, checks (`check-code.js`, `check-dom-ids.py`) and tests (`test-*.js`) |
-
-Every script opens with a comment saying what it is for. Formatting
-follows `.editorconfig` (2 spaces, 4 in the host scripts, LF, no trailing
-spaces), and `scripts/check-code.js` checks it before every build.
-
-## Version
-
-1.0.4.
-
-## Changes in 1.0.4
-
-### Saved data and markers
-
-- Data files are written as a new copy and swapped in, so an interrupted
-  save keeps the previous version. A file that still cannot be read is kept
-  as `<name>.unreadable-<date>-<time>.json`, reported on the Library tab and
-  never saved over.
-- Premiere Pro and After Effects can run Downbeat together: each panel takes
-  in the other's newer saves (favorites, confirmations, folders, settings)
-  instead of overwriting them, and the start-up clean-up removes only
-  temporary files older than six hours.
-- Settings → Clear empties the whole library (folders, scanned sounds,
-  favorites, analyzed clips) and asks to reopen the panel; audio files on
-  disk are never touched.
-- The Library's Key/BPM confirmation panel and the "move markers" option are
-  gone: copying markers never removes anything.
-- After Effects: placing or pasting markers leaves your own marker where a
-  beat falls on the same moment. Premiere: placing again on a re-sped clip
-  replaces the whole earlier set.
-- Enter in the Library inserts a sound once, however long it is held.
-- A Library insert in Premiere checks the free space for the file's real
-  length, also for a sound whose key and tempo come from its name; when the
-  length is unknown nothing is placed.
-- Analyzed songs on a disconnected drive are kept until it is back, and
-  analyses saved by earlier versions survive the update.
-- Pasting markers onto the same song in another sequence adds no second set;
-  After Effects inserts a video file's sound without its picture; Russian and
-  Spanish words to leave out work in the Library search.
-- Placing timeline markers on one use of a song keeps the markers of its
-  other uses in the same sequence or composition. Pasting keeps markers that
-  differ only in length.
-- A data file that briefly cannot be read (a network or cloud Documents
-  folder) is never taken as deleted: nothing is cleared, and that save waits
-  for the next change. Delete my data in one host stays done in the other one,
-  even after new data was saved there.
-
-### Metronome track
-
-**Analyze → Add metronome track** renders the current beat grid as a mono
-44.1 kHz WAV with accented downbeats and places it below the selected music.
-Trim, constant speed, the beat phase and grid adjustments are included. In
-Premiere, an unlocked audio track below the music needs room for the whole
-click track; add one if needed. The WAV stays on disk if the insert fails.
-Up to 30 minutes.
-
-### Where new audio goes
-
-**Settings → Finished audio** chooses Documents/Downbeat/processed,
-Downbeat/processed next to the saved project, or a folder of your own.
-Settings, libraries and temporary analysis files stay in Documents/Downbeat.
-Existing audio is never overwritten, and Delete my data keeps the WAVs it
-made. Pitch and Reverse are set on the clip; no audio copy is rendered.
-
-### Key: source and timeline
-
-- Detect key measures the source audio, for the whole file or only the
-  selected clip's in/out interval. **Source override** saves a key you know;
-  **Use detected key** brings the analysis back.
-- The main Key result, Camelot wheel, compatible keys, Match clip and In key
-  use the key the selected clip plays at, worked out from its speed: A minor
-  (8A) at +2 semitones plays as B minor (10A). Maintain audio pitch and pitch
-  effects are not taken into account.
-- Pitch the clip starts from the clip's current speed, so two +2-semitone
-  shifts give +4 (125.99%), and selects the new clip afterwards. If the
-  selection or speed changed before the click, check the new plan and click
-  again.
-- In Premiere the pitched clip is a separate item without Downbeat's clip
-  markers; your own markers and the original's stay. Analyze and place
-  markers on it again.
-- Results are tied to the file's size and date: replacing a file clears its
-  analysis and key overrides.
-- Long music tracks skip the chord pass when the profile vote and S-KEY
-  agree; the final key is the same.
-
-### Library and markers
-
-- A selected part of a Library sound is trimmed exactly on the inserted
-  Premiere clip; if the host refuses the trim, the insert is taken back.
-- Copied markers keep their place relative to what you hear, follow the
-  target's trim and speed, and keep comments and length within one host.
-- Music and SFX folders must not overlap. Start scan retries failed files,
-  folders that cannot be read keep their records, and a replaced file
-  reloads its preview.
-
-### Tour and support
-
-Replay the tour covers the metronome, key scope, Pitch the clip, the audio
-folder and updates. For support, copy the session log from **Settings →
-Diagnostics** and send it with the steps and a screenshot; the log has local
-file paths, so look through it first.
+If Downbeat saves you time, a star helps other editors find it.

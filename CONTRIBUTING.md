@@ -10,7 +10,7 @@ Review the log for local file paths before posting it publicly.
 
 **Before a pull request**
 
-- Read `README.md` ("How the code is organized") and keep to the existing
+- Read `DEVELOPMENT.md` ("How the code is organized") and keep to the existing
   style: `.editorconfig`, a header comment at the top of every script, plain
   scripts (no bundler, no build step for the panel itself).
 - Run `node scripts/check-code.js`, `python3 scripts/check-dom-ids.py` and the
