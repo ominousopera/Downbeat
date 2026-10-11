@@ -143,14 +143,35 @@ function _dbAeMarkerValue(label) {
 // three, read back - the panel logs it like Premiere's (main.js
 // _logStoredMarkerTimes), which shows whether After Effects keeps a time
 // between two frames or moves it to a frame.
+// A Marker property holds one key per time, so writing where an editor's
+// own marker already sits would replace it. Such a beat is left out and
+// counted in `kept`; a Downbeat marker at that time is still rewritten, so
+// re-placing stays a replacement.
+function _dbAeForeignMarkerAt(markerProp, t) {
+    if (!markerProp.numKeys) {
+        return false;
+    }
+    var k = markerProp.nearestKeyIndex(t);
+    if (Math.abs(markerProp.keyTime(k) - t) > 0.00001) {
+        return false;
+    }
+    var v = markerProp.keyValue(k);
+    return !(v && AE_LABEL_COLOR_INDEX.hasOwnProperty(v.comment));
+}
+
 function _dbAeAddMarkers(markerProp, compTimes, labels, minTime, maxTime) {
     var created = 0;
     var skipped = 0;
+    var kept = 0;
     var stored = [];
     for (var i = 0; i < compTimes.length; i++) {
         var t = compTimes[i];
         if (typeof t !== "number" || isNaN(t) || t < minTime - 0.0005 || t > maxTime + 0.0005) {
             skipped++;
+            continue;
+        }
+        if (_dbAeForeignMarkerAt(markerProp, t)) {
+            kept++;
             continue;
         }
         try {
@@ -168,7 +189,7 @@ function _dbAeAddMarkers(markerProp, compTimes, labels, minTime, maxTime) {
             }
         }
     }
-    return { created: created, skipped: skipped, stored: stored };
+    return { created: created, skipped: skipped, kept: kept, stored: stored };
 }
 function _dbAeWithUndo(name, fn) {
     app.beginUndoGroup(name);
@@ -187,6 +208,7 @@ function dbAeGetSelectedAudioInfo() {
         var layer = _dbAeSelectedAudioLayerOrThrow(comp);
         return {
             mediaPath: layer.source.file.fsName,
+            selectionToken: _dbRememberSelection(comp, layer, layer.source),
             clipStartSeconds: layer.inPoint,
             inPointSeconds: (layer.inPoint - layer.startTime) * 100 / layer.stretch,
             outPointSeconds: (layer.outPoint - layer.startTime) * 100 / layer.stretch,
@@ -219,8 +241,9 @@ function _dbAeRemoveOwnAroundLayer(comp, layer) {
     }
     return removed;
 }
-function dbAeCreateClipMarkers(secondsJsonArray, labelsJsonArray, replaceOwn) {
+function dbAeCreateClipMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJson) {
     return _dbAeResult(function () {
+        _dbValidateSelection(referenceJson);
         var comp = _dbAeActiveCompOrThrow();
         var layer = _dbAeSelectedAudioLayerOrThrow(comp);
         var times = _dbAeParseArray(secondsJsonArray, "createClipMarkers");
@@ -236,12 +259,13 @@ function dbAeCreateClipMarkers(secondsJsonArray, labelsJsonArray, replaceOwn) {
             }
             return _dbAeAddMarkers(layer.property("Marker"), compTimes, labels, layer.inPoint, layer.outPoint);
         });
-        return { requested: times.length, created: r.created, skipped: r.skipped, replaced: replaced, stored: r.stored };
+        return { requested: times.length, created: r.created, skipped: r.skipped, kept: r.kept, replaced: replaced, stored: r.stored };
     });
 }
 // Comp times, like Premiere's sequence markers.
-function dbAeCreateMarkers(secondsJsonArray, labelsJsonArray, replaceOwn) {
+function dbAeCreateMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJson) {
     return _dbAeResult(function () {
+        _dbValidateSelection(referenceJson);
         var comp = _dbAeActiveCompOrThrow();
         var times = _dbAeParseArray(secondsJsonArray, "createMarkers");
         var labels = _dbAeParseLabels(labelsJsonArray);
@@ -256,7 +280,7 @@ function dbAeCreateMarkers(secondsJsonArray, labelsJsonArray, replaceOwn) {
             }
             return _dbAeAddMarkers(comp.markerProperty, times, labels, 0, comp.duration);
         });
-        return { requested: times.length, created: r.created, skipped: r.skipped, replaced: replaced, stored: r.stored };
+        return { requested: times.length, created: r.created, skipped: r.skipped, kept: r.kept, replaced: replaced, stored: r.stored };
     });
 }
 // Splits the layer at one comp time the way Edit > Split Layer does: the
@@ -285,8 +309,9 @@ function _dbAeReselect(layer) {
     // same as above
     }
 }
-function dbAeRazorAtManySeconds(secondsJsonArray) {
+function dbAeRazorAtManySeconds(secondsJsonArray, referenceJson) {
     return _dbAeResult(function () {
+        _dbValidateSelection(referenceJson);
         var comp = _dbAeActiveCompOrThrow();
         var layer = _dbAeSelectedAudioLayerOrThrow(comp);
         var times = _dbAeParseArray(secondsJsonArray, "razorAtManySeconds");
@@ -422,30 +447,93 @@ function dbAeCountOwnMarkersForSelectedClip() {
         return { count: count };
     });
 }
+
+// Copy and paste preserve MarkerValue metadata and heard offsets.
+var _dbAeTransferFields = ["comment", "chapter", "cuePointName", "eventCuePoint", "url", "frameTarget", "label", "protectedRegion"];
+function _dbAeTransferData(value, offset) {
+    var m = { localSeconds: offset, label: value.comment || "", duration: Number(value.duration) || 0, fields: {} };
+    for (var i = 0; i < _dbAeTransferFields.length; i++) {
+        var name = _dbAeTransferFields[i];
+        if (value[name] !== undefined) { m.fields[name] = value[name]; }
+    }
+    if (value.getParameters) { m.parameters = value.getParameters(); }
+    return m;
+}
 // Copy markers: layer markers as source-relative seconds (clipMarkers),
 // composition markers inside the layer as seconds from the layer's start
 // (sequenceMarkers) - the same shapes Premiere's half returns, so the panel's
 // paste works unchanged.
-function dbAeGetMarkersDataForSelectedClip() {
+function dbAeGetMarkersDataForSelectedClip(removeCaptured) {
     return _dbAeResult(function () {
         var comp = _dbAeActiveCompOrThrow();
         var layer = _dbAeSelectedAudioLayerOrThrow(comp);
-        var epsilon = 0.0005;
-        var clipMarkers = [];
-        var lm = _dbAeMarkerTimes(layer.property("Marker"));
-        for (var i = 0; i < lm.length; i++) {
-            clipMarkers.push({ localSeconds: (lm[i].time - layer.startTime) * 100 / layer.stretch, label: lm[i].comment });
-        }
-        var sequenceMarkers = [];
-        if (comp.markerProperty) {
-            var cm = _dbAeMarkerTimes(comp.markerProperty);
-            for (var j = 0; j < cm.length; j++) {
-                if (cm[j].time >= layer.inPoint - epsilon && cm[j].time <= layer.outPoint + epsilon) {
-                    sequenceMarkers.push({ localSeconds: cm[j].time - layer.inPoint, label: cm[j].comment });
+        var props = [comp.markerProperty, layer.property("Marker")];
+        var groups = [[], []], captured = [[], []];
+        for (var g = 0; g < props.length; g++) {
+            var prop = props[g];
+            if (!prop) { continue; }
+            for (var i = 1; i <= prop.numKeys; i++) {
+                var t = prop.keyTime(i);
+                if (t >= layer.inPoint - 0.0005 && t <= layer.outPoint + 0.0005) {
+                    groups[g].push(_dbAeTransferData(prop.keyValue(i), Math.max(0, t - layer.inPoint)));
+                    captured[g].push(i);
                 }
             }
         }
-        return { clipName: layer.name, sequenceMarkers: sequenceMarkers, clipMarkers: clipMarkers };
+        if (removeCaptured === true) {
+            _dbAeWithUndo("Downbeat: move markers", function () {
+                for (var g = 0; g < props.length; g++) {
+                    for (var j = captured[g].length - 1; j >= 0; j--) { props[g].removeKey(captured[g][j]); }
+                }
+            });
+        }
+        return { version: 2, host: "ae", clipName: layer.name, sequenceMarkers: groups[0], clipMarkers: groups[1], removed: removeCaptured === true };
+    });
+}
+function dbAePasteMarkersData(dataJson, referenceJson) {
+    return _dbAeResult(function () {
+        _dbValidateSelection(referenceJson);
+        var info = JSON.parse(referenceJson);
+        var plan = _dbTransferPlan(JSON.parse(dataJson), info);
+        var comp = _dbAeActiveCompOrThrow();
+        var layer = _dbAeSelectedAudioLayerOrThrow(comp);
+        var props = [comp.markerProperty, layer.property("Marker")];
+        var groups = [plan.sequenceMarkers, plan.clipMarkers], writes = [], kept = 0;
+        // Construct all MarkerValues before changing any host property.
+        for (var g = 0; g < groups.length; g++) {
+            if (groups[g].length && !props[g]) { throw new Error("The target does not expose markers."); }
+            for (var i = 0; i < groups[g].length; i++) {
+                var transfer = groups[g][i], m = transfer.data;
+                var time = g === 0 ? transfer.time : layer.startTime + transfer.time * layer.stretch / 100;
+                var value = new MarkerValue(m.label || "");
+                value.duration = m.duration;
+                for (var f = 0; f < _dbAeTransferFields.length; f++) {
+                    var name = _dbAeTransferFields[f];
+                    if (m.fields && m.fields[name] !== undefined) { value[name] = m.fields[name]; }
+                }
+                if (m.parameters) { value.setParameters(m.parameters); }
+                // A marker already at this time stays; writing there would replace it.
+                if (props[g].numKeys && Math.abs(props[g].keyTime(props[g].nearestKeyIndex(time)) - time) <= 0.00001) {
+                    kept++;
+                    continue;
+                }
+                writes.push({ prop: props[g], time: time, value: value });
+                }
+            }
+        var applied = 0;
+        _dbAeWithUndo("Downbeat: paste markers", function () {
+            try {
+                for (var w = 0; w < writes.length; w++) {
+                    writes[w].prop.setValueAtTime(writes[w].time, writes[w].value); applied++;
+        }
+            } catch (e) {
+                for (var r = applied - 1; r >= 0; r--) {
+                    writes[r].prop.removeKey(writes[r].prop.nearestKeyIndex(writes[r].time));
+                }
+                throw e;
+            }
+        });
+        return { created: applied, skipped: plan.skipped, kept: kept };
     });
 }
 // Equal-power fade gain at position x (0..1) of a fade, bent by curve
@@ -559,7 +647,7 @@ function dbAeInsertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
                 try {
                     added.moveBefore(toMute);
                 } catch (moveErr) {
-                /* still inserted, just on top */
+                    /* still inserted, just on top */
                 }
             }
             var inSec = opts && Number(opts.inSec) > 0 ? Number(opts.inSec) : 0;

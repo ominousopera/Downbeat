@@ -49,7 +49,7 @@ function evalScript(script, callback) {
   if (/^getSelectedAudioInfo\(\)/.test(script)) { reply = { ok: true, error: null, data: current.clip }; }
   if (/create(Clip)?Markers\(/.test(script)) {
     sentScripts.push(script);
-    const times = JSON.parse(JSON.parse(script.match(/create(?:Clip)?Markers\((".*?[^\\]"),/)[1]));
+    const times = JSON.parse(JSON.parse(script.match(/create(?:Clip)?Markers\(("(?:\\.|[^"\\])*"),/)[1]));
     ownMarkers = times.length;
     reply = { ok: true, error: null, data: { requested: times.length, created: times.length } };
   }
@@ -188,11 +188,11 @@ analyze("track 1")
       $.placeMarkersBtn._fire("click");
       return waitUntilEnabled($.placeMarkersBtn, label).then(function () {
         const sent = sentScripts.slice(before).join("\n");
-        const times = sent.match(/create(Clip)?Markers\((".*?[^\\]"), (".*?[^\\]")(?:, true)?\)/);
+        const times = sent.match(/create(Clip)?Markers\(("(?:\\.|[^"\\])*"), ("(?:\\.|[^"\\])*")(?:, true)?(?:, "(?:\\.|[^"\\])*")?\)/);
         const list = times ? JSON.parse(JSON.parse(times[2])) : [];
         const labels = times ? JSON.parse(JSON.parse(times[3])) : [];
-        return { onClip: /createClipMarkers\(/.test(sent), replaces: /createClipMarkers\(.*, true\)/.test(sent),
-                 onTimeline: /(^|[^p])createMarkers\(.*, true\)/.test(sent), count: list.length, times: list, labels: labels,
+        return { onClip: /createClipMarkers\(/.test(sent), replaces: /createClipMarkers\(.*, true(?:, "(?:\\.|[^"\\])*")?\)/.test(sent),
+                 onTimeline: /(^|[^p])createMarkers\(.*, true(?:, "(?:\\.|[^"\\])*")?\)/.test(sent), count: list.length, times: list, labels: labels,
                  native: /native downbeats/.test(logText().slice(logBefore)) };
       });
     }
@@ -209,7 +209,7 @@ analyze("track 1")
       return new Promise(function (resolve, reject) {
         (function poll() {
           const sent = sentScripts.slice(before).join("\n");
-          const m = sent.match(/createClipMarkers\((".*?[^\\]"), (".*?[^\\]")(?:, true)?\)/);
+          const m = sent.match(/createClipMarkers\(("(?:\\.|[^"\\])*"), ("(?:\\.|[^"\\])*")(?:, true)?(?:, "(?:\\.|[^"\\])*")?\)/);
           if (m) { return resolve({ times: JSON.parse(JSON.parse(m[1])), places: (sent.match(/createClipMarkers\(/g) || []).length }); }
           if (Date.now() - t0 > 5000) { return reject(new Error(label + ": no re-placement")); }
           setTimeout(poll, 50);
@@ -281,7 +281,7 @@ analyze("track 1")
             const t0 = Date.now();
             (function poll() {
               const sent = sentScripts.slice(before).join("\n");
-              const m = sent.match(/create(Clip)?Markers\((".*?[^\\]"), (".*?[^\\]")(?:, true)?\)/);
+              const m = sent.match(/create(Clip)?Markers\(("(?:\\.|[^"\\])*"), ("(?:\\.|[^"\\])*")(?:, true)?(?:, "(?:\\.|[^"\\])*")?\)/);
               if (m) { setTimeout(function () { resolve(JSON.parse(JSON.parse(m[2]))); }, 100); return; }
               if (Date.now() - t0 > 15000) { reject(new Error(label + " placed no markers")); return; }
               setTimeout(poll, 50);

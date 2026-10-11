@@ -115,6 +115,12 @@
   }
   // Fire-and-log save - called after every library mutation.
   function persistLibrary() {
+    // Another host may have saved since (Premiere and After Effects share
+    // Documents/Downbeat): its newer entries are taken in first.
+    var fresh = window.BeatMarkerPersistence.readIfChanged(csInterface, "library");
+    if (fresh.changed) {
+      window.BeatMarkerLibrary.absorb(fresh.value);
+    }
     var result = window.BeatMarkerPersistence.save(csInterface, window.BeatMarkerLibrary.getAll());
     if (!result.ok) {
       log("WARNING: could not save the track library to disk: " + result.error);
@@ -204,6 +210,9 @@
   // startup.
   var loadedSettings = window.BeatMarkerPersistence.loadSettings(csInterface);
   var initialSettings = (loadedSettings.ok && loadedSettings.settings) ? loadedSettings.settings : {};
+  // An unreadable settings.json was set aside (or, when it could not be
+  // read at all, is left alone and not saved over); logged once the log exists.
+  var _settingsLoadProblem = loadedSettings.ok ? null : loadedSettings;
   // Saved Library choices that live in code loaded above (this part of
   // main.js runs after the Library's own setup).
   if (window.BeatMarkerSfxSearch) {
@@ -213,15 +222,19 @@
   // folder scope, preview volume
   _settingsPanel.applySettings(initialSettings);
   // the update notice
-  var isFirstRun = !loadedSettings.existed;
+  var isFirstRun = loadedSettings.ok ? !loadedSettings.existed : !!loadedSettings.setAside;
   function persistSettings(overrides) {
+    // Starts from the file when another host saved it since: its choices
+    // stay, only `overrides` change.
+    var fresh = window.BeatMarkerPersistence.readIfChanged(csInterface, "settings");
+    var base = fresh.changed && fresh.value && typeof fresh.value === "object" && !Array.isArray(fresh.value) ? fresh.value : initialSettings;
     var merged = {};
-    for (var existingKey in initialSettings) {
-      if (initialSettings.hasOwnProperty(existingKey)) {
-        merged[existingKey] = initialSettings[existingKey];
+    for (var existingKey in base) {
+      if (base.hasOwnProperty(existingKey)) {
+        merged[existingKey] = base[existingKey];
       }
     }
-    merged.language = I18n.getLanguage();
+    merged.language = base === initialSettings || !merged.language ? I18n.getLanguage() : merged.language;
     if (merged.onboardingCompleted === undefined) {
       merged.onboardingCompleted = false;
     }
@@ -482,6 +495,12 @@
   } else {
     askAboutUpdateNotice(function () {});
   }
+  if (_settingsLoadProblem) {
+    log("WARNING: could not read settings.json (" + _settingsLoadProblem.error + ")" +
+        (_settingsLoadProblem.setAside ? " - kept as " + _settingsLoadProblem.setAside + "; starting with default settings." :
+          " - it is left as it is and settings are not saved until the host restarts."));
+  }
+
   (function sweepLeftoverTempFiles() {
     var result = window.BeatMarkerPersistence.clearLeftoverTempFiles(csInterface);
     if (!result.ok) {
@@ -493,7 +512,9 @@
   (function loadPersistedLibrary() {
     var result = window.BeatMarkerPersistence.load(csInterface);
     if (!result.ok) {
-      log("WARNING: could not load the saved track library: " + result.error);
+      log("WARNING: could not load the saved track library: " + result.error +
+          (result.setAside ? " - kept as " + result.setAside + "." : " - it is left as it is and not saved over until the host restarts."));
+      _library.reportLoadProblem(result);
       return;
     }
     if (!result.existed) {
@@ -1199,6 +1220,18 @@
                  : " - exact, not rounded to frames."));
   }
   function placeDownbeatsAtPhase(phase) {
+    return getClipInfo().then(function (fresh) {
+      if (!lastAnalysis || fresh.mediaPath !== lastAnalysis.audioPath) {
+        throw new Error(I18n.t("selection.sourceChanged"));
+      }
+      _assertAudioUnchanged(lastAnalysis.clipInfo);
+      fresh.fileIdentity = lastAnalysis.clipInfo.fileIdentity;
+      lastAnalysis.clipInfo = fresh;
+      return _placeDownbeatsOnCurrentClip(phase);
+    });
+  }
+
+  function _placeDownbeatsOnCurrentClip(phase) {
     var cuesheet = buildDownbeatsCuesheet(phase);
     var nudgeMs = _nudgeMsFor(lastAnalysis.audioPath);
     if (nudgeMs) {
@@ -1232,7 +1265,8 @@
         log("Done: requested " + result.data.requested + ", created " + result.data.created +
             ", dropped (outside clip range) " + result.data.droppedCount +
             (result.data.replaced ? ", replaced " + result.data.replaced + " earlier Downbeat marker(s)" : "") +
-            (result.data.framesMerged ? ", " + result.data.framesMerged + " merged into a marker in the same frame" : "") + ".");
+            (result.data.framesMerged ? ", " + result.data.framesMerged + " merged into a marker in the same frame" : "") +
+            (result.data.kept ? ", " + result.data.kept + " left out where your own marker already sits" : "") + ".");
         warnIfMostlyDropped(result.data.requested, result.data.droppedCount);
         _logStoredMarkerTimes(result.data);
         _rememberPhase(phase);
@@ -1258,7 +1292,16 @@
   // Shift and the "1" buttons change where the markers go. They put the
   // markers down again only when Downbeat's markers are already on the clip;
   // otherwise the change is kept and Place markers uses it.
-  function _replaceMarkersIfPlaced(phase, what) {
+  // `undo` (optional) puts the shown "1" back when nothing was placed, so
+  // the beat buttons always match the markers on the clip.
+  function _replaceMarkersIfPlaced(phase, what, undo) {
+    function failed(message) {
+      log(what + " failed: " + message);
+      if (undo) {
+        undo();
+        _flashSelectionError(message);
+      }
+    }
     return evalJson("countOwnMarkersForSelectedClip()").then(function (data) {
       if (!data || !data.count) {
         _rememberPhase(phase);
@@ -1266,13 +1309,31 @@
         return null;
       }
       showBusy("busy.default");
-      return placeDownbeatsAtPhase(phase).then(hideBusy, function (err) {
-        log(what + " failed: " + (err && err.message ? err.message : err));
+      return placeDownbeatsAtPhase(phase).then(function (result) {
         hideBusy();
+        if (result && !result.ok) { failed(result.error); }
+      }, function (err) {
+        hideBusy();
+        failed(err && err.message ? err.message : String(err));
       });
     }, function (err) {
-      log(what + ": could not check the clip's markers (" + (err && err.message ? err.message : err) + "), so none were placed.");
+      failed("could not check the clip's markers (" + (err && err.message ? err.message : err) + "), so none were placed");
     });
+  }
+  // What the "1" buttons change, to put it back.
+  function _phaseState() {
+    return { phaseShift: lastAnalysis.phaseShift, originalPhase: lastAnalysis._originalPhase,
+      originalDownbeatTimes: lastAnalysis._originalDownbeatTimes, downbeatTimes: lastAnalysis.downbeatTimes, analysis: lastAnalysis };
+  }
+  function _restorePhaseState(saved) {
+    return function () {
+      if (lastAnalysis !== saved.analysis) { return; }
+      lastAnalysis.phaseShift = saved.phaseShift;
+      lastAnalysis._originalPhase = saved.originalPhase;
+      lastAnalysis._originalDownbeatTimes = saved.originalDownbeatTimes;
+      lastAnalysis.downbeatTimes = saved.downbeatTimes;
+      _updatePhaseShiftUi();
+    };
   }
   // Places downbeats via placeDownbeatsAtPhase() with the current phase (the
   // same path the phase-shift buttons use). The marker settings apply
@@ -2157,6 +2218,7 @@
       log("Shift phase: run Analyze selected audio first.");
       return;
     }
+    var undo = _restorePhaseState(_phaseState());
     // The first shift remembers the grid as the analysis found it, so Reset
     // can bring it back exactly (Beat This!'s downbeats included - shifting
     // them snaps interpolated ones onto beats, so shifting back would not
@@ -2178,23 +2240,24 @@
       lastAnalysis.downbeatTimes = window.BeatMarkerCuesheet.shiftDownbeatTimes(
         lastAnalysis.downbeatTimes, lastAnalysis.beatsArray, delta
       );
-      _replaceMarkersIfPlaced(lastAnalysis.phase, "Shift phase");
+      _replaceMarkersIfPlaced(lastAnalysis.phase, "Shift phase", undo);
       return;
     }
     var newPhase = ((lastAnalysis.phase + delta) % 4 + 4) % 4;
-    _replaceMarkersIfPlaced(newPhase, "Shift phase");
+    _replaceMarkersIfPlaced(newPhase, "Shift phase", undo);
   }
   // Back to the "1" the analysis found, and markers placed there.
   function resetPhaseShift() {
     if (!lastAnalysis || !lastAnalysis.phaseShift) {
       return;
     }
+    var undo = _restorePhaseState(_phaseState());
     if (lastAnalysis._originalDownbeatTimes) {
       lastAnalysis.downbeatTimes = lastAnalysis._originalDownbeatTimes.slice();
     }
     var phase = typeof lastAnalysis._originalPhase === "number" ? lastAnalysis._originalPhase : lastAnalysis.phase;
     _forgetPhaseShift();
-    _replaceMarkersIfPlaced(phase, "Reset phase");
+    _replaceMarkersIfPlaced(phase, "Reset phase", undo);
   }
   // A beat button: 1 puts the "1" back exactly (resetPhaseShift); 2-4 shift
   // by the shortest way there (+1, +2, or -1 for 4).
@@ -2237,10 +2300,20 @@
     }
     cutDownbeatsBtn.disabled = true;
     showBusy("busy.cut");
-    var cuesheet = buildDownbeatsCuesheet(lastAnalysis.phase);
-    var eventCount = cuesheet.tracks[0].events.length;
-    log("Cutting selected clip at " + eventCount + " downbeats (phase " + lastAnalysis.phase + ")...");
-    window.BeatMarkerPlace.cutAtCuesheetEvents(csInterface, cuesheet, lastAnalysis.clipInfo, "downbeats")
+    // The clip selected now, checked against the analysis and again by the
+    // host, as Place markers does.
+    getClipInfo()
+      .then(function (fresh) {
+        if (!lastAnalysis || fresh.mediaPath !== lastAnalysis.audioPath) {
+          throw new Error(I18n.t("selection.sourceChanged"));
+        }
+        _assertAudioUnchanged(lastAnalysis.clipInfo);
+        fresh.fileIdentity = lastAnalysis.clipInfo.fileIdentity;
+        lastAnalysis.clipInfo = fresh;
+        var cuesheet = buildDownbeatsCuesheet(lastAnalysis.phase);
+        log("Cutting selected clip at " + cuesheet.tracks[0].events.length + " downbeats (phase " + lastAnalysis.phase + ")...");
+        return window.BeatMarkerPlace.cutAtCuesheetEvents(csInterface, cuesheet, fresh, "downbeats");
+      })
       .then(function (result) {
         if (!result.ok) {
           log("Cutting failed: " + result.error);
@@ -2309,7 +2382,7 @@
   copyMarkersBtn.addEventListener("click", function () {
     copyMarkersBtn.disabled = true;
     showBusy("busy.default");
-    evalJson("getMarkersDataForSelectedClip()")
+    evalJson("getMarkersDataForSelectedClip(" + (removeAfterCopyCheckbox.checked ? "true" : "false") + ")")
       .then(function (data) {
         var total = data.sequenceMarkers.length + data.clipMarkers.length;
         if (total === 0) {
@@ -2322,13 +2395,10 @@
         log("Copied " + data.sequenceMarkers.length + " sequence marker(s) + " + data.clipMarkers.length +
             " clip marker(s) from \"" + data.clipName + "\".");
         _flashCopyMarkersStatus(I18n.t("analyze.copyMarkersDone", { count: String(total) }));
-        if (!removeAfterCopyCheckbox.checked) {
-          return Promise.resolve();
+        if (data.removed) {
+          log("Moved " + total + " captured marker(s) from the source.");
         }
-        log("Removing from source (move, not copy)...");
-        return evalJson("clearMarkersForSelectedClip()").then(function (clearData) {
-          log("Removed " + clearData.sequenceMarkersRemoved + " sequence marker(s), " + clearData.clipMarkersRemoved + " clip marker(s) from the source clip.");
-        });
+          return Promise.resolve();
       })
       .catch(function (err) {
         log("Copy markers failed: " + (err && err.message ? err.message : err));
@@ -2348,39 +2418,11 @@
     showBusy("busy.default");
     getClipInfo()
       .then(function (clipInfo) {
-        var seqTimes = [];
-        var seqLabels = [];
-        for (var i = 0; i < _copiedMarkers.sequenceMarkers.length; i++) {
-          var sm = _copiedMarkers.sequenceMarkers[i];
-          seqTimes.push(clipInfo.clipStartSeconds + sm.localSeconds);
-          seqLabels.push(sm.label);
-        }
-        var clipTimes = [];
-        var clipLabels = [];
-        for (var j = 0; j < _copiedMarkers.clipMarkers.length; j++) {
-          var cm = _copiedMarkers.clipMarkers[j];
-          clipTimes.push(cm.localSeconds);
-          // already source-relative, no clip start offset
-          clipLabels.push(cm.label);
-        }
-        var chain = Promise.resolve();
-        if (seqTimes.length > 0) {
-          chain = chain.then(function () {
-            return evalJson("createMarkers(" + JSON.stringify(JSON.stringify(seqTimes)) + "," + JSON.stringify(JSON.stringify(seqLabels)) + ")")
+        return evalJson("pasteMarkersData(" + _jsxJsonArg(_copiedMarkers) + "," + _jsxJsonArg(clipInfo) + ")")
               .then(function (result) {
-                log("Pasted " + result.created + " of " + result.requested + " sequence marker(s).");
+            log("Pasted " + result.created + " marker(s)" + (result.skipped ? "; skipped " + result.skipped + " outside the target" : "") +
+              (result.kept ? "; kept " + result.kept + " existing marker(s) at the same time" : "") + ".");
               });
-          });
-        }
-        if (clipTimes.length > 0) {
-          chain = chain.then(function () {
-            return evalJson("createClipMarkers(" + JSON.stringify(JSON.stringify(clipTimes)) + "," + JSON.stringify(JSON.stringify(clipLabels)) + ")")
-              .then(function (result) {
-                log("Pasted " + result.created + " of " + result.requested + " clip marker(s).");
-              });
-          });
-        }
-        return chain;
       })
       .then(function () {
         _flashCopyMarkersStatus(I18n.t("analyze.pasteMarkersDone"));
@@ -2975,6 +3017,18 @@
   // per button.
   var _selectionErrorTimeout = null;
   function _flashSelectionError(message) {
+    var markerErrorKeys = {
+      "The selected clip changed. Select the intended clip and try again.": "selection.clipChanged",
+      "The selected clip timing changed. Try the operation again.": "selection.timingChanged",
+      "Copy these markers again in this host before pasting.": "markers.copyAgain",
+      "Invalid marker clipboard.": "markers.invalidData",
+      "Invalid marker timing.": "markers.invalidData",
+      "This marker type cannot be transferred safely.": "markers.unsupportedType",
+      "Unsupported marker type.": "markers.unsupportedType",
+      "Could not create a pasted marker.": "markers.createFailed",
+      "The target does not expose markers.": "markers.unavailable"
+    };
+    if (markerErrorKeys[message]) { message = I18n.t(markerErrorKeys[message]); }
     if (_selectionErrorTimeout) {
       clearTimeout(_selectionErrorTimeout);
     }

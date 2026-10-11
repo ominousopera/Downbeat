@@ -77,7 +77,8 @@
       if (loaded.ok) {
         SL.loadState(loaded.state);
       } else {
-        log("WARNING: could not read the folder library (" + loaded.error + ") - starting empty.");
+        log("WARNING: could not read the folder library (" + loaded.error + ")" +
+            (loaded.setAside ? " - kept as " + loaded.setAside + "; starting empty." : " - it is left as it is and not saved over until the host restarts."));
       }
       if (ctx.initialSettings().librarySection === "sfx" || ctx.initialSettings().librarySection === "music") {
         libSection = ctx.initialSettings().librarySection;
@@ -88,6 +89,16 @@
       renderLibraryKeySelect();
       renderLibrarySortSelect();
       renderLibrary();
+      if (!loaded.ok) {
+        reportLoadProblem(loaded);
+      }
+    }
+
+    // A saved library that could not be read is reported on the Library
+    // tab, not only in the log.
+    function reportLoadProblem(result) {
+      setTranslatedText(libScanStatus, result.setAside ? "library.loadSetAside" : "library.loadBlocked",
+        { file: result.setAside ? basename(result.setAside) : "" });
     }
     // File and folder dialogs. CEP's own dialog first: it is parented to
     // Premiere, so on Windows it opens in front and does not tie up the
@@ -129,7 +140,14 @@
       }
       return evalJson("pickSaveFile(" + _jsxStringArg(suggestedName) + ", " + _jsxStringArg(title) + ")");
     }
+    // Another host may have saved since (Premiere and After Effects share
+    // Documents/Downbeat): its newer records are taken in before writing.
+    function _libAbsorbFromDisk() {
+      var fresh = window.BeatMarkerPersistence.readIfChanged(ctx.csInterface(), "sound-library");
+      return fresh.changed ? SL.absorb(fresh.value) : false;
+    }
     function persistSoundLibrary() {
+      _libAbsorbFromDisk();
       var result = window.BeatMarkerPersistence.saveSoundLibrary(ctx.csInterface(), SL.getState());
       if (!result.ok) {
         log("WARNING: could not save the folder library to disk: " + result.error);
@@ -565,6 +583,14 @@
       setTimeout(function () { _libFocusKeys(); }, 0);
     });
     window.addEventListener("focus", function () {
+      // Coming back from the other host: show what it saved meanwhile.
+      if (!libScan.running && !_libPersistTimer) {
+        var timelineFresh = window.BeatMarkerPersistence.readIfChanged(ctx.csInterface(), "library");
+        var timelineChanged = timelineFresh.changed && window.BeatMarkerLibrary.absorb(timelineFresh.value);
+        if (_libAbsorbFromDisk() || timelineChanged) {
+          renderLibrary();
+        }
+      }
       if (ctx.activeTabId() === "library" && !_libIsTypingField(document.activeElement)) {
         _libFocusKeys();
       }
@@ -752,6 +778,13 @@
     });
 
     function renderLibrary(keepRows) {
+      if (_libPaneItem && !_libPaneCurrent(_libPaneItem.path)) {
+        ++_libPaneToken;
+        _libPlayer.stop();
+        _libPaneItem = null; _libPaneIdentity = null; _libPaneReady = false;
+        _libPaneLoading = null; _libPanePeaks = null; libPlayingPath = null;
+        libPane.hidden = true;
+      }
       if (libConfirmPanel && libSelectedPath && !SL.getState().files[libSelectedPath] &&
           !window.BeatMarkerLibrary.get(libSelectedPath)) { libConfirmPanel.hidden = true; }
       if (keepRows !== true) {
@@ -949,7 +982,7 @@
       if (_libMissing(path)) {
         return;
       }
-      if (_libPlayer && !_libPaneCannot[path]) {
+      if (_libPlayer && _libPaneCannot[path] !== _libFileIdentity(path)) {
         _libPaneToggle(path);
         return;
       }
@@ -1042,8 +1075,11 @@
       if (isRefused(fd.fadeOut)) { again.fadeOutSec = opts.fadeOutSec; any = true; }
       return any ? again : null;
     }
+    // One insert at a time: the busy overlay stops clicks but not keys, and
+    // a held or doubled Enter must not place the sound twice.
+    var _libInserting = false;
     function _libInsert(item, opts) {
-      if (_libMissing(item.path)) {
+      if (_libInserting || _libMissing(item.path)) {
         return;
       }
       if (libPlayingPath) {
@@ -1057,6 +1093,7 @@
       showBusy("busy.default");
       var duration = typeof item.durationSec === "number" && isFinite(item.durationSec) && item.durationSec >= 0
         ? item.durationSec : 0;
+      _libInserting = true;
       evalJson("insertAudioAtPlayhead(" + _jsxJsonArg(item.path) + ", " + duration +
                (opts ? ", " + _jsxJsonArg(opts) : "") + ")")
         .then(function (data) {
@@ -1135,6 +1172,7 @@
           log("Library: could not insert " + item.name + ": " + msg);
         })
         .then(function () {
+          _libInserting = false;
           hideBusy();
           _libUpdateRowStates();
         });
@@ -1167,6 +1205,7 @@
     var LIB_PANE_MAX_DECODED_BYTES = 300 * 1024 * 1024;
     var _libPaneItem = null;
     // the item shown (loaded or loading)
+    var _libPaneIdentity = null;
     var _libPaneReady = false;
     // its sound is decoded and loaded
     var _libPaneToken = 0;
@@ -1265,11 +1304,24 @@
         _libPlayer.setPitch(Math.max(-LP.PITCH_LIMIT, Math.min(LP.PITCH_LIMIT, st)));
       }
     }
+    function _libFileIdentity(path) {
+      try {
+        var stat = window.cep_node.require("fs").statSync(path);
+        return stat.size + ":" + stat.mtimeMs;
+      } catch (e) { return null; }
+    }
+    function _libPaneCurrent(path) {
+      return _libPaneItem && _libPaneItem.path === path && _libPaneIdentity !== null &&
+        _libPaneIdentity === _libFileIdentity(path);
+    }
+
     function _libPaneLoad(item) {
       var token = ++_libPaneToken;
       _libPlayer.stop();
       libPlayingPath = null;
       _libPaneItem = item;
+      _libPaneIdentity = _libFileIdentity(item.path);
+      delete _libPaneCannot[item.path];
       _libPaneReady = false;
       _libPanePeaks = null;
       libPane.hidden = false;
@@ -1283,8 +1335,10 @@
       libPaneReverse.checked = false;
       _libPaneDraw();
       _libPaneLoading = _libPaneDecode(item.path).then(function (buffer) {
-        if (token !== _libPaneToken) {
-          return false;
+        if (token !== _libPaneToken) { return false; }
+        if (!_libPaneCurrent(item.path)) {
+          _libPaneReady = false;
+          return _libPaneLoad(item);
         }
         _libPlayer.load(buffer);
         _libPlayer.setPitch(0);
@@ -1305,7 +1359,7 @@
           _libPaneRefresh();
           return false;
         }
-        _libPaneCannot[item.path] = true;
+        _libPaneCannot[item.path] = _libFileIdentity(item.path);
         if (err && err.tooLong) {
           _libPaneNote("library.paneTooLong");
         } else {
@@ -1322,7 +1376,7 @@
       if (!_libPlayer || !path) {
         return;
       }
-      if (_libPaneItem && _libPaneItem.path === path) {
+      if (_libPaneCurrent(path)) {
         return;
       }
       var item = _libPaneFindItem(path);
@@ -1332,7 +1386,7 @@
       if (_libPaneSelectTimer) { clearTimeout(_libPaneSelectTimer); }
       _libPaneSelectTimer = setTimeout(function () {
         _libPaneSelectTimer = null;
-        if (libSelectedPath === path && (!_libPaneItem || _libPaneItem.path !== path)) {
+        if (libSelectedPath === path && !_libPaneCurrent(path)) {
           _libPaneLoad(item);
         }
       }, 120);
@@ -1360,7 +1414,7 @@
       var orPlain = function (ok) {
         if (ok) { start(); } else if (_libPaneCannot[path]) { _libPlainToggle(path); }
       };
-      if (!_libPaneItem || _libPaneItem.path !== path) {
+      if (!_libPaneCurrent(path)) {
         _libPaneLoad(item).then(orPlain);
       } else if (!_libPaneReady && _libPaneLoading) {
         _libPaneLoading.then(orPlain);
@@ -1777,7 +1831,9 @@
     // seconds.
     function _libPaneAdd() {
       var item = _libPaneItem;
-      if (!item) {
+      if (!item) { return; }
+      if (!_libPaneCurrent(item.path)) {
+        _libPaneLoad(item);
         return;
       }
       if (!_libPaneHasEdits()) {
@@ -1839,7 +1895,7 @@
       } else if ((evt.key === " " || evt.key === "Spacebar") && libSelectedPath) {
         _libTogglePreview(libSelectedPath);
         evt.preventDefault();
-      } else if (evt.key === "Enter" && libSelectedPath) {
+      } else if (evt.key === "Enter" && libSelectedPath && !evt.repeat) {
         var i = _libShownIndex(libSelectedPath);
         if (i >= 0 && _libShown[i].item.status === "done") {
           _libInsertFromRow(_libShown[i].item);
@@ -1855,7 +1911,7 @@
           // cancelled
           }
           if (!SL.addFolder(libSection, picked.directory)) {
-            setTranslatedText(libScanStatus, "library.folderAlready");
+            setTranslatedText(libScanStatus, SL.folderProblem(libSection, picked.directory) || "library.folderAlready");
             return;
           }
           // Adding only lists the folder's audio files (they show as "waiting
@@ -1883,6 +1939,7 @@
     // running worker processes, for Cancel
     libScanCancelBtn.addEventListener("click", function () {
       libScan.stop = true;
+      _libDecodePump();
       libScanCancelBtn.disabled = true;
       setTranslatedText(libScanCancelBtn, "library.stopping");
       libScanChildren.forEach(function (child) {
@@ -1966,6 +2023,9 @@
     function _libDecodePump() {
       while (_libDecodeQueue.length) {
         var next = _libDecodeQueue[0];
+        if (next.scan.stop) {
+          _libDecodeQueue.shift(); next.cancel(); continue;
+        }
         var fits = _libDecodesActive === 0 ||
           (!next.solo && !_libDecodeSoloActive && _libDecodesActive < LIB_PANEL_DECODES_AT_ONCE);
         if (!fits) {
@@ -1977,7 +2037,7 @@
         next.start();
       }
     }
-    function _libDecodeInPanel(path) {
+    function _libDecodeInPanel(path, scan) {
       return new Promise(function (resolve, reject) {
         var size;
         try {
@@ -1992,6 +2052,7 @@
         }
         var solo = size > LIB_SOLO_DECODE_BYTES;
         _libDecodeQueue.push({
+          scan: scan, cancel: function () { reject(new Error("Scan cancelled.")); },
           solo: solo,
           start: function () {
             function finish() {
@@ -2015,17 +2076,24 @@
     // wav-excerpt.js), so the panel never loads them. Other formats are
     // decoded here (two at a time, a big file alone - _libDecodePump) and their
     // excerpt handed over as a temp file.
-    function _libAnalyzeBatch(section, paths, forcePanelDecode) {
+    function _libAnalyzeBatch(section, paths, forcePanelDecode, scan) {
+      scan = scan || libScan;
       var fs = window.cep_node.require("fs");
-      var tmpDir = window.BeatMarkerPersistence.getTempDir(ctx.csInterface());
+      var tmpDir;
       var items = [];
       var tmpFiles = [];
       var fallbacks = [];
       ctx.tempFileStarted();
-      var chain = Promise.resolve();
+      function cleanup() {
+        tmpFiles.forEach(function (f) { try { fs.unlinkSync(f); } catch (e) { /* swept on next start */ } });
+        ctx.tempFileDone();
+      }
+      var chain = Promise.resolve().then(function () {
+        if (!scan.stop) { tmpDir = window.BeatMarkerPersistence.getTempDir(ctx.csInterface()); }
+      });
       paths.forEach(function (path) {
         chain = chain.then(function () {
-          if (libScan.stop) {
+          if (scan.stop) {
             return null;
           }
           // Key (and for music, BPM) already in the file name: nothing to
@@ -2042,35 +2110,36 @@
             }
             SL.setResult(path, { ok: true, durationSec: durationSec, bpm: null, bpmConfidence: null });
             SL.applyNameTags(path);
-            libScan.done++;
-            libScan.fromName++;
+            scan.done++;
+            scan.fromName++;
             return null;
           }
           if (!forcePanelDecode && SL.WORKER_READABLE_EXT.test(path)) {
             items.push({ path: path, wav: path, material: section });
             return null;
           }
-          return _libDecodeInPanel(path)
+          return _libDecodeInPanel(path, scan)
             .then(function (decoded) {
+              if (scan.stop) { return; }
               var rate = window.BeatMarkerAudio.TARGET_SAMPLE_RATE;
               var durationSec = decoded.samples.length / rate;
               var range = SL.excerptRange(durationSec, section);
               var part = decoded.samples.subarray(Math.floor(range.startSec * rate), Math.floor((range.startSec + range.lengthSec) * rate));
               var raw = tmpDir + "/library-" + Date.now() + "-" + Math.floor(Math.random() * 1e6) + ".raw";
-              fs.writeFileSync(raw, part);
-              // Node writes exactly the view's bytes
               tmpFiles.push(raw);
+              fs.writeFileSync(raw, part);
               items.push({ path: path, raw: raw, material: section, bpm: range.wantBpm, durationSec: durationSec });
             })
             .catch(function (err) {
+              if (scan.stop) { return; }
               SL.setResult(path, { ok: false, error: "could not decode: " + (err && err.message ? err.message : err) });
-              libScan.failed++;
-              libScan.done++;
+              scan.failed++;
+              scan.done++;
             });
         });
       });
       return chain.then(function () {
-        if (items.length === 0) {
+        if (scan.stop || items.length === 0) {
           return null;
         }
         var manifest = tmpDir + "/library-" + Date.now() + "-" + Math.floor(Math.random() * 1e6) + ".json";
@@ -2080,6 +2149,7 @@
                         : { raw: it.raw, material: it.material, bpm: it.bpm, durationSec: it.durationSec };
         }) }));
         return _runLibraryWorker(manifest, items.length).then(function (results) {
+          if (scan.stop) { return; }
           items.forEach(function (it, i) {
             if (results[i] && results[i].fallback) {
               fallbacks.push(it.path);
@@ -2087,34 +2157,31 @@
             }
             SL.setResult(it.path, results[i]);
             if (!results[i] || !results[i].ok) {
-              libScan.failed++;
+              scan.failed++;
             } else {
               SL.applyNameTags(it.path);
             // whatever the name does say wins over detection
             }
-            libScan.done++;
+            scan.done++;
           });
         }, function (err) {
-          if (libScan.stop) {
+          if (scan.stop) {
             return;
           // killed by Cancel: these files stay pending for the next scan
           }
           items.forEach(function (it) {
             SL.setResult(it.path, { ok: false, error: err && err.message ? err.message : String(err) });
-            libScan.failed++;
-            libScan.done++;
+            scan.failed++;
+            scan.done++;
           });
         });
       }).then(function () {
-        tmpFiles.forEach(function (f) {
-          try { fs.unlinkSync(f); } catch (e) { /* swept on next start */ }
-        });
-        ctx.tempFileDone();
-        if (fallbacks.length && !libScan.stop) {
-          return _libAnalyzeBatch(section, fallbacks, true);
+        cleanup();
+        if (fallbacks.length && !scan.stop) {
+          return _libAnalyzeBatch(section, fallbacks, true, scan);
         }
         return null;
-      });
+      }, function (err) { cleanup(); throw err; });
     }
     function _libStartScan(section) {
       if (libScan.running) {
@@ -2126,17 +2193,22 @@
       offline.forEach(function (dir) {
         log("Library scan (" + section + "): " + dir + " is not there now (a drive that is not connected?) - its sounds stay in the library as they are.");
       });
-      var sync = SL.syncFiles(section, SL.listAudioFiles(fs, section), offline);
+      var found = SL.listAudioFiles(fs, section);
+      var partial = found.incomplete && found.incomplete.length;
+      var sync = SL.syncFiles(section, found, offline);
+      if (partial) { log("Library scan is incomplete; unreadable records are retained."); }
       var queue = SL.pendingPaths(section);
       persistSoundLibrary();
       if (queue.length === 0) {
-        setTranslatedText(libScanStatus, "library.upToDate", { count: SL.counts(section).total });
+        setTranslatedText(libScanStatus, partial ? "library.scanPartial" : "library.upToDate", { count: SL.counts(section).total });
         renderLibrary();
         return;
       }
       libScan = { running: true, stop: false, section: section, done: 0, total: queue.length, failed: 0, fromName: 0 };
       log("Library scan (" + section + "): " + queue.length + " file(s) to analyze (" + sync.added + " new, " + sync.changed +
           " changed, " + sync.removed + " gone).");
+      var scan = libScan;
+      var scanError = null;
       var startedAt = Date.now();
       // All cores but two, up to 12. SFX go in bigger batches: each file takes
       // only tens of milliseconds, so starting a worker per few files would
@@ -2158,7 +2230,7 @@
           return Promise.resolve();
         }
         var batch = queue.splice(0, batchSize);
-        return _libAnalyzeBatch(section, batch).then(function () {
+        return _libAnalyzeBatch(section, batch, false, scan).then(function () {
           _persistSoundLibrarySoon();
           progress();
           return runner();
@@ -2167,7 +2239,11 @@
       progress();
       var runners = [];
       for (var w = 0; w < workers; w++) {
-        runners.push(runner());
+        runners.push(Promise.resolve().then(runner).catch(function (err) {
+          scanError = err; scan.stop = true;
+          _libDecodePump();
+          libScanChildren.forEach(function (child) { try { child.kill(); } catch (e) {} });
+        }));
       }
       Promise.all(runners).then(function () {
         var stopped = libScan.stop;
@@ -2177,7 +2253,8 @@
         libScanChildren = [];
         libScanOverlay.hidden = true;
         persistSoundLibrary();
-        setTranslatedText(libScanStatus, stopped ? "library.scanStopped" : (summary.failed ? "library.scanDoneFailed" : "library.scanDone"), summary);
+        setTranslatedText(libScanStatus, scanError ? "library.scanError" : (partial ? "library.scanPartial" : (stopped ? "library.scanStopped" : (summary.failed ? "library.scanDoneFailed" : "library.scanDone"))), summary);
+        if (scanError) { log("Library scan failed: " + (scanError.message || scanError)); }
         log("Library scan (" + section + ") " + (stopped ? "stopped" : "finished") + ": " + summary.done + " analyzed (" +
             libScan.fromName + " straight from the file name), " + summary.failed + " unreadable, " + summary.seconds + " s.");
         renderLibrary();
@@ -2334,6 +2411,7 @@
       loadSoundLibrary: loadSoundLibrary,
       focusKeys: _libFocusKeys,
       resetAfterDeleteData: resetAfterDeleteData,
+      reportLoadProblem: reportLoadProblem,
       applySettings: applySettings
     };
   }

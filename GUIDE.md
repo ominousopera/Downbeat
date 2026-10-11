@@ -27,7 +27,9 @@ Everything runs locally on your machine — nothing is ever uploaded.
    Placing again — or choosing another beat as the "1" after placing,
    or switching between the clip and the timeline — replaces Downbeat's
    earlier markers instead of adding a second set. Markers you added
-   yourself are never touched. To start over, **Clear** removes
+   yourself are never touched. After Effects holds one marker per moment,
+   so a beat that falls exactly on one of your markers is left out there
+   (the log counts it). To start over, **Clear** removes
    Downbeat's markers from the clip — from every piece of it after a cut —
    and leaves yours.
 5. Cut at the markers in Premiere: with snapping on (S), the Razor tool (C)
@@ -151,6 +153,8 @@ supplemental line explains the shift (for example "5A, +3 semitones"). A
 speed between whole semitones has no exact Camelot key.
 
 ## Library tab: Music and SFX
+
+Choose dedicated audio folders rather than a drive or filesystem root. Music and SFX folders must not overlap. Start scan retries failed files. Unreadable folders keep their saved records; cancellation stops pending work, and write failures release the scan controls. Replacing a file at the same path reloads its preview before insertion.
 
 Two sections, **Music** and **SFX**, each built from folders on your
 computer.
@@ -338,6 +342,8 @@ memory. Select a different clip — in the same sequence or another one — and
 **Paste markers here** re-creates them at the right position. "Remove from
 source after copy" moves them instead of copying.
 
+Only markers inside the selected clip’s audible range are transferred. Positions are relative to its audible start and map to the target trim and speed. Names, comments, durations and supported host metadata are preserved; markers starting outside the target are skipped; durations may extend beyond its end. Transfers stay within the same host. Moving reads and removes the captured markers in one host operation.
+
 ## Settings
 
 The gear icon, top right:
@@ -353,8 +359,8 @@ The gear icon, top right:
     way to move a library to a reinstalled plugin (on another computer,
     files at other paths are dropped on the next Start scan).
   - **Clear** forgets all analysis results (click it twice to confirm).
-    Your folders stay, and Start scan in the Library tab analyzes them
-    again.
+    Your folders, favorites and confirmed keys and tempos stay, and Start
+    scan in the Library tab analyzes the files again.
 - **Updates** — **Check now** is the first action and makes a one-time
   request even when background notifications are off. **Tell me when a new
   version is out** enables a check every three days; it does not download or
@@ -455,6 +461,13 @@ its analysis finishes). **Settings → Delete my data** removes exactly those
 files and nothing else; if you put anything of your own in that folder, it
 stays. Uninstalling the plugin does not touch Documents, so press Delete my
 data first if you want everything gone.
+
+Each file is saved by writing a new copy and swapping it in, so a crash or a
+full disk mid-save leaves the previous version whole. If a saved file still
+cannot be read, Downbeat keeps it as `<name>.unreadable-<date>-<time>.json`
+next to it, says so on the Library tab and starts that part empty — it never
+saves over it. Premiere Pro and After Effects can run Downbeat at the same
+time: each panel takes in what the other saved before saving its own changes.
 
 **Is Downbeat free? Can I see the source?**
 Yes to both. Downbeat is free software under the GNU AGPL-3.0 (Settings →

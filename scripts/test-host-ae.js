@@ -88,7 +88,7 @@ for (const stretch of [50, 200, 123.4]) {
   r = call("createClipMarkers(" + js([sourceTime]) + ", " + js(["D"]) + ")");
   check("Stretch " + stretch + "% maps a source marker to comp 15 seconds", r.ok && song.markers.keys.length === 1 && Math.abs(song.markers.keys[0].t - 15) < 1e-9);
   r = call("getMarkersDataForSelectedClip()");
-  check("Stretch " + stretch + "% copies the marker back in source seconds", r.ok && Math.abs(r.data.clipMarkers[0].localSeconds - sourceTime) < 1e-9);
+  check("Stretch " + stretch + "% copies the marker as a heard offset", r.ok && Math.abs(r.data.clipMarkers[0].localSeconds - ( sourceTime * stretch / 100 - (song.inPoint - song.startTime))) < 1e-9);
   song.markers.keys = [];
 }
 song.stretch = -100;
@@ -131,8 +131,8 @@ song.markers.keys = song.markers.keys.filter(function (k) { return k.t !== 13 &&
 r = call("createMarkers(" + js([13, 50]) + ", " + js(["D", "D"]) + ")");
 check("composition markers are placed at comp times", r.ok && r.data.created === 2 && comp.markerProperty.numKeys === 2);
 r = call("getMarkersDataForSelectedClip()");
-check("copy returns layer markers in source seconds and comp markers from the layer start",
-  r.ok && r.data.clipMarkers.map(function (m) { return m.localSeconds; }).join() === "2.5,5" &&
+check("copy returns heard offsets for both marker collections",
+  r.ok && r.data.clipMarkers.map(function (m) { return m.localSeconds; }).join() === "0.5,3" &&
   r.data.sequenceMarkers.length === 1 && r.data.sequenceMarkers[0].localSeconds === 1,
   JSON.stringify(r.data));
 // Clear: everything on the layer, comp markers only inside it.

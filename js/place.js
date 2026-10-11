@@ -71,7 +71,7 @@
       // sent in the panel's current language with every placement. host.jsx
       // keeps an English fallback.
       var script = "setMarkerComments(" + JSON.stringify(_markerCommentsJson()) + ");" +
-        jsxFunctionName + "(" + JSON.stringify(secondsJson) + ", " + JSON.stringify(labelsJson) + (extraArgs || "") + ")";
+        jsxFunctionName + "(" + JSON.stringify(secondsJson) + ", " + JSON.stringify(labelsJson) + (extraArgs || ", false") + ", " + JSON.stringify(_asciiJson(clipInfo)) + ")";
 
       csInterface.evalScript(script, function (rawResult) {
         if (rawResult === "EvalScript error.") {

@@ -6,6 +6,15 @@
   "use strict";
 
   var entries = {}; // mediaPath -> { mediaPath, label, camelot, key, scale, strength, bpm }
+  // When each entry last changed (entry.updatedAt), and which entries this
+  // panel dropped since it started, so a save can take in another host's
+  // newer entries without bringing dropped ones back. library.json stays a
+  // plain array, so drops are kept in memory only, until the panel closes.
+  var _removedAt = {}; // mediaPath -> time
+  var _clearedAt = 0;
+  function _touch(entry) {
+    entry.updatedAt = Date.now();
+  }
   // Verify cached analysis against the current media file.
   function fileIdentity(mediaPath) {
     try {
@@ -30,6 +39,7 @@
       entries[mediaPath] = entry;
     }
     entry.label = label;
+    _touch(entry);
     return entry;
   }
 
@@ -79,7 +89,7 @@
   }
   function clearConfirmedKey(mediaPath, scopeKey) {
     var entry = get(mediaPath), slot = entry && _keySlot(entry, scopeKey, false);
-    if (slot) { slot.confirmedKey = null; _applyKey(slot); }
+    if (slot) { slot.confirmedKey = null; _applyKey(slot); _touch(entry); }
   }
 
   function confirmBpm(mediaPath, label, bpm) {
@@ -89,7 +99,7 @@
   }
   function clearConfirmedBpm(mediaPath) {
     var entry = get(mediaPath);
-    if (entry) { entry.confirmedBpm = null; }
+    if (entry) { entry.confirmedBpm = null; _touch(entry); }
   }
   // analysisData: { bpm, beatsArray, confidence, phase, clipInfo }, the same
   // shape js/main.js holds in lastAnalysis after a successful Analyze.
@@ -142,10 +152,30 @@
 
   function remove(mediaPath) {
     delete entries[mediaPath];
+    _removedAt[mediaPath] = Date.now();
   }
 
+  // Settings > Clear: analysis results go; an entry with a confirmed key or
+  // tempo keeps that confirmation.
   function clear() {
-    entries = {};
+    _clearedAt = Date.now();
+    for (var path in entries) {
+      if (!entries.hasOwnProperty(path)) { continue; }
+      var entry = entries[path];
+      var slots = Array.isArray(entry.intervalKeys) ? entry.intervalKeys.filter(function (slot) { return slot && slot.confirmedKey; }) : [];
+      if (!entry.confirmedKey && !entry.confirmedBpm && !slots.length) {
+        delete entries[path];
+        continue;
+      }
+      ["bpm", "beatsArray", "downbeatTimes", "confidence", "clipInfo"].forEach(function (k) { entry[k] = null; });
+      entry.phase = 0;
+      entry.intervalKeys = slots;
+      [entry].concat(slots).forEach(function (slot) {
+        slot.detectedKey = null;
+        if (slot.confirmedKey) { _applyKey(slot); } else { ["key", "scale", "strength", "camelot"].forEach(function (k) { slot[k] = null; }); }
+      });
+      entry.updatedAt = _clearedAt;
+    }
   }
   // Replaces the in-memory map with entries loaded from disk (see
   // js/persistence.js load()). Loaded entries never have `clipInfo`: it is
@@ -155,27 +185,60 @@
     entries = {};
     if (!Array.isArray(list)) { return; }
     for (var i = 0; i < list.length; i++) {
-      if (list[i] && typeof list[i].mediaPath === "string" && list[i].mediaPath) {
-        var entry = Object.assign({}, list[i]);
-        entry.bpm = typeof entry.bpm === "number" && isFinite(entry.bpm) && entry.bpm > 0 ? entry.bpm : null;
-        entry.beatsArray = entry.bpm ? validTimes(entry.beatsArray) : null;
-        entry.downbeatTimes = entry.beatsArray ? validTimes(entry.downbeatTimes) : null;
-        entry.confidence = typeof entry.confidence === "number" && isFinite(entry.confidence) ? entry.confidence : null;
-        entry.phase = Number.isInteger(entry.phase) && entry.phase >= 0 && entry.phase <= 3 ? entry.phase : 0;
-        var slots = [entry].concat(Array.isArray(entry.intervalKeys) ? entry.intervalKeys.slice(-12) : []);
-        entry.intervalKeys = slots.slice(1).filter(function (slot) { return slot && typeof slot.scopeKey === "string" && /^(music|sfx):[0-9]+:[0-9]+$/.test(slot.scopeKey); });
-        slots.forEach(function (slot) {
-          if (!slot || !slot.confirmedKey || slot.confirmedKey.source !== "user" ||
-              !/^([1-9]|1[0-2])[AB]$/.test(slot.confirmedKey.camelot)) {
-            if (slot) { slot.confirmedKey = null; }
-          }
-        });
-        if (!entry.confirmedBpm || entry.confirmedBpm.source !== "user" ||
-            typeof entry.confirmedBpm.value !== "number" || !isFinite(entry.confirmedBpm.value) ||
-            entry.confirmedBpm.value <= 0 || entry.confirmedBpm.value > 999) { entry.confirmedBpm = null; }
-        entries[entry.mediaPath] = entry;
+      var entry = _normalized(list[i]);
+      if (entry) { entries[entry.mediaPath] = entry; }
+    }
+  }
+
+  // Another host's saved list (library.json): an entry newer there
+  // replaces this one (keeping this one's live clip position); an entry
+  // not here comes in unless this panel dropped or cleared it after it
+  // last changed there. Returns whether anything changed.
+  function absorb(list) {
+    if (!Array.isArray(list)) { return false; }
+    var changed = false;
+    for (var i = 0; i < list.length; i++) {
+      var theirs = _normalized(list[i]);
+      if (!theirs) { continue; }
+      var at = typeof theirs.updatedAt === "number" && isFinite(theirs.updatedAt) ? theirs.updatedAt : 0;
+      var mine = entries[theirs.mediaPath];
+      if (mine) {
+        if (at > (mine.updatedAt || 0)) {
+          theirs.clipInfo = mine.clipInfo;
+          entries[theirs.mediaPath] = theirs;
+          changed = true;
+        }
+      } else if (at >= _clearedAt && !(_removedAt[theirs.mediaPath] >= at)) {
+        entries[theirs.mediaPath] = theirs;
+        changed = true;
       }
     }
+    return changed;
+  }
+
+  // One saved entry, checked field by field; null when it is unusable.
+  function _normalized(raw) {
+    if (raw && typeof raw.mediaPath === "string" && raw.mediaPath) {
+      var entry = Object.assign({}, raw);
+      entry.bpm = typeof entry.bpm === "number" && isFinite(entry.bpm) && entry.bpm > 0 ? entry.bpm : null;
+      entry.beatsArray = entry.bpm ? validTimes(entry.beatsArray) : null;
+      entry.downbeatTimes = entry.beatsArray ? validTimes(entry.downbeatTimes) : null;
+      entry.confidence = typeof entry.confidence === "number" && isFinite(entry.confidence) ? entry.confidence : null;
+      entry.phase = Number.isInteger(entry.phase) && entry.phase >= 0 && entry.phase <= 3 ? entry.phase : 0;
+      var slots = [entry].concat(Array.isArray(entry.intervalKeys) ? entry.intervalKeys.slice(-12) : []);
+      entry.intervalKeys = slots.slice(1).filter(function (slot) { return slot && typeof slot.scopeKey === "string" && /^(music|sfx):[0-9]+:[0-9]+$/.test(slot.scopeKey); });
+      slots.forEach(function (slot) {
+        if (!slot || !slot.confirmedKey || slot.confirmedKey.source !== "user" ||
+            !/^([1-9]|1[0-2])[AB]$/.test(slot.confirmedKey.camelot)) {
+          if (slot) { slot.confirmedKey = null; }
+        }
+      });
+      if (!entry.confirmedBpm || entry.confirmedBpm.source !== "user" ||
+          typeof entry.confirmedBpm.value !== "number" || !isFinite(entry.confirmedBpm.value) ||
+          entry.confirmedBpm.value <= 0 || entry.confirmedBpm.value > 999) { entry.confirmedBpm = null; }
+      return entry;
+    }
+    return null;
   }
 
   // Validate the complete grid so removing a beat cannot alter phase.
@@ -203,6 +266,7 @@
     getAll: getAll,
     remove: remove,
     clear: clear,
-    loadEntries: loadEntries
+    loadEntries: loadEntries,
+    absorb: absorb
   };
 })(window);

@@ -21,6 +21,7 @@
 
 <p align="center">
   <a href="https://github.com/ominousopera/Downbeat/releases/latest"><img src="docs/images/download-mac.svg" alt="Download for macOS" height="52"></a>
+  &nbsp;
   <a href="https://github.com/ominousopera/Downbeat/releases/latest"><img src="docs/images/download-win.svg" alt="Download for Windows" height="52"></a>
 </p>
 
@@ -100,12 +101,16 @@ never changed.
 
 ## What it does
 
+<table>
+<tr>
+<td width="42%" valign="top">
+
+<img src="docs/images/analyze.png" alt="The Analyze tab: waveform with beat markers, 124 BPM, marker settings" width="100%">
+
+</td>
+<td valign="top">
+
 ### Analyze
-
-<p align="center">
-  <img src="docs/images/analyze.png" alt="The Analyze tab: waveform with beat markers, 124 BPM, marker settings" width="420">
-</p>
-
 
 Finds the tempo, beats and downbeats with two detectors (a classic algorithm
 and the Beat This! model, which runs locally) and puts markers
@@ -130,14 +135,21 @@ to the beat takes minutes.
   a click track lets you check it by ear.
 - **Refined / Basic.** If the markers miss the beats, switch between the two
   detectors' results with one click.
-- **Copy and paste markers** from one clip to another, or move them.
+- **Copy and paste markers** within the same host, or move them. Positions use
+  the audible clip start and adapt to target trim/speed; comments, duration and
+  supported metadata are preserved.
+- **Add a metronome track.** Render the current grid as a WAV and insert it below
+  the selected music; choose the finished-audio folder in Settings.
+
+</td>
+</tr>
+</table>
+
+<table>
+<tr>
+<td valign="top">
 
 ### Key
-
-<p align="center">
-  <img src="docs/images/key.png" alt="The Key tab: Camelot wheel, detected key 8A, pitch shift of -5 semitones" width="420">
-</p>
-
 
 Musical key in Camelot and note names from three opinions (sound effects get
 a key only when they have a clear pitch). A pitch shift
@@ -145,16 +157,41 @@ calculator, and "Pitch the clip" retimes the clip itself to another key. Your
 audio is never rewritten. When a clip plays at another speed, Analyze and Key
 also show the tempo and the key as they sound on the timeline.
 
+Choose the whole source or the selected source interval for Detect key. Save a
+source override when you know the answer. The main result, wheel and matching
+follow the selected clip's calculated playback key; source key stays separate.
+Consecutive pitch shifts compose with the current speed. Pitched copies have
+separate Downbeat markers, preserving original and editor markers.
+
+</td>
+<td width="42%" valign="top">
+
+<img src="docs/images/key.png" alt="The Key tab: Camelot wheel, detected key 8A, pitch shift of -5 semitones" width="100%">
+
+</td>
+</tr>
+</table>
+
 ### Library
 
 Your own music and sound effects, with the key of every file written right
 next to it. Pick the song you are cutting, press **Match clip**, and the list
 shrinks to the sounds that fit it.
 
-<p align="center">
-  <img src="docs/images/library-match.png" alt="The Library with Match clip on: only sounds in the song's key or a neighbouring one" width="360">
-  <img src="docs/images/library-preview.png" alt="The Library preview: pitch a sound into the song's key, trim it, add fades" width="360">
-</p>
+<table>
+<tr>
+<td width="50%" valign="top">
+
+<img src="docs/images/library-match.png" alt="The Library with Match clip on: only sounds in the song's key or a neighbouring one" width="100%">
+
+</td>
+<td width="50%" valign="top">
+
+<img src="docs/images/library-preview.png" alt="The Library preview: pitch a sound into the song's key, trim it, add fades" width="100%">
+
+</td>
+</tr>
+</table>
 
 - **Key and tempo on every file**, like `8A · A minor` or `124 BPM`, found
   when you scan your folders.
@@ -180,7 +217,11 @@ shrinks to the sounds that fit it.
   work without the mouse.
 - **Folders you can scope.** Tick folders to search only those. Files that are
   not there any more are marked, not forgotten, and **Settings → Library →
-  Save a copy / Load a copy** backs the whole library up.
+  Save a copy / Load a copy** backs the whole library up. Music and SFX use
+  separate, non-overlapping audio folders; drive roots are rejected. Unreadable
+  folders retain records and favourites; Start scan retries failed files.
+- **Confirm Key/BPM** for a selected Library row, or reset to detected/file-name
+  values. Backups preserve confirmations; changed audio invalidates old results.
 - **Preview in the panel** with play, loop, reverse and volume. Drag across the
   waveform to pick just a part of the sound, and drag the fade handles to add
   a fade in and a fade out.
@@ -326,6 +367,27 @@ the <b>Finished audio</b> destination and are kept by Delete my data.
 </details>
 
 <details>
+<summary><b>Which key does Pitch, Match clip or In key use?</b></summary>
+
+They use the selected clip's calculated playback key. Detect key measures the
+source file or selected source interval; source overrides stay attached to that
+source. Speed changes pitch like a sampler, so two +2-semitone shifts combine
+into +4. Maintain audio pitch and audio effects are outside this calculation.
+At speeds between whole semitones there is no exact Camelot target.
+</details>
+
+<details>
+<summary><b>How do I copy or move markers from a trimmed clip?</b></summary>
+
+Use Marker tools → Copy markers, select the target, then Paste markers here.
+Enable Remove from source after copy to move the captured markers. Transfer
+uses audible offsets rather than absolute source time, preserves supported
+metadata in the same host, and skips starts outside the target clip. A duration
+can extend past the clip end. Changing the selection or timing during a host
+request refuses the operation before mutation.
+</details>
+
+<details>
 <summary><b>What is the Camelot wheel?</b></summary>
 
 A DJ notation for the 24 musical keys: numbers 1 to 12 around a wheel, and a
@@ -344,7 +406,10 @@ Any folder with audio files (WAV, AIFF, MP3, M4A, AAC, FLAC, OGG), added as
 Sound effects get no tempo; most of them have no pitch either, so they show
 "no clear pitch" and are skipped by a key search. Files your host cannot import
 (for example FLAC and OGG in Premiere Pro) can be scanned and previewed, but
-not inserted.
+not inserted. Choose a folder inside a drive rather than its root, and keep
+Music and SFX folders separate. Start scan retries failed files. A folder that
+cannot be read keeps its saved records; Cancel stops queued work. If a file is
+replaced at the same path, its preview reloads before insertion.
 </details>
 
 <details>
@@ -574,6 +639,25 @@ spaces), and `scripts/check-code.js` checks it before every build.
 
 1.0.4.
 
+## Changes in 1.0.4
+
+### Saved data and markers
+
+- Data files are written as a new copy and swapped in, so an interrupted
+  save keeps the previous version. A file that still cannot be read is kept
+  as `<name>.unreadable-<date>-<time>.json`, reported on the Library tab and
+  never saved over.
+- Premiere Pro and After Effects can run Downbeat together: each panel takes
+  in the other's newer saves (favorites, confirmations, folders, settings)
+  instead of overwriting them, and the start-up clean-up removes only
+  temporary files older than six hours.
+- Settings → Clear removes analysis results only; favorites and confirmed
+  keys and tempos stay.
+- After Effects: placing or pasting markers leaves your own marker where a
+  beat falls on the same moment. Premiere: placing again on a re-sped clip
+  replaces the whole earlier set.
+- Enter in the Library inserts a sound once, however long it is held.
+
 ### Metronome audio and destination
 
 **Analyze → Add metronome track** renders the current beat grid as a mono
@@ -620,3 +704,5 @@ The main Key result, Camelot wheel, compatible keys, Match clip and In key use t
 Pitch creates a separate media item in Premiere and removes Downbeat clip markers from the new copy. Editor markers and markers on the original remain intact; sequence/composition markers are unchanged. Analyze and place fresh beat markers for the pitched clip.
 
 Selected Library regions use exact source-time bounds on the inserted Premiere clip before fades and speed are applied; the insertion is read back and refused if trimming does not take.
+
+Marker transfers use offsets from the audible clip start, preserve comments and duration, and stay within the same host. Music and SFX folders must not overlap or point to a drive root. Scans retain records in unreadable folders and retry failed files; replaced audio reloads its preview.

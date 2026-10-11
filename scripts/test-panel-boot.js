@@ -24,6 +24,10 @@ fs.writeFileSync(path.join(DATA, "library.json"), "[]");
 fs.writeFileSync(path.join(DATA, "sound-library.json"), JSON.stringify({ version: 1, folders: { music: [], sfx: ["/SFX"] },
   files: { "/SFX/hit.wav": { path: "/SFX/hit.wav", section: "sfx", name: "hit.wav", status: "done", v: 3, durationSec: 1 } } }));
 fs.writeFileSync(path.join(DATA, "tmp", "samples-1-2.raw"), "x");
+// A crash leftover is a day old; a fresh file may belong to the other
+// host (Premiere and After Effects at once) and must stay.
+fs.utimesSync(path.join(DATA, "tmp", "samples-1-2.raw"), new Date(Date.now() - 86400000), new Date(Date.now() - 86400000));
+fs.writeFileSync(path.join(DATA, "tmp", "samples-3-4.raw"), "x");
 fs.writeFileSync(path.join(DATA, "not-ours.txt"), "user file");
 
 function listTree(dir) {
@@ -169,6 +173,7 @@ check("clicking Sound effect switches and is remembered",
       "settings.keyMaterial=" + savedSettings.keyMaterial);
 
 check("startup swept the leftover temp file", !fs.existsSync(path.join(DATA, "tmp", "samples-1-2.raw")));
+check("startup kept a fresh temp file another host may be using", fs.existsSync(path.join(DATA, "tmp", "samples-3-4.raw")));
 check("startup sweep left settings and library alone",
       fs.existsSync(path.join(DATA, "settings.json")) && fs.existsSync(path.join(DATA, "library.json")));
 // Delete my data, through the real click handlers.

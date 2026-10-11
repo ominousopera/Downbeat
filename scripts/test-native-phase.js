@@ -21,11 +21,12 @@ for (const mode of ["simple", "detailed"]) {
     window: {}, getSelectedCutMode: function () { return mode; }, log: function () {},
     lastAnalysis: { phase: 2, beatsArray: [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5], downbeatTimes: [0, 2] },
     _replaceMarkersIfPlaced: function (phase) { state.lastAnalysis.phase = phase; },
-    _forgetPhaseShift: function () { state.lastAnalysis.phaseShift = 0; }
+    _forgetPhaseShift: function () { state.lastAnalysis.phaseShift = 0; },
+    _updatePhaseShiftUi: function () {}
   };
   vm.createContext(state);
   vm.runInContext(fs.readFileSync(path.join(root, "js/cuesheet.js"), "utf8"), state);
-  vm.runInContext(functions.shiftPhase + "\n" + functions.resetPhaseShift, state);
+  vm.runInContext(functions._phaseState + "\n" + functions._restorePhaseState + "\n" + functions.shiftPhase + "\n" + functions.resetPhaseShift, state);
   vm.runInContext("shiftPhase(1)", state);
   assert.deepStrictEqual(Array.from(state.lastAnalysis.downbeatTimes), [0.5, 2.5], mode);
   const detailed = state.window.BeatMarkerCuesheet.buildLabeledBeatsTrack(

@@ -152,7 +152,8 @@ waitFor(function () { return rows().length === 2; }, "listing the SFX folder")
     $.libPaneLoop._fire("change");
     check("Loop loops the sound that plays", lastSource().loop === true);
     $.libPaneAddBtn._fire("click");
-    return waitFor(function () { return inserts.length === 1; }, "Add with pitch and reverse");
+    // One insert at a time: the next Add waits until this one has finished.
+    return waitFor(function () { return inserts.length === 1 && $.busyOverlay.hidden; }, "Add with pitch and reverse");
   })
   .then(function () {
     const o0 = inserts[0].opts || {};
@@ -165,7 +166,7 @@ waitFor(function () { return rows().length === 2; }, "listing the SFX folder")
     $.libPaneReverse.checked = false;
     $.libPaneReverse._fire("change");
     $.libPaneAddBtn._fire("click");
-    return waitFor(function () { return inserts.length === 2; }, "Add without processing");
+    return waitFor(function () { return inserts.length === 2 && $.busyOverlay.hidden; }, "Add without processing");
   })
   .then(function () {
     check("at pitch 0 the key line is gone", $.libPaneKey.hidden);
@@ -193,7 +194,7 @@ waitFor(function () { return rows().length === 2; }, "listing the SFX folder")
     check("▶ plays just the part, from its start, for its length", src.offset === 0.4 && Math.abs(src.duration - 1.0) < 1e-9 && curves, src.offset + " + " + src.duration);
     $.libPanePlayBtn._fire("click");
     $.libPaneAddBtn._fire("click");
-    return waitFor(function () { return inserts.length === 3; }, "Add with a part and fades");
+    return waitFor(function () { return inserts.length === 3 && $.busyOverlay.hidden; }, "Add with a part and fades");
   })
   .then(function () {
     const o = inserts[2].opts || {};
@@ -204,7 +205,7 @@ waitFor(function () { return rows().length === 2; }, "listing the SFX folder")
     // With a pitch: still the original; the fades are timeline seconds.
     $.libPanePitchUp._fire("click");
     $.libPaneAddBtn._fire("click");
-    return waitFor(function () { return inserts.length === 4; }, "Add with a part, fades and a pitch");
+    return waitFor(function () { return inserts.length === 4 && $.busyOverlay.hidden; }, "Add with a part, fades and a pitch");
   })
   .then(function () {
     const o3 = inserts[3].opts || {};
@@ -219,7 +220,7 @@ waitFor(function () { return rows().length === 2; }, "listing the SFX folder")
     $.libPaneReverse.checked = true;
     $.libPaneReverse._fire("change");
     $.libPaneAddBtn._fire("click");
-    return waitFor(function () { return inserts.length === 5; }, "Add with a part and Reverse");
+    return waitFor(function () { return inserts.length === 5 && $.busyOverlay.hidden; }, "Add with a part and Reverse");
   })
   .then(async function () {
     const o4 = inserts[4].opts || {};

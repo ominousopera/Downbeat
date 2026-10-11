@@ -43,6 +43,15 @@
   // Otherwise it refuses outright. The pattern must match the names
   // the panel gives its worker handoff files.
   var OWN_TEMP_FILE_PATTERN = /^((samples|beatthis|skey|library)-[0-9]+-[0-9]+\.raw|library-[0-9]+-[0-9]+\.json)$/;
+  // In Documents/Downbeat itself: the new copy of a data file while it is
+  // written (_writeAtomic), and a data file set aside because it could not
+  // be read (_setAside). Both are this plugin's own.
+  var OWN_DATA_TEMP_PATTERN = /^(library|settings|sound-library)\.json\.tmp-[0-9]+-[0-9]+$/;
+  var OWN_SET_ASIDE_PATTERN = /^(library|settings|sound-library)\.unreadable-[0-9]{8}-[0-9]{6}(-[0-9]+)?\.json$/;
+  // The start-up sweep leaves younger temp files alone: Premiere and After
+  // Effects can both run Downbeat on one Documents/Downbeat, and a panel
+  // starting in one must not remove files the other is still using.
+  var STALE_TEMP_MS = 6 * 60 * 60 * 1000;
   function _pathKind(fs, path) {
     var stat;
     try {
@@ -98,7 +107,8 @@
       // looked at on its own below
       }
       var full = dataDir + "/" + names[i];
-      if (includeDataFiles && ownDataNames.indexOf(names[i]) !== -1 && _pathKind(fs, full) === "file") {
+      var ownData = ownDataNames.indexOf(names[i]) !== -1 || OWN_SET_ASIDE_PATTERN.test(names[i]);
+      if (((includeDataFiles && ownData) || OWN_DATA_TEMP_PATTERN.test(names[i])) && _pathKind(fs, full) === "file") {
         listing.files.push(full);
       } else {
         listing.kept.push(full);
@@ -154,7 +164,12 @@
   function clearLeftoverTempFiles(csInterface) {
     try {
       var fs = window.cep_node.require("fs");
-      var result = _deleteListedFiles(fs, _listOwnFiles(csInterface, false).files);
+      // Only files older than STALE_TEMP_MS: the other host may be working.
+      var now = Date.now();
+      var stale = _listOwnFiles(csInterface, false).files.filter(function (f) {
+        try { return now - fs.lstatSync(f).mtimeMs > STALE_TEMP_MS; } catch (e) { return false; }
+      });
+      var result = _deleteListedFiles(fs, stale);
       return { ok: result.failed.length === 0, removed: result.deleted.length, error: result.failed.join(", ") };
     } catch (e) {
       return { ok: false, error: e.message ? e.message : String(e) };
@@ -175,6 +190,8 @@
       var fs = window.cep_node.require("fs");
       var listing = _listOwnFiles(csInterface, true);
       var result = _deleteListedFiles(fs, listing.files);
+      _saveBlocked = {};
+      _synced = {};
       _removeFolderIfEmpty(fs, listing.dataDir + "/tmp");
       var folderRemoved = _removeFolderIfEmpty(fs, listing.dataDir);
       return {
@@ -189,6 +206,128 @@
       return { ok: false, error: e.message ? e.message : String(e) };
     }
   }
+  // ---- Reading and writing the three data files. A save writes the new
+  // text to a temp copy beside the file and renames it over the file, so
+  // the file is always either the old or the new version, never a cut-off
+  // one. A file that is there but is not valid JSON is renamed to
+  // <name>.unreadable-<date>-<time>.json before anything can save, and the
+  // caller tells the user. A file that cannot be read at all (locked, no
+  // permission) is left alone, and saving over it is refused for the rest
+  // of the session.
+  var _saveBlocked = {}; // file path -> true
+  // What this panel last read or wrote, to notice another host's save
+  // (Premiere and After Effects can share Documents/Downbeat).
+  var _synced = {}; // file path -> "mtimeMs:size"
+
+  function _stamp(fs, filePath) {
+    try {
+      var st = fs.statSync(filePath);
+      return st.mtimeMs + ":" + st.size;
+    } catch (e) {
+      return null;
+    }
+  }
+  function _noteSynced(fs, filePath) {
+    var stamp = _stamp(fs, filePath);
+    if (stamp) { _synced[filePath] = stamp; } else { delete _synced[filePath]; }
+  }
+
+  function _two(n) { return (n < 10 ? "0" : "") + n; }
+  function _setAside(fs, filePath) {
+    var d = new Date();
+    var stamp = d.getFullYear() + _two(d.getMonth() + 1) + _two(d.getDate()) + "-" + _two(d.getHours()) + _two(d.getMinutes()) + _two(d.getSeconds());
+    var base = filePath.replace(/\.json$/, "") + ".unreadable-" + stamp;
+    for (var i = 0; i < 100; i++) {
+      var target = base + (i ? "-" + i : "") + ".json";
+      if (fs.existsSync(target)) {
+        continue;
+      }
+      try {
+        fs.renameSync(filePath, target);
+        return target;
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  // { existed: false } when there is no file; { existed: true, value }
+  // when it parsed and passed `validate`. Throws otherwise, with
+  // err.setAside (where the bad file went) or err.blocked.
+  function _readJsonFile(fs, filePath, validate) {
+    if (!fs.existsSync(filePath)) {
+      return { existed: false };
+    }
+    var raw;
+    try {
+      raw = fs.readFileSync(filePath, "utf8");
+    } catch (readErr) {
+      _saveBlocked[filePath] = true;
+      readErr.blocked = true;
+      throw readErr;
+    }
+    var value;
+    try {
+      value = JSON.parse(raw);
+      if (validate) { validate(value); }
+    } catch (parseErr) {
+      var aside = _setAside(fs, filePath);
+      if (aside) {
+        parseErr.setAside = aside;
+      } else {
+        _saveBlocked[filePath] = true;
+        parseErr.blocked = true;
+      }
+      throw parseErr;
+    }
+    _noteSynced(fs, filePath);
+    return { existed: true, value: value };
+  }
+  function _loadFailure(e) {
+    return { ok: false, error: e.message ? e.message : String(e), setAside: e.setAside || null, blocked: !!e.blocked };
+  }
+
+  function _writeAtomic(fs, filePath, text) {
+    if (_saveBlocked[filePath]) {
+      throw new Error("not saved: " + filePath + " could not be read when the panel started, so it is left as it is. Restart the host to try again.");
+    }
+    var temp = filePath + ".tmp-" + Date.now() + "-" + Math.floor(Math.random() * 1e6);
+    fs.writeFileSync(temp, text, "utf8");
+    try {
+      fs.renameSync(temp, filePath);
+    } catch (renameErr) {
+      // Windows can refuse to replace a file another program holds open;
+      // the complete text is then written in place.
+      try {
+        fs.writeFileSync(filePath, text, "utf8");
+      } finally {
+        try { fs.unlinkSync(temp); } catch (e) { /* swept as a stale temp file */ }
+      }
+    }
+    _noteSynced(fs, filePath);
+  }
+
+  // The file's content when another host saved it since this panel last
+  // read or wrote it: { changed: true, value }; else { changed: false }.
+  // Read errors count as unchanged - the next save simply writes ours.
+  function readIfChanged(csInterface, kind) {
+    var name = kind === "settings" ? SETTINGS_FILE_NAME : kind === "sound-library" ? SOUND_LIBRARY_FILE_NAME : FILE_NAME;
+    try {
+      var fs = window.cep_node.require("fs");
+      var filePath = _getDataDir(csInterface) + "/" + name;
+      var stamp = _stamp(fs, filePath);
+      if (!stamp || stamp === _synced[filePath]) {
+        return { changed: false };
+      }
+      var value = JSON.parse(fs.readFileSync(filePath, "utf8"));
+      _synced[filePath] = stamp;
+      return { changed: true, value: value };
+    } catch (e) {
+      return { changed: false };
+    }
+  }
+
   // entries: the array from BeatMarkerLibrary.getAll(). `clipInfo` is
   // deliberately stripped before writing: it is the selected clip's current
   // timeline position, which can go stale between sessions. Everything else
@@ -223,11 +362,12 @@
           confirmedKey: e.confirmedKey || null,
           confirmedBpm: e.confirmedBpm || null,
           intervalKeys: e.intervalKeys || [],
-          material: e.material || null
+          material: e.material || null,
+          updatedAt: e.updatedAt || null
 
         });
       }
-      fs.writeFileSync(filePath, JSON.stringify(stripped, null, 2), "utf8");
+      _writeAtomic(fs, filePath, JSON.stringify(stripped, null, 2));
       return { ok: true, path: filePath, count: stripped.length };
     } catch (e) {
       return { ok: false, error: e.message ? e.message : String(e) };
@@ -242,17 +382,14 @@
       }
       var fs = window.cep_node.require("fs");
       var filePath = _getDataDir(csInterface) + "/" + FILE_NAME;
-      if (!fs.existsSync(filePath)) {
-        return { ok: true, entries: [], path: filePath, existed: false };
-      }
-      var raw = fs.readFileSync(filePath, "utf8");
-      var entries = JSON.parse(raw);
-      if (!Array.isArray(entries)) {
-        throw new Error("library.json did not contain a JSON array.");
-      }
-      return { ok: true, entries: entries, path: filePath, existed: true };
+      var read = _readJsonFile(fs, filePath, function (value) {
+        if (!Array.isArray(value)) {
+          throw new Error("library.json did not contain a JSON array.");
+        }
+      });
+      return { ok: true, entries: read.existed ? read.value : [], path: filePath, existed: read.existed };
     } catch (e) {
-      return { ok: false, error: e.message ? e.message : String(e) };
+      return _loadFailure(e);
     }
   }
   // Panel-wide preferences (language, whether the onboarding tour has been
@@ -268,7 +405,7 @@
       var dir = _getDataDir(csInterface);
       fs.mkdirSync(dir, { recursive: true });
       var filePath = dir + "/" + SETTINGS_FILE_NAME;
-      fs.writeFileSync(filePath, JSON.stringify(settings, null, 2), "utf8");
+      _writeAtomic(fs, filePath, JSON.stringify(settings, null, 2));
       // Restricted to the current OS user (owner read/write only, 0600) so
       // another local account on a shared machine cannot read the file.
       // Not encrypted.
@@ -291,14 +428,14 @@
       }
       var fs = window.cep_node.require("fs");
       var filePath = _getDataDir(csInterface) + "/" + SETTINGS_FILE_NAME;
-      if (!fs.existsSync(filePath)) {
-        return { ok: true, settings: {}, path: filePath, existed: false };
-      }
-      var raw = fs.readFileSync(filePath, "utf8");
-      var settings = JSON.parse(raw);
-      return { ok: true, settings: settings || {}, path: filePath, existed: true };
+      var read = _readJsonFile(fs, filePath, function (value) {
+        if (value !== null && (typeof value !== "object" || Array.isArray(value))) {
+          throw new Error("settings.json did not contain a JSON object.");
+        }
+      });
+      return { ok: true, settings: (read.existed && read.value) || {}, path: filePath, existed: read.existed };
     } catch (e) {
-      return { ok: false, error: e.message ? e.message : String(e) };
+      return _loadFailure(e);
     }
   }
   // The Library tab's folder libraries: which folders were added and what
@@ -315,7 +452,7 @@
       var dir = _getDataDir(csInterface);
       fs.mkdirSync(dir, { recursive: true });
       var filePath = dir + "/" + SOUND_LIBRARY_FILE_NAME;
-      fs.writeFileSync(filePath, JSON.stringify(state), "utf8");
+      _writeAtomic(fs, filePath, JSON.stringify(state));
       return { ok: true, path: filePath };
     } catch (e) {
       return { ok: false, error: e.message ? e.message : String(e) };
@@ -328,12 +465,14 @@
       }
       var fs = window.cep_node.require("fs");
       var filePath = _getDataDir(csInterface) + "/" + SOUND_LIBRARY_FILE_NAME;
-      if (!fs.existsSync(filePath)) {
-        return { ok: true, state: null, path: filePath, existed: false };
-      }
-      return { ok: true, state: JSON.parse(fs.readFileSync(filePath, "utf8")), path: filePath, existed: true };
+      var read = _readJsonFile(fs, filePath, function (value) {
+        if (!value || typeof value !== "object" || Array.isArray(value)) {
+          throw new Error("sound-library.json did not contain a JSON object.");
+        }
+      });
+      return { ok: true, state: read.existed ? read.value : null, path: filePath, existed: read.existed };
     } catch (e) {
-      return { ok: false, error: e.message ? e.message : String(e) };
+      return _loadFailure(e);
     }
   }
   global.BeatMarkerPersistence = {
@@ -346,6 +485,7 @@
     loadSettings: loadSettings,
     getTempDir: getTempDir,
     clearLeftoverTempFiles: clearLeftoverTempFiles,
+    readIfChanged: readIfChanged,
     listUserData: listUserData,
     deleteUserData: deleteUserData
   };

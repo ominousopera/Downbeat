@@ -28,16 +28,59 @@
 
   var state = _emptyState();
 
+  // Besides folders and files, the state keeps when things changed, so two
+  // hosts sharing Documents/Downbeat (Premiere and After Effects open at
+  // once) can merge each other's saves instead of the last one winning
+  // (see absorb() below):
+  //   record.updatedAt  - when the record last changed here or there;
+  //   removed           - path -> when a gone file's record was dropped;
+  //   folderAt          - "section\ndir" -> when the folder was added;
+  //   removedFolders    - "section\ndir" -> when the folder was taken out;
+  //   clearedAt         - section -> when Clear emptied its results.
+  // A reader that does not know these fields ignores them; a missing time
+  // counts as 0.
   function _emptyState() {
-    return { version: 1, folders: { music: [], sfx: [] }, files: {} };
+    return { version: 1, folders: { music: [], sfx: [] }, files: {},
+      removed: {}, folderAt: {}, removedFolders: {}, clearedAt: { music: 0, sfx: 0 } };
+  }
+  var TOMBSTONE_DAYS = 90;
+  var TOMBSTONE_MAX = 5000;
+  function _now() {
+    return Date.now();
+  }
+  function _touch(rec) {
+    rec.updatedAt = _now();
+  }
+  function _time(v) {
+    return typeof v === "number" && isFinite(v) && v > 0 ? v : 0;
+  }
+  // A { key: time } map from saved data: valid times only, none older than
+  // TOMBSTONE_DAYS, at most TOMBSTONE_MAX of the newest.
+  function _timeMap(saved) {
+    var out = {};
+    if (!saved || typeof saved !== "object") {
+      return out;
+    }
+    var oldest = _now() - TOMBSTONE_DAYS * 86400000;
+    var keys = Object.keys(saved).filter(function (k) { return k !== "__proto__" && _time(saved[k]) > oldest; });
+    keys.sort(function (a, b) { return saved[b] - saved[a]; });
+    keys.slice(0, TOMBSTONE_MAX).forEach(function (k) { out[k] = saved[k]; });
+    return out;
+  }
+  function _folderKey(section, dir) {
+    return section + "\n" + dir;
   }
 
   function _norm(dir) {
-    return String(dir).replace(/\\/g, "/").replace(/\/+$/, "");
+    var path = String(dir).replace(/\\/g, "/");
+    if (/^\/+$/.test(path)) { return "/"; }
+    if (/^[a-z]:\/+$/i.test(path)) { return path.slice(0, 2) + "/"; }
+    return path.replace(/\/+$/, "");
   }
 
   function _under(path, dir) {
-    return path === dir || path.indexOf(dir + "/") === 0;
+    var prefix = dir.slice(-1) === "/" ? dir : dir + "/";
+    return path === dir || path.indexOf(prefix) === 0;
   }
 
   function loadState(saved) {
@@ -49,6 +92,10 @@
       var list = saved.folders && saved.folders[SECTIONS[s]];
       state.folders[SECTIONS[s]] = Array.isArray(list) ? list.map(_norm) : [];
     }
+    state.removed = _timeMap(saved.removed);
+    state.folderAt = _timeMap(saved.folderAt);
+    state.removedFolders = _timeMap(saved.removedFolders);
+    SECTIONS.forEach(function (sec) { state.clearedAt[sec] = _time(saved.clearedAt && saved.clearedAt[sec]); });
     var files = saved.files || {};
     for (var p in files) {
       // "__proto__" as a key would replace state.files' prototype instead of
@@ -162,9 +209,12 @@
         continue;
       }
       var mine = state.files[p];
+      if ((mine && mine.section !== rec.section) || folderProblem(rec.section, p)) { continue; }
       if (!mine || (mine.status !== "done" && rec.status === "done")) {
         state.files[p] = rec;
         _applyConfirmed(rec);
+        _touch(rec);
+        delete state.removed[p];
         added.files++;
       }
     }
@@ -221,8 +271,23 @@
   }
   // Returns false for a folder already covered (the same folder, or one
   // inside a folder already in this section).
+  function folderProblem(section, dir) {
+    dir = _norm(dir);
+    if (!dir || dir === "/" || /^[a-z]:\/$/i.test(dir) || /^\/\/[^/]+\/[^/]+$/.test(dir)) {
+      return "library.folderRoot";
+    }
+    var other = section === "music" ? "sfx" : "music";
+    if ((state.folders[other] || []).some(function (d) { return _under(dir, d) || _under(d, dir); })) {
+      return "library.folderConflict";
+    }
+    return null;
+  }
+
+  // Returns false for a folder already covered (the same folder, or one
+  // inside a folder already in this section).
   function addFolder(section, dir) {
     dir = _norm(dir);
+    if (folderProblem(section, dir)) { return false; }
     var list = state.folders[section];
     for (var i = 0; i < list.length; i++) {
       if (_under(dir, list[i])) {
@@ -232,6 +297,7 @@
     // A new parent folder replaces the subfolders it now covers.
     state.folders[section] = list.filter(function (d) { return !_under(d, dir); });
     state.folders[section].push(dir);
+    state.folderAt[_folderKey(section, dir)] = _now();
     return true;
   }
   // Forgets the folder and the results of files no other folder of the
@@ -239,6 +305,7 @@
   function removeFolder(section, dir) {
     dir = _norm(dir);
     state.folders[section] = state.folders[section].filter(function (d) { return d !== dir; });
+    state.removedFolders[_folderKey(section, dir)] = _now();
     var remaining = state.folders[section];
     for (var p in state.files) {
       if (!state.files.hasOwnProperty(p)) {
@@ -261,12 +328,14 @@
     var seen = {};
     var folders = state.folders[section];
     var stack = folders.slice();
+    out.incomplete = [];
     while (stack.length && out.length < MAX_FILES_PER_SCAN) {
       var dir = stack.pop();
       var names;
       try {
         names = fs.readdirSync(dir);
       } catch (e) {
+        out.incomplete.push(dir);
         continue; // a folder that is gone or unreadable is just empty
       }
       for (var i = 0; i < names.length; i++) {
@@ -274,11 +343,12 @@
         if (name.charAt(0) === "." || name === "__MACOSX") {
           continue;
         }
-        var full = dir + "/" + name;
+        var full = (dir.slice(-1) === "/" ? dir : dir + "/") + name;
         var st;
         try {
           st = fs.lstatSync(full);
         } catch (e2) {
+          out.incomplete.push(full);
           continue;
         }
         if (st.isDirectory()) {
@@ -286,6 +356,10 @@
         } else if (st.isFile() && AUDIO_EXT.test(name) && !seen[full]) {
           seen[full] = true;
           out.push({ path: full, size: st.size, mtimeMs: Math.round(st.mtimeMs) });
+          if (out.length >= MAX_FILES_PER_SCAN) {
+            out.incomplete = folders.slice();
+            return out;
+          }
         }
       }
     }
@@ -318,25 +392,32 @@
       var f = found[i];
       present[f.path] = true;
       var rec = state.files[f.path];
-      if (!rec || rec.section !== section) {
-        state.files[f.path] = { path: f.path, section: section, name: _basename(f.path), size: f.size, mtimeMs: f.mtimeMs, status: "pending" };
+      if (rec && rec.section !== section) {
+        continue; // retain records from older states with overlapping folders
+      }
+      if (!rec) {
+        state.files[f.path] = { path: f.path, section: section, name: _basename(f.path), size: f.size, mtimeMs: f.mtimeMs, status: "pending", updatedAt: _now() };
+        delete state.removed[f.path];
         result.added++;
       } else if (rec.size !== f.size || rec.mtimeMs !== f.mtimeMs) {
         rec.size = f.size;
         rec.mtimeMs = f.mtimeMs;
         rec.status = "pending";
         clearConfirmed(f.path);
+        _touch(rec);
         result.changed++;
-      } else if (rec.status === "done" && (rec.v || 1) !== ANALYSIS_VERSION[section]) {
+      } else if (rec.status === "error" || (rec.status === "done" && (rec.v || 1) !== ANALYSIS_VERSION[section])) {
         rec.status = "pending"; // analyzed by an older method
+        _touch(rec);
         result.changed++;
       }
     }
-    var keep = offline || [];
+    var keep = (offline || []).concat(found.incomplete || []);
     for (var p in state.files) {
       if (state.files.hasOwnProperty(p) && state.files[p].section === section && !present[p] &&
           !keep.some(function (d) { return _under(p, d); })) {
         delete state.files[p];
+        state.removed[p] = _now();
         result.removed++;
       }
     }
@@ -380,6 +461,7 @@
     if (code) { rec.confirmedKey = { camelot: code, source: "user" }; }
     if (bpm !== null) { rec.confirmedBpm = { value: bpm, source: "user" }; }
     _applyConfirmed(rec);
+    _touch(rec);
   }
   function clearConfirmed(path) {
     var rec = state.files[path];
@@ -388,6 +470,7 @@
       ["bpm", "bpmConfidence", "bpmFrom", "key", "scale", "camelot", "strength", "keyFrom", "keyAgreement"].forEach(function (k) { rec[k] = rec.detected[k]; });
     }
     rec.confirmedKey = null; rec.confirmedBpm = null; rec.detected = null;
+    _touch(rec);
   }
 
   function setResult(path, result) {
@@ -395,6 +478,7 @@
     if (!rec) {
       return;
     }
+    _touch(rec);
     if (!result || !result.ok) {
       rec.status = "error";
       rec.error = result && result.error ? String(result.error) : "unknown error";
@@ -437,13 +521,114 @@
     return rec.pitchCrest >= PITCH_GATE.crest ||
       (rec.pitchFlatness <= PITCH_GATE.flatness && (rec.strength || 0) >= PITCH_GATE.strength);
   }
-  // Empties the section's results; its folders stay, so Rescan rebuilds it.
+  // Empties the section's analysis results; its folders stay, so Rescan
+  // rebuilds it. A favourite or a confirmed key or tempo stays on its
+  // record, which waits for analysis again.
+  var ANALYSIS_FIELDS = ["status", "error", "v", "durationSec", "bpm", "bpmConfidence", "bpmFrom", "camelot", "key", "scale",
+    "strength", "keyFrom", "keyAgreement", "pitchCrest", "pitchFlatness", "detected", "nameChecked"];
   function clearSection(section) {
+    state.clearedAt[section] = _now();
     for (var p in state.files) {
-      if (state.files.hasOwnProperty(p) && state.files[p].section === section) {
+      if (!state.files.hasOwnProperty(p) || state.files[p].section !== section) {
+        continue;
+      }
+      var rec = state.files[p];
+      if (!rec.fav && !rec.confirmedKey && !rec.confirmedBpm) {
         delete state.files[p];
+        continue;
+      }
+      ANALYSIS_FIELDS.forEach(function (k) { delete rec[k]; });
+      rec.status = "pending";
+      _applyConfirmed(rec);
+      rec.updatedAt = state.clearedAt[section];
+    }
+  }
+
+  // Takes in what another host saved (the parsed sound-library.json) and
+  // returns whether anything here changed. Per record the newer updatedAt
+  // wins; a record gone here comes back only when it changed there after
+  // it went (removed / its folder's removal / Clear); a folder is kept when
+  // it was added after it was last removed. Never touches audio files.
+  function absorb(saved) {
+    if (!saved || typeof saved !== "object" || !saved.folders || !saved.files) {
+      return false;
+    }
+    var changed = false;
+    function maxInto(target, from) {
+      var m = _timeMap(from);
+      for (var k in m) {
+        if (m.hasOwnProperty(k) && m[k] > _time(target[k])) { target[k] = m[k]; }
       }
     }
+    maxInto(state.removed, saved.removed);
+    maxInto(state.folderAt, saved.folderAt);
+    maxInto(state.removedFolders, saved.removedFolders);
+    SECTIONS.forEach(function (sec) {
+      var t = _time(saved.clearedAt && saved.clearedAt[sec]);
+      if (t > state.clearedAt[sec]) { state.clearedAt[sec] = t; }
+    });
+    SECTIONS.forEach(function (sec) {
+      var theirs = Array.isArray(saved.folders[sec]) ? saved.folders[sec].filter(function (d) { return typeof d === "string"; }).map(_norm) : [];
+      var all = state.folders[sec].concat(theirs.filter(function (d) { return state.folders[sec].indexOf(d) === -1; }));
+      var alive = all.filter(function (d) {
+        var key = _folderKey(sec, d);
+        return _time(state.folderAt[key]) >= _time(state.removedFolders[key]) && !(_time(state.removedFolders[key]) && !_time(state.folderAt[key]));
+      });
+      var before = state.folders[sec].join("\n");
+      var mineBefore = state.folders[sec].slice();
+      state.folders[sec] = [];
+      alive.forEach(function (d) {
+        // Folders already here stay as they are (a saved list may hold a
+        // drive root); ones from the other host pass the same rules as Add folder.
+        var fromThere = mineBefore.indexOf(d) === -1;
+        if (!(fromThere && folderProblem(sec, d)) && !state.folders[sec].some(function (x) { return _under(d, x); })) {
+          state.folders[sec] = state.folders[sec].filter(function (x) { return !_under(x, d); });
+          state.folders[sec].push(d);
+        }
+      });
+      if (state.folders[sec].join("\n") !== before) { changed = true; }
+    });
+    function goneSince(path, section, updatedAt) {
+      if (_time(state.removed[path]) >= updatedAt && _time(state.removed[path])) { return true; }
+      if (updatedAt < state.clearedAt[section]) { return true; }
+      if (state.folders[section].some(function (d) { return _under(path, d); })) { return false; }
+      for (var key in state.removedFolders) {
+        if (state.removedFolders.hasOwnProperty(key) && key.indexOf(section + "\n") === 0 &&
+            _under(path, key.slice(section.length + 1)) && state.removedFolders[key] >= updatedAt) {
+          return true;
+        }
+      }
+      return false;
+    }
+    for (var p in saved.files) {
+      if (p === "__proto__" || !saved.files.hasOwnProperty(p)) {
+        continue;
+      }
+      var rec = saved.files[p];
+      if (!rec || typeof rec !== "object" || rec.path !== p || SECTIONS.indexOf(rec.section) === -1) {
+        continue;
+      }
+      var mine = state.files[p];
+      var theirTime = _time(rec.updatedAt);
+      if (mine) {
+        if (mine.section === rec.section && theirTime > _time(mine.updatedAt)) {
+          state.files[p] = rec;
+          _applyConfirmed(rec);
+          changed = true;
+        }
+      } else if (!goneSince(p, rec.section, theirTime) && !folderProblem(rec.section, p)) {
+        state.files[p] = rec;
+        _applyConfirmed(rec);
+        changed = true;
+      }
+    }
+    for (var q in state.files) {
+      if (state.files.hasOwnProperty(q) && goneSince(q, state.files[q].section, _time(state.files[q].updatedAt))) {
+        delete state.files[q];
+        changed = true;
+      }
+    }
+    return changed;
   }
   // Number of records made by a different analysis version; Start scan redoes them.
   function outdatedCount(section) {
@@ -636,6 +821,7 @@
     } else {
       delete rec.fav;
     }
+    _touch(rec);
     return true;
   }
 
@@ -656,9 +842,11 @@
     loadState: loadState,
     getState: getState,
     mergeState: mergeState,
+    absorb: absorb,
     getFolders: getFolders,
     folderTree: folderTree,
     addFolder: addFolder,
+    folderProblem: folderProblem,
     removeFolder: removeFolder,
     listAudioFiles: listAudioFiles,
     offlineFolders: offlineFolders,

@@ -29,7 +29,9 @@ Todo se ejecuta en tu equipo: nunca se sube nada.
    Colocar de nuevo —o elegir otro tiempo como «uno» después de colocar,
    o cambiar entre el clip y la línea de tiempo— sustituye los marcadores
    anteriores de Downbeat en vez de añadir un segundo juego. Los
-   marcadores que añadiste tú nunca se tocan. Para empezar de cero,
+   marcadores que añadiste tú nunca se tocan. After Effects admite un solo
+   marcador por instante, así que un tiempo que cae justo sobre uno de tus
+   marcadores se omite allí (el registro lo cuenta). Para empezar de cero,
    **Borrar** quita los marcadores de Downbeat del clip —de cada trozo
    después de un corte— y deja los tuyos.
 5. Corta en los marcadores en Premiere: con el ajuste activado (S), la
@@ -166,6 +168,8 @@ el cambio (por ejemplo «5A, +3 semitonos»). Entre semitonos enteros no hay
 una tonalidad Camelot exacta.
 
 ## Pestaña Biblioteca: Música y SFX
+
+Elige carpetas de audio específicas, no la raíz de una unidad o del sistema de archivos. Las carpetas Music y SFX no deben solaparse. Iniciar escaneo reintenta los archivos con errores. Las carpetas ilegibles conservan sus registros; cancelar detiene el trabajo pendiente y los errores de escritura liberan los controles. Sustituir un archivo en la misma ruta actualiza su vista previa antes de insertarlo.
 
 Dos secciones, **Música** y **SFX**, cada una construida a partir de
 carpetas de tu equipo.
@@ -378,6 +382,8 @@ clip seleccionado. Selecciona otro clip —en la misma secuencia o en
 otra— y **Pegar marcadores aquí** los recrea en la posición correcta.
 «Eliminar del origen tras copiar» los mueve en vez de copiarlos.
 
+Solo se transfieren los marcadores dentro del intervalo audible del clip seleccionado. Sus posiciones se miden desde el inicio audible y se adaptan al recorte y la velocidad del destino. Se conservan nombres, comentarios, duraciones y metadatos compatibles; se omiten los marcadores que empiezan fuera del destino; su duración puede superar el final. La transferencia funciona dentro de la misma aplicación. Mover lee y elimina los marcadores capturados en una sola operación.
+
 ## Ajustes
 
 El icono del engranaje, arriba a la derecha:
@@ -393,8 +399,9 @@ El icono del engranaje, arriba a la derecha:
     biblioteca a un plugin reinstalado (en otro equipo, los archivos en
     otras rutas se descartan en el siguiente Iniciar análisis).
   - **Borrar** olvida todos los resultados del análisis (pulsa dos veces
-    para confirmar). Tus carpetas se quedan, e Iniciar análisis en la
-    pestaña Biblioteca las vuelve a analizar.
+    para confirmar). Tus carpetas, favoritos y tonalidades y tempos
+    confirmados se quedan, e Iniciar análisis en la pestaña Biblioteca
+    vuelve a analizar los archivos.
 - **Actualizaciones**: **Comprobar ahora** aparece primero y consulta una
   sola vez aunque los avisos estén desactivados. **Avisarme de una versión
   nueva** activa una comprobación cada tres días, sin descargas ni instalación
@@ -504,6 +511,14 @@ se borra en cuanto termina su análisis). **Ajustes → Eliminar mis datos**
 quita exactamente esos archivos y nada más; si pusiste algo tuyo en esa
 carpeta, se queda. Desinstalar el plugin no toca la carpeta Documentos, así que pulsa
 Eliminar mis datos primero si quieres que no quede nada.
+
+Cada archivo se guarda escribiendo una copia nueva y sustituyendo la
+anterior, así que un fallo o un disco lleno a mitad del guardado deja entera
+la versión previa. Si aun así un archivo guardado no se puede leer, Downbeat
+lo conserva al lado como `<nombre>.unreadable-<fecha>-<hora>.json`, lo indica
+en la pestaña Biblioteca y empieza esa parte vacía; nunca guarda encima.
+Premiere Pro y After Effects pueden usar Downbeat a la vez: antes de guardar
+sus cambios, cada panel incorpora lo que guardó el otro.
 
 **¿Downbeat es gratis? ¿Puedo ver el código fuente?**
 Sí a las dos. Downbeat es software libre bajo la GNU AGPL-3.0 (Ajustes →

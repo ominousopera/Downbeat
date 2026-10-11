@@ -169,6 +169,66 @@ function _secondsToTimecode(seconds, frameRate) {
 function _pad2(n) {
     return (n < 10 ? "0" : "") + n;
 }
+
+// Returns a JSON string (evalScript can only carry strings): always
+// { ok, error, data }. ok=false + a populated error on every failure path -
+// never a silent no-op, per the plan's "always fail with a clear panel
+// message" rule.
+// References remain inside the host; the panel carries only a bounded token.
+var _dbSelectionRefs = {};
+var _dbSelectionSerial = 0;
+function _dbRememberSelection(owner, item, media) {
+    var token = String(++_dbSelectionSerial);
+    _dbSelectionRefs[token] = { owner: owner, item: item, media: media,
+        ownerId: _dbIsAe() ? owner.id : owner.sequenceID,
+        itemId: _dbIsAe() ? (item.id !== undefined ? item.id : item.index) : item.nodeId,
+        mediaId: _dbIsAe() ? media.id : media.nodeId };
+    delete _dbSelectionRefs[String(_dbSelectionSerial - 64)];
+    return token;
+}
+function _dbSameSelectionPart(a, b, idKey, objectKey) {
+    if (a[idKey] !== undefined && b[idKey] !== undefined) { return a[idKey] === b[idKey]; }
+    return a[objectKey] === b[objectKey];
+}
+function _dbValidateSelection(referenceJson) {
+    if (!referenceJson) { return; }
+    var expected = JSON.parse(referenceJson);
+    var currentResult = JSON.parse(getSelectedAudioInfo());
+    if (!currentResult.ok) { throw new Error(currentResult.error); }
+    var current = currentResult.data;
+    var a = _dbSelectionRefs[expected.selectionToken];
+    var b = _dbSelectionRefs[current.selectionToken];
+    if (!a || !b || !_dbSameSelectionPart(a, b, "ownerId", "owner") || !_dbSameSelectionPart(a, b, "itemId", "item") || !_dbSameSelectionPart(a, b, "mediaId", "media") || expected.mediaPath !== current.mediaPath) {
+        throw new Error("The selected clip changed. Select the intended clip and try again.");
+    }
+    var fields = ["clipStartSeconds", "inPointSeconds", "outPointSeconds", "speed", "reversed", "frameRate", "trackIndex"];
+    for (var i = 0; i < fields.length; i++) {
+        if (expected[fields[i]] !== current[fields[i]]) {
+            throw new Error("The selected clip timing changed. Try the operation again.");
+        }
+    }
+}
+// The clip's playback speed, 1 when the host cannot say.
+function _dbClipSpeed(clip) {
+    try {
+        if (typeof clip.getSpeed === "function") {
+            return Number(clip.getSpeed()) || 1;
+        }
+    } catch (speedErr) {
+        // fall through to normal speed
+    }
+    return 1;
+}
+
+// The source second where the selected instance ends. Premiere reads a
+// re-sped clip's outPoint as in point + timeline length, so for speed != 1
+// it is worked out from the timeline length. Placing, replacing and
+// counting the clip's own markers all use this range.
+function _dbClipSourceOut(clip) {
+    var speed = _dbClipSpeed(clip);
+    return Math.abs(speed - 1) > 1e-6 ? clip.inPoint.seconds + (clip.end.seconds - clip.start.seconds) * speed : clip.outPoint.seconds;
+}
+
 function getSelectedAudioInfo() {
     if (_dbIsAe()) {
         return dbAeGetSelectedAudioInfo();
@@ -190,14 +250,7 @@ function getSelectedAudioInfo() {
         // Its markers live in the file's own seconds, so the used part of the
         // file is the timeline length times the speed from the in point -
         // Premiere's own outPoint is not reliable for that.
-        var speed = 1;
-        try {
-            if (typeof clip.getSpeed === "function") {
-                speed = Number(clip.getSpeed()) || 1;
-            }
-        } catch (speedErr) {
-            speed = 1;
-        }
+        var speed = _dbClipSpeed(clip);
         var reversed = false;
         try {
             reversed = typeof clip.isSpeedReversed === "function" && !!clip.isSpeedReversed();
@@ -205,10 +258,11 @@ function getSelectedAudioInfo() {
             reversed = false;
         }
         var inSeconds = clip.inPoint.seconds;
-        var outSeconds = Math.abs(speed - 1) > 1e-6 ? inSeconds + (clip.end.seconds - clip.start.seconds) * speed : clip.outPoint.seconds;
+        var outSeconds = _dbClipSourceOut(clip);
         result.ok = true;
         result.data = {
             mediaPath: mediaPath,
+            selectionToken: _dbRememberSelection(sequence, clip, projectItem),
             clipStartSeconds: clip.start.seconds,
             inPointSeconds: inSeconds,
             outPointSeconds: outSeconds,
@@ -291,12 +345,13 @@ function _applyMarkerLabel(marker, label) {
 // replaceOwn: true first removes Downbeat's own markers around the selected
 // clip, so placing again replaces instead of stacking. Paste markers does not
 // pass it.
-function createMarkers(secondsJsonArray, labelsJsonArray, replaceOwn) {
+function createMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJson) {
     if (_dbIsAe()) {
-        return dbAeCreateMarkers(secondsJsonArray, labelsJsonArray, replaceOwn);
+        return dbAeCreateMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJson);
     }
     var result = { ok: false, error: null, data: null };
     try {
+        _dbValidateSelection(referenceJson);
         var sequence = _getActiveSequenceOrThrow();
         var times = JSON.parse(secondsJsonArray);
         if (!times || times.length === undefined) {
@@ -390,7 +445,7 @@ function countOwnMarkersForSelectedClip() {
         if (projectItem && typeof projectItem.getMarkers === "function") {
             var clipMarkers = projectItem.getMarkers();
             if (clipMarkers) {
-                count += _countOwnMarkersInRange(clipMarkers, clip.inPoint.seconds, clip.outPoint.seconds);
+                count += _countOwnMarkersInRange(clipMarkers, clip.inPoint.seconds, _dbClipSourceOut(clip));
             }
         }
         result.ok = true;
@@ -410,7 +465,7 @@ function _removeOwnMarkersAroundClip(sequence, clip) {
     if (projectItem && typeof projectItem.getMarkers === "function") {
         var clipMarkers = projectItem.getMarkers();
         if (clipMarkers) {
-            removed += _removeOwnMarkersInRange(clipMarkers, clip.inPoint.seconds, clip.outPoint.seconds);
+            removed += _removeOwnMarkersInRange(clipMarkers, clip.inPoint.seconds, _dbClipSourceOut(clip));
         }
     }
     return removed;
@@ -431,12 +486,13 @@ function _noteStored(stored, marker, requestedSeconds) {
 // arguments as createMarkers(); times are in the file's own (source) seconds.
 // With replaceOwn, Downbeat's own markers around the clip are removed first
 // (see _removeOwnMarkersAroundClip()). Paste markers does not pass it.
-function createClipMarkers(secondsJsonArray, labelsJsonArray, replaceOwn) {
+function createClipMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJson) {
     if (_dbIsAe()) {
-        return dbAeCreateClipMarkers(secondsJsonArray, labelsJsonArray, replaceOwn);
+        return dbAeCreateClipMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJson);
     }
     var result = { ok: false, error: null, data: null };
     try {
+        _dbValidateSelection(referenceJson);
         var sequence = _getActiveSequenceOrThrow();
         var found = _findSelectedAudioClipOrThrow(sequence);
         var projectItem = found.clip.projectItem;
@@ -563,12 +619,13 @@ function testRazorAtSeconds(secondsValue) {
 // Cuts the selected clip's track at every absolute sequence time in the
 // given JSON array (already offset-mapped by the panel, see js/cuesheet.js
 // and js/place.js).
-function razorAtManySeconds(secondsJsonArray) {
+function razorAtManySeconds(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJson) {
     if (_dbIsAe()) {
-        return dbAeRazorAtManySeconds(secondsJsonArray);
+        return dbAeRazorAtManySeconds(secondsJsonArray, referenceJson);
     }
     var result = { ok: false, error: null, data: null };
     try {
+        _dbValidateSelection(referenceJson);
         var times = JSON.parse(secondsJsonArray);
         if (!times || times.length === undefined) {
             throw new Error("razorAtManySeconds expected a JSON array of numbers.");
@@ -693,49 +750,116 @@ function clearMarkersForSelectedClip(ownOnly) {
 // comments are not returned, because pasting goes through createMarkers() /
 // createClipMarkers(), which re-apply them from that name via
 // _applyMarkerLabel().
-function getMarkersDataForSelectedClip() {
-    if (_dbIsAe()) {
-        return dbAeGetMarkersDataForSelectedClip();
+function _dbPremiereMarkerData(marker, offset, duration) {
+    var data = { localSeconds: offset, label: String(marker.name || ""), comments: String(marker.comments || ""), duration: duration, type: marker.type || "Comment" };
+    if (data.type !== "Comment" && data.type !== "Chapter" && data.type !== "Segmentation" && data.type !== "WebLink") {
+        throw new Error("This marker type cannot be transferred safely.");
     }
+    if (marker.getColorByIndex) { data.color = marker.getColorByIndex(); }
+    if (data.type === "WebLink") { data.url = marker.url; data.frameTarget = marker.frameTarget; }
+    return data;
+}
+function getMarkersDataForSelectedClip(removeCaptured) {
+    if (_dbIsAe()) { return dbAeGetMarkersDataForSelectedClip(removeCaptured); }
     var result = { ok: false, error: null, data: null };
     try {
         var sequence = _getActiveSequenceOrThrow();
-        var found = _findSelectedAudioClipOrThrow(sequence);
-        var clip = found.clip;
-        var clipStart = clip.start.seconds;
-        var clipEnd = clip.end.seconds;
-        var epsilon = 0.0005;
-        var sequenceMarkers = [];
-        var seqMarkers = sequence.markers;
-        var sm = seqMarkers.getFirstMarker();
-        while (sm) {
-            var markerSeconds = sm.start.seconds;
-            if (markerSeconds >= clipStart - epsilon && markerSeconds <= clipEnd + epsilon) {
-                sequenceMarkers.push({ localSeconds: markerSeconds - clipStart, label: sm.name });
+        var clip = _findSelectedAudioClipOrThrow(sequence).clip;
+        var infoResult = JSON.parse(getSelectedAudioInfo());
+        if (!infoResult.ok) { throw new Error(infoResult.error); }
+        var info = infoResult.data;
+        var seq = sequence.markers;
+        var media = clip.projectItem.getMarkers();
+        var seqData = [], clipData = [], seqCaptured = [], clipCaptured = [];
+        var marker = seq.getFirstMarker();
+        while (marker) {
+            if (marker.start.seconds >= clip.start.seconds - 0.0005 && marker.start.seconds <= clip.end.seconds + 0.0005) {
+                seqData.push(_dbPremiereMarkerData(marker, marker.start.seconds - clip.start.seconds, Math.max(0, marker.end.seconds - marker.start.seconds)));
+                seqCaptured.push(marker);
             }
-            sm = seqMarkers.getNextMarker(sm);
+            marker = seq.getNextMarker(marker);
         }
-        var clipMarkers = [];
-        var projectItem = clip.projectItem;
-        if (projectItem && typeof projectItem.getMarkers === "function") {
-            var pMarkers = projectItem.getMarkers();
-            if (pMarkers) {
-                var cm = pMarkers.getFirstMarker();
-                while (cm) {
-                    clipMarkers.push({ localSeconds: cm.start.seconds, label: cm.name });
-                    cm = pMarkers.getNextMarker(cm);
+        marker = media.getFirstMarker();
+        while (marker) {
+            var t = marker.start.seconds;
+            if (t >= info.inPointSeconds - 0.0005 && t <= info.outPointSeconds + 0.0005) {
+                var dur = Math.max(0, marker.end.seconds - t);
+                var offset = info.reversed ? (info.outPointSeconds - t - dur) / info.speed : (t - info.inPointSeconds) / info.speed;
+                if (offset >= -0.0005) {
+                    clipData.push(_dbPremiereMarkerData(marker, Math.max(0, offset), dur / info.speed));
+                    clipCaptured.push(marker);
                 }
             }
+            marker = media.getNextMarker(marker);
+        }
+        // Capture and deletion execute synchronously against the same collections.
+        if (removeCaptured === true) {
+            for (var i = 0; i < seqCaptured.length; i++) { seq.deleteMarker(seqCaptured[i]); }
+            for (var j = 0; j < clipCaptured.length; j++) { media.deleteMarker(clipCaptured[j]); }
         }
         result.ok = true;
-        result.data = {
-            clipName: clip.name,
-            sequenceMarkers: sequenceMarkers,
-            clipMarkers: clipMarkers
-        };
+        result.data = { version: 2, host: "premiere", clipName: clip.name, sequenceMarkers: seqData, clipMarkers: clipData, removed: removeCaptured === true };
+    } catch (e) { result.error = e.message || String(e); }
+    return JSON.stringify(result);
+}
+function _dbTransferPlan(data, info) {
+    if (!data || data.version !== 2 || data.host !== (_dbIsAe() ? "ae" : "premiere")) {
+        throw new Error("Copy these markers again in this host before pasting.");
+    }
+    var groups = [data.sequenceMarkers, data.clipMarkers];
+    var out = { sequenceMarkers: [], clipMarkers: [], skipped: 0 };
+    var length = (info.outPointSeconds - info.inPointSeconds) / info.speed;
+    for (var g = 0; g < groups.length; g++) {
+        if (Object.prototype.toString.call(groups[g]) !== "[object Array]") { throw new Error("Invalid marker clipboard."); }
+        for (var i = 0; i < groups[g].length; i++) {
+            var m = groups[g][i];
+            if (!m || typeof m.localSeconds !== "number" || !isFinite(m.localSeconds) || typeof m.duration !== "number" || !isFinite(m.duration) || m.duration < 0) {
+                throw new Error("Invalid marker timing.");
+            }
+            if (m.localSeconds < -0.0005 || m.localSeconds > length + 0.0005) { out.skipped++; continue; }
+            var time = g === 0 ? info.clipStartSeconds + m.localSeconds :
+                (info.reversed ? info.outPointSeconds - (m.localSeconds + m.duration) * info.speed : info.inPointSeconds + m.localSeconds * info.speed);
+            var duration = g === 0 ? m.duration : m.duration * info.speed;
+            (g === 0 ? out.sequenceMarkers : out.clipMarkers).push({ time: time, duration: duration, data: m });
+        }
+    }
+    return out;
+}
+function _dbRestorePremiereMarker(marker, transfer) {
+    var m = transfer.data;
+    marker.name = m.label;
+    marker.comments = m.comments;
+    marker.end = transfer.time + transfer.duration;
+    if (m.color !== undefined && marker.setColorByIndex) { marker.setColorByIndex(m.color); }
+    if (m.type === "Chapter") { marker.setTypeAsChapter(); }
+    else if (m.type === "Segmentation") { marker.setTypeAsSegmentation(); }
+    else if (m.type === "WebLink") { marker.setTypeAsWebLink(m.url || "", m.frameTarget || ""); }
+    else if (m.type !== "Comment") { throw new Error("Unsupported marker type."); }
+}
+function pasteMarkersData(dataJson, referenceJson) {
+    if (_dbIsAe()) { return dbAePasteMarkersData(dataJson, referenceJson); }
+    var result = { ok: false, error: null, data: null }, created = [];
+    try {
+        _dbValidateSelection(referenceJson);
+        var info = JSON.parse(referenceJson);
+        var plan = _dbTransferPlan(JSON.parse(dataJson), info);
+        var sequence = _getActiveSequenceOrThrow();
+        var clip = _findSelectedAudioClipOrThrow(sequence).clip;
+        var collections = [sequence.markers, clip.projectItem.getMarkers()];
+        var groups = [plan.sequenceMarkers, plan.clipMarkers];
+        for (var g = 0; g < groups.length; g++) {
+            for (var i = 0; i < groups[g].length; i++) {
+                var transfer = groups[g][i];
+                var marker = collections[g].createMarker(transfer.time);
+                if (!marker) { throw new Error("Could not create a pasted marker."); }
+                created.push({ collection: collections[g], marker: marker });
+                _dbRestorePremiereMarker(marker, transfer);
+            }
+        }
+        result.ok = true; result.data = { created: created.length, skipped: plan.skipped };
     } catch (e) {
-        result.ok = false;
-        result.error = e.message ? e.message : e.toString();
+        for (var j = created.length - 1; j >= 0; j--) { try { created[j].collection.deleteMarker(created[j].marker); } catch (cleanupError) {} }
+        result.error = e.message || String(e);
     }
     return JSON.stringify(result);
 }
@@ -964,7 +1088,7 @@ function _transitionsFromList(found, name) {
             out.push({ transition: byListedName, name: listedName, label: "listed name \"" + listedName + "\"" });
         }
     } catch (e1) {
-    /* the entry itself is tried below */
+        /* the entry itself is tried below */
     }
     if (typeof items[position] === "object") {
         out.push({ transition: items[position], name: listedName, label: "list entry \"" + listedName + "\"" });
