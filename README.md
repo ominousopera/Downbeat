@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/ominousopera/Downbeat/releases/latest"><img alt="latest release" src="https://img.shields.io/github/v/release/ominousopera/Downbeat?style=flat-square"></a>
+  <a href="https://github.com/ominousopera/Downbeat/releases/latest"><img alt="release v1.0.4" src="https://img.shields.io/badge/release-v1.0.4-007ec6?style=flat-square"></a>
   <img alt="license AGPL-3.0" src="https://img.shields.io/badge/license-AGPL--3.0-4c8bf5?style=flat-square">
   <img alt="Premiere Pro 2021+" src="https://img.shields.io/badge/Premiere%20Pro-2021%2B-9999ff?style=flat-square">
   <img alt="After Effects 2021+" src="https://img.shields.io/badge/After%20Effects-2021%2B-cf96fd?style=flat-square">
