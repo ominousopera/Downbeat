@@ -1,8 +1,7 @@
-<p align="center">
-  <img src="docs/images/logo.svg" alt="Downbeat" width="72">
-</p>
-
-<h1 align="center">Downbeat</h1>
+<h1 align="center">
+  <img src="docs/images/logo.svg" alt="" width="72"><br>
+  Downbeat
+</h1>
 
 <p align="center">
   <b>All you need to speed up the sound design of your videos, in one plugin.</b>
