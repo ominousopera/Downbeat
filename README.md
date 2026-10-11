@@ -9,19 +9,18 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/ominousopera/Downbeat/releases/latest"><img alt="release v1.0.4" src="https://img.shields.io/badge/release-v1.0.4-007ec6?style=flat-square"></a>
-  <img alt="license AGPL-3.0" src="https://img.shields.io/badge/license-AGPL--3.0-4c8bf5?style=flat-square">
-  <img alt="Premiere Pro 2021+" src="https://img.shields.io/badge/Premiere%20Pro-2021%2B-9999ff?style=flat-square">
-  <img alt="After Effects 2021+" src="https://img.shields.io/badge/After%20Effects-2021%2B-cf96fd?style=flat-square">
-  <img alt="macOS Apple Silicon and Intel" src="https://img.shields.io/badge/macOS-Apple%20Silicon%20%C2%B7%20Intel-30b0c7?style=flat-square">
-  <img alt="Windows x64" src="https://img.shields.io/badge/Windows-x64-0078d4?style=flat-square">
-  <img alt="works offline" src="https://img.shields.io/badge/works-offline-e0a339?style=flat-square">
+  <a href="https://github.com/ominousopera/Downbeat/releases/latest"><img alt="release v1.0.4" src="docs/images/badges/release.svg"></a>
+  <img alt="license AGPL-3.0" src="docs/images/badges/license.svg">
+  <img alt="Premiere Pro 2021+" src="docs/images/badges/premiere-pro.svg">
+  <img alt="After Effects 2021+" src="docs/images/badges/after-effects.svg">
+  <img alt="macOS Apple Silicon and Intel" src="docs/images/badges/macos.svg">
+  <img alt="Windows x64" src="docs/images/badges/windows.svg">
+  <img alt="works offline" src="docs/images/badges/offline.svg">
 </p>
 
 <p align="center">
-  <a href="https://github.com/ominousopera/Downbeat/releases/latest"><img src="docs/images/download-mac.svg" alt="Download for macOS" height="52"></a>
-  &nbsp;
-  <a href="https://github.com/ominousopera/Downbeat/releases/latest"><img src="docs/images/download-win.svg" alt="Download for Windows" height="52"></a>
+  <a href="https://github.com/ominousopera/Downbeat/releases/latest"><img src="docs/images/download-mac.svg" alt="Download for macOS" height="60"></a>
+  <a href="https://github.com/ominousopera/Downbeat/releases/latest"><img src="docs/images/download-win.svg" alt="Download for Windows" height="60"></a>
 </p>
 
 <p align="center">
