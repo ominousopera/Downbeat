@@ -1,4 +1,5 @@
 "use strict";
+// Replace a loaded WAV and rescan through the real panel handlers.
 const fs=require("fs"),path=require("path"),os=require("os"),assert=require("assert"),cp=require("child_process");
 const root=process.env.DOWNBEAT_ROOT || path.resolve(__dirname,".."),tmp=fs.mkdtempSync(path.join(os.tmpdir(),"downbeat-audit-preview-")),docs=path.join(tmp,"docs"),folder=path.join(tmp,"samples"),media=path.join(folder,"tone_Am.wav");
 fs.mkdirSync(path.join(docs,"Downbeat"),{recursive:true});fs.mkdirSync(folder);

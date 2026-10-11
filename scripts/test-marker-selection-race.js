@@ -1,4 +1,5 @@
 "use strict";
+// Place before the next selection poll must not modify a different source.
 const fs=require("fs"),path=require("path"),os=require("os"),assert=require("assert");
 const root=process.env.DOWNBEAT_ROOT || path.resolve(__dirname,".."),tmp=fs.mkdtempSync(path.join(os.tmpdir(),"downbeat-audit-place-"));
 const media=path.join(tmp,"source.wav"),target=path.join(tmp,"target.wav");

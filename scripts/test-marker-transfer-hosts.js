@@ -1,4 +1,5 @@
 "use strict";
+// Transfer and mutation guards exercise both production host adapters.
 const assert = require("assert"), mocks = require("./host-mocks");
 function run(host, code) { return JSON.parse(host.run(code)); }
 function paste(host, data, info) {

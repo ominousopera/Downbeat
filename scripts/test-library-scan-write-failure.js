@@ -1,4 +1,5 @@
 "use strict";
+// Simulate ENOSPC at the production scan manifest write.
 const fs=require("fs"),os=require("os"),path=require("path"),assert=require("assert");
 const root=process.env.DOWNBEAT_ROOT || path.resolve(__dirname,"..");
 const tmp=fs.mkdtempSync(path.join(os.tmpdir(),"downbeat-audit-scan-")), docs=path.join(tmp,"docs"),folder=path.join(tmp,"samples");

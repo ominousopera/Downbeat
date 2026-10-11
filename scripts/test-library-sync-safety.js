@@ -1,4 +1,5 @@
 "use strict";
+// Partial scans, section overlap, retry and root rejection preserve library state.
 const fs = require("fs"), path = require("path"), vm = require("vm"), assert = require("assert");
 const root = process.env.DOWNBEAT_ROOT || path.resolve(__dirname, "..");
 function fresh() {

@@ -1,4 +1,5 @@
 "use strict";
+// A delayed decoder and inspectable worker replace external services.
 const fs=require("fs"),os=require("os"),path=require("path"),assert=require("assert"),cp=require("child_process");
 const root=process.env.DOWNBEAT_ROOT || path.resolve(__dirname,".."),tmp=fs.mkdtempSync(path.join(os.tmpdir(),"downbeat-cancel-")),docs=path.join(tmp,"docs"),folder=path.join(tmp,"samples");
 fs.mkdirSync(path.join(docs,"Downbeat"),{recursive:true});fs.mkdirSync(folder);
