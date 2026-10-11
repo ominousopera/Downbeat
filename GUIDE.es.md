@@ -98,8 +98,8 @@ Escucha los marcadores: si no caen en los tiempos, pulsa la otra palabra.
 Básica vuelve al instante; Afinada ejecuta de nuevo el segundo detector
 (unos segundos).
 
-En una pista difícil de leer, el panel sugiere **Probar análisis
-alternativo**; **Volver al análisis original** lo deshace.
+En una pista difícil de leer, la línea bajo **Cuadrícula** lo indica y
+sugiere **Afinada**, que ahí suele ser más precisa.
 
 ## Tipos de marcador
 
@@ -500,7 +500,10 @@ elección del tiempo fuerte puede parecer equivocada con seguridad en vez
 de dudosa; ahí es más seguro Tipo: Compases + tiempos.
 
 **¿Se sube alguna vez mi audio o los datos del proyecto?**
-No. Todas las funciones se ejecutan por completo en tu equipo.
+No. El análisis y la Biblioteca se ejecutan por completo en tu equipo. La
+única petición de red es la comprobación de actualizaciones (**Comprobar
+ahora** o los avisos opcionales), que pide a GitHub la última versión y no
+envía nada sobre tu audio ni tus proyectos.
 
 **¿Dónde guarda Downbeat sus datos y cómo los quito?**
 En la carpeta Documentos/Downbeat: tus ajustes, la biblioteca (qué
@@ -555,7 +558,7 @@ La corrección de tempo pertenece al análisis que la inició. Si seleccionas ot
 
 Los resultados guardados se comprueban por tamaño y fecha de modificación. Reemplazar el archivo invalida sus resultados; los resultados guardados por una versión anterior se conservan y toman el tamaño y la fecha del archivo al usarse por primera vez. Los cambios durante el análisis descartan el resultado.
 
-### Intervalo de análisis y valores confirmados
+### Intervalo de análisis y tonalidad manual
 
 En Key, elige **Archivo completo** o **Clip seleccionado**. El segundo usa solo
 el intervalo de entrada/salida en el archivo de origen y guarda cada recorte por

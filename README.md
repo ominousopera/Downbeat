@@ -152,17 +152,22 @@ to the beat takes minutes.
 
 ### Key
 
-Musical key in Camelot and note names from three opinions (sound effects get
-a key only when they have a clear pitch). A pitch shift
-calculator, and "Pitch the clip" retimes the clip itself to another key. Your
-audio is never rewritten. When a clip plays at another speed, Analyze and Key
-also show the tempo and the key as they sound on the timeline.
+Musical key in Camelot and note names. For music three analyses vote; for a
+riser or a hit, pick **Sound effect** and the analysis is tuned for short
+sounds (there the key is a hint). A pitch shift calculator gives semitones,
+cents and speed for your own pitch shifter, and **Pitch the clip** retimes the
+clip itself to another key, like a sampler. Your audio is never rewritten.
 
-Choose the whole source or the selected source interval for Detect key. Save a
-source override when you know the answer. The main result, wheel and matching
-follow the selected clip's calculated playback key; source key stays separate.
-Consecutive pitch shifts compose with the current speed. Pitched copies have
-separate Downbeat markers, preserving original and editor markers.
+- **Whole file or Selected clip.** Detect the key of the whole song, or only
+  of the part the clip uses.
+- **Timeline key.** The big result, the wheel, the keys that fit, Match clip
+  and In key use the key the clip plays at on the timeline, worked out from
+  its speed. The file's own key stays visible as **Source key**.
+- **Source override.** Type the key if you already know it; **Use detected
+  key** brings the analysis back.
+- **Pitch the clip** starts from the clip's current speed, so two +2 shifts
+  give +4. The pitched clip starts without Downbeat's markers (analyze it
+  again); your own markers and the original's stay.
 
 </td>
 <td width="42%" valign="top">
@@ -200,11 +205,11 @@ shrinks to the sounds that fit it.
   row says *key agreed* when at least two of them gave it, and *key uncertain*
   (in red) when all three differed, so you know which ones to check by ear.
 - **Names that already say the key.** Many sample packs put it in the file name
-  (`Pad Am`, `Bass Fm 128 BPM`, `Key Emaj`, `8A`). Downbeat reads it, trusts it
+  (`Pad Amin`, `Bass Fm 128 BPM`, `Key Emaj`, `8A - 128 - …`). Downbeat reads it, trusts it
   over its own guess, and marks the row *from the file name*, so you know which
-  keys come straight from the pack. Those files are ready instantly, with no
-  analysis.
-- **Not every sound effect has a key.** Whooshes, impacts, footsteps, wind
+  keys come straight from the pack. A file whose name gives everything (the key,
+  plus the tempo for music) is ready instantly, with no analysis.
+- **Not every sound effect has a key.** Most whooshes, footsteps, wind
   or rain are noise, not notes: they show "no clear pitch" and a key search
   skips them. Only tonal sounds (risers, drones, stingers, pads, bass hits)
   get a key, and even then it is a hint to check by ear.
@@ -287,13 +292,63 @@ shows you the tempo, the bar markers and the key.
 <details>
 <summary><b>Why use sound effects that are in key?</b></summary>
 
-A lot of effects have a pitch: risers, booms, stingers, drones. If the pitch
-doesn't fit the music, you hear that something is off, even if you can't tell
-what. In key, the effect sits inside the track instead of on top of it.
+A lot of effects have a pitch: risers, booms, stingers, drones; even a deep
+impact can carry a note. An effect can be right on the beat and still sound
+wrong: if its note doesn't fit the key of the music, you hear that something
+is off, even if you can't tell what. In key, the effect sits inside the track
+instead of on top of it.
 
-The Library shows the key of every effect, can show only the ones that fit your
-song, and can pitch an effect into its key. Effects with no pitch, like clicks,
-are left out of this.
+The Library shows the key of every tonal effect, can show only the ones that
+fit your song (**Match clip**), and can pitch an effect into its key
+(**In key**). Noise-like sounds, such as most whooshes, footsteps, wind or
+rain, have no clear note: Downbeat tells them apart and shows "no clear
+pitch" instead of a made-up key.
+</details>
+
+<details>
+<summary><b>How do I cut music so the edit can't be heard?</b></summary>
+
+Five rules that work for most songs:
+
+1. **Stay on the beat.** When you join two parts of the same song, keep both
+   on the beat. Even a small shift is heard.
+2. **Cut on a downbeat.** A cut on the "1" of a bar usually sounds the most
+   natural. Take it as a guide, not a strict rule.
+3. **Keep the phrases.** Music is not just beats: it is built of phrases, in
+   many modern songs 4, 8 or 16 bars long. A cut in the middle of a phrase
+   sounds wrong even on the beat; cut where one phrase ends and the next
+   begins.
+4. **Use fades.** Many songs already have a riser or a fill before a new
+   part, and a fade over it hides the join.
+5. **Add a short crossfade.** Two parts that are perfectly on the beat can
+   still click where they meet, because the waveform jumps from one level to
+   another. A very short crossfade removes the click.
+
+Downbeat helps with the first three: markers on every bar or beat, a click
+track to check them by ear, and bar markers to count phrases. In Premiere Pro,
+turn on **Show Audio Time Units** in the Timeline panel menu and choose
+**Timing → Exact**: the cut can then fall between video frames, right on the
+beat.
+</details>
+
+<details>
+<summary><b>How do I join two different songs?</b></summary>
+
+Sometimes one song can't carry the whole video, for example a calm intro and
+then an energetic part. Finding two good songs is not enough; they have to
+sound good together. Check two things:
+
+- **Tempo (BPM).** Close tempos keep the pulse going across the join.
+  Analyze gives you the BPM of each song.
+- **Key.** Songs in the same key, or in a neighbouring key on the Camelot
+  wheel, blend; others can clash. Detect key shows the key and the keys that
+  go with it, so you have more choices than one exact key.
+
+Stock music sites often list the key and BPM. For your own music, add the
+folder to the **Library**, select the song you are cutting and press
+**Match clip** to see the tracks that fit. Matching BPM and key does not
+promise a perfect join: phrases, mood and arrangement still matter, and the
+five rules above still apply.
 </details>
 
 <details>
@@ -307,6 +362,25 @@ need any music theory.
 </details>
 
 ### Using Downbeat
+
+<details>
+<summary><b>Where does Downbeat fit in a typical project?</b></summary>
+
+A common way to work on a motion design or edit project: cut the music in
+Premiere Pro first and build an animatic (it shows the client the pacing:
+where the video speeds up, pauses or changes mood), animate in After Effects,
+then come back to Premiere Pro for the sound design and the mix.
+
+- **Cutting the music:** Analyze puts markers on the bars and beats, the
+  click track lets you check them, and Detect key with the Library helps you
+  pick a second song that fits.
+- **Sound design:** the Library finds sound effects by type and key, plays
+  them already pitched into the song's key, and adds them at the playhead.
+
+Premiere Pro is the better place for the music work: besides its audio mixer
+and VST plugins it has **Show Audio Time Units**, which lets you cut audio
+between video frames, down to single audio samples.
+</details>
 
 <details>
 <summary><b>How does the analysis work?</b></summary>
@@ -612,7 +686,7 @@ should go too.
 
 | Where | What |
 |---|---|
-| `CSXS/manifest.xml` | the CEP manifest (Premiere Pro 13+, After Effects 18+, Node on) |
+| `CSXS/manifest.xml` | the CEP manifest (CSXS 11, so Premiere Pro and After Effects 2021+; Node on) |
 | `index.html`, `css/style.css` | the panel's markup and its one stylesheet |
 | `js/main.js` | starts the panel; Analyze and Key tabs; selection poll; shared state |
 | `js/bridge.js` | calls into the host scripts and runs the analysis workers |
@@ -621,6 +695,9 @@ should go too.
 | `js/beat-preview.js` | the Analyze tab's waveform player with the downbeat click |
 | `js/self-test.js` | the full self-test used by `scripts/test-self-test.js` (hidden in the UI) |
 | `js/analyze.js`, `js/cuesheet.js`, `js/place.js` | analysis results -> marker times -> placement |
+| `js/analysis-cache.js` | reuse of identical tempo passes on the same decoded audio |
+| `js/metronome.js`, `js/audio-output.js` | the metronome track; where finished audio is written, never over an existing file |
+| `js/update-check.js` | the opt-in release check, the panel's only network code |
 | `js/sound-library.js`, `js/sfx-search.js`, `js/ucs-data.js` | Music / SFX library data and search (UCS) |
 | `js/lib-preview.js`, `js/audio.js` | the preview player, pitch / reverse / fades, decoding |
 | `js/camelot.js`, `js/pitch.js`, `js/key-combine.js`, `js/wheel.js` | keys, Camelot wheel, pitch calculator |

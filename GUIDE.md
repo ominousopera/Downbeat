@@ -89,8 +89,8 @@ second detector was applied) or **Basic** (the usual result only). Listen
 to the markers: if they miss the beats, click the other word. Basic comes
 back at once; Refined runs the second detector again (a few seconds).
 
-On a track that is hard to read, the panel suggests **Try alternative
-analysis**; **Revert to original analysis** undoes it.
+On a track that is hard to read, the line under **Beat grid** says so and
+suggests **Refined**, which is often more accurate there.
 
 ## Marker types
 
@@ -450,7 +450,10 @@ the downbeat pick can look confidently wrong rather than uncertain;
 Type: Bars + beats is a safer choice there.
 
 **Is my audio or project data ever uploaded anywhere?**
-No. Every feature runs entirely on your machine.
+No. Analysis and the Library run entirely on your machine. The only
+network request is the update check (**Check now**, or the optional
+notifications), which asks GitHub for the latest release and sends nothing
+about your audio or projects.
 
 **Where does Downbeat keep its data, and how do I remove it?**
 In the folder Documents/Downbeat: your settings, the library (which folders
@@ -503,7 +506,7 @@ Tempo correction belongs to the analysis that started it. If you select another 
 
 Cached results are checked against file size and modification time. Replacing the file invalidates its results; results saved by an earlier version are kept and take the file's size and date on first use. Changes during analysis are rejected.
 
-### Analysis scope and confirmed values
+### Analysis scope and source override
 
 In Key, choose **Whole file** or **Selected clip**. Selected clip analyzes only
 its source in/out interval; changing the trim uses a separate result. This does
