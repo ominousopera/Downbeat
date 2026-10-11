@@ -242,15 +242,16 @@
       }
       for (var r = 0; r < roots.length; r++) {
         var root = roots[r];
-        if (p.indexOf(root + "/") !== 0) {
+        var base = root.slice(-1) === "/" ? root : root + "/"; // a drive root already ends in "/"
+        if (p.indexOf(base) !== 0) {
           continue;
         }
         var node = nodes[root];
         node.count++;
-        var parts = p.slice(root.length + 1).split("/");
+        var parts = p.slice(base.length).split("/");
         var prefix = root;
         for (var d = 0; d < parts.length - 1; d++) {
-          prefix += "/" + parts[d];
+          prefix = (prefix.slice(-1) === "/" ? prefix : prefix + "/") + parts[d];
           var child = nodes[prefix];
           if (!child) {
             child = { path: prefix, name: parts[d], count: 0, depth: d + 1, children: [] };
@@ -269,11 +270,21 @@
     })(out);
     return out;
   }
-  // Returns false for a folder already covered (the same folder, or one
-  // inside a folder already in this section).
+  // Whole drives, memory cards and network shares can be added; only the
+  // system disk's root cannot. The panel names the Windows system drive
+  // (setSystemDrive); without it C: counts as the system drive.
+  var _systemRoots = ["/", "C:/"];
+  function setSystemDrive(drive) {
+    var m = /^([a-z]):/i.exec(String(drive || ""));
+    if (m) { _systemRoots = ["/", m[1].toUpperCase() + ":/"]; }
+  }
+  // Why a folder cannot be added to `section` (an i18n key), or null. Each
+  // path has one section-specific record, so folders of the two sections
+  // must not overlap.
   function folderProblem(section, dir) {
     dir = _norm(dir);
-    if (!dir || dir === "/" || /^[a-z]:\/$/i.test(dir) || /^\/\/[^/]+\/[^/]+$/.test(dir)) {
+    if (/^[a-z]:\/$/i.test(dir)) { dir = dir.charAt(0).toUpperCase() + ":/"; }
+    if (!dir || _systemRoots.indexOf(dir) !== -1) {
       return "library.folderRoot";
     }
     var other = section === "music" ? "sfx" : "music";
@@ -340,7 +351,8 @@
       }
       for (var i = 0; i < names.length; i++) {
         var name = names[i];
-        if (name.charAt(0) === "." || name === "__MACOSX") {
+        // Windows keeps these at a drive's root and never lets them be read.
+        if (name.charAt(0) === "." || name === "__MACOSX" || name === "System Volume Information" || /^\$recycle\.bin$/i.test(name)) {
           continue;
         }
         var full = (dir.slice(-1) === "/" ? dir : dir + "/") + name;
@@ -847,6 +859,8 @@
     folderTree: folderTree,
     addFolder: addFolder,
     folderProblem: folderProblem,
+    setSystemDrive: setSystemDrive,
+    isUnder: function (path, dir) { return _under(String(path), _norm(dir)); },
     removeFolder: removeFolder,
     listAudioFiles: listAudioFiles,
     offlineFolders: offlineFolders,

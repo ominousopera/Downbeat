@@ -29,6 +29,13 @@
     // the timeline (js/library.js) are listed too, in the section their key
     // material says.
     var SL = window.BeatMarkerSoundLibrary;
+    // The Windows system drive cannot be added whole (see folderProblem).
+    try {
+      var sysEnv = window.cep_node && window.cep_node.process && window.cep_node.process.env;
+      SL.setSystemDrive(sysEnv && (sysEnv.SystemDrive || sysEnv.SYSTEMDRIVE));
+    } catch (sysErr) {
+      // C: stays the system drive
+    }
     var libraryDisplay = document.getElementById("libraryDisplay");
     var libSectionButtons = document.querySelectorAll(".lib-section-btn");
     var libFolderList = document.getElementById("libFolderList");
@@ -265,7 +272,7 @@
     }
     function _libInScope(path, scope) {
       for (var i = 0; i < scope.length; i++) {
-        if (path.indexOf(scope[i] + "/") === 0) {
+        if (path !== scope[i] && SL.isUnder(path, scope[i])) {
           return true;
         }
       }
@@ -373,7 +380,7 @@
             return;
           }
           SL.removeFolder(libSection, node.path);
-          _libScope[libSection] = _libScopeList().filter(function (p) { return p !== node.path && p.indexOf(node.path + "/") !== 0; });
+          _libScope[libSection] = _libScopeList().filter(function (p) { return !SL.isUnder(p, node.path); });
           persistSettings({ libraryFolderScope: _libScope });
           persistSoundLibrary();
           renderLibrary();

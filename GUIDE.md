@@ -154,7 +154,7 @@ speed between whole semitones has no exact Camelot key.
 
 ## Library tab: Music and SFX
 
-Choose dedicated audio folders rather than a drive or filesystem root. Music and SFX folders must not overlap. Start scan retries failed files. Unreadable folders keep their saved records; cancellation stops pending work, and write failures release the scan controls. Replacing a file at the same path reloads its preview before insertion.
+Add audio folders, or a whole drive, memory card or network share; only the system disk cannot be added whole. Music and SFX folders must not overlap. Start scan retries failed files. Unreadable folders keep their saved records; cancellation stops pending work, and write failures release the scan controls. Replacing a file at the same path reloads its preview before insertion.
 
 Two sections, **Music** and **SFX**, each built from folders on your
 computer.

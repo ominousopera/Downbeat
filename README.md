@@ -218,7 +218,8 @@ shrinks to the sounds that fit it.
 - **Folders you can scope.** Tick folders to search only those. Files that are
   not there any more are marked, not forgotten, and **Settings → Library →
   Save a copy / Load a copy** backs the whole library up. Music and SFX use
-  separate, non-overlapping audio folders; drive roots are rejected. Unreadable
+  separate, non-overlapping audio folders; a whole drive, card or network share
+  can be added, the system disk cannot. Unreadable
   folders retain records and favourites; Start scan retries failed files.
 - **Confirm Key/BPM** for a selected Library row, or reset to detected/file-name
   values. Backups preserve confirmations; changed audio invalidates old results.
@@ -705,4 +706,4 @@ Pitch creates a separate media item in Premiere and removes Downbeat clip marker
 
 Selected Library regions use exact source-time bounds on the inserted Premiere clip before fades and speed are applied; the insertion is read back and refused if trimming does not take.
 
-Marker transfers use offsets from the audible clip start, preserve comments and duration, and stay within the same host. Music and SFX folders must not overlap or point to a drive root. Scans retain records in unreadable folders and retry failed files; replaced audio reloads its preview.
+Marker transfers use offsets from the audible clip start, preserve comments and duration, and stay within the same host. Music and SFX folders must not overlap; a whole drive, card or share can be added, the system disk cannot. Scans retain records in unreadable folders and retry failed files; replaced audio reloads its preview.

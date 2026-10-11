@@ -169,7 +169,7 @@ una tonalidad Camelot exacta.
 
 ## Pestaña Biblioteca: Música y SFX
 
-Elige carpetas de audio específicas, no la raíz de una unidad o del sistema de archivos. Las carpetas Music y SFX no deben solaparse. Iniciar escaneo reintenta los archivos con errores. Las carpetas ilegibles conservan sus registros; cancelar detiene el trabajo pendiente y los errores de escritura liberan los controles. Sustituir un archivo en la misma ruta actualiza su vista previa antes de insertarlo.
+Añade carpetas de audio, o una unidad entera, una tarjeta de memoria o una carpeta de red; solo el disco del sistema no se puede añadir entero. Las carpetas Music y SFX no deben solaparse. Iniciar escaneo reintenta los archivos con errores. Las carpetas ilegibles conservan sus registros; cancelar detiene el trabajo pendiente y los errores de escritura liberan los controles. Sustituir un archivo en la misma ruta actualiza su vista previa antes de insertarlo.
 
 Dos secciones, **Música** y **SFX**, cada una construida a partir de
 carpetas de tu equipo.
