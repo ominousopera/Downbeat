@@ -673,6 +673,13 @@ spaces), and `scripts/check-code.js` checks it before every build.
 - Pasting markers onto the same song in another sequence adds no second set;
   After Effects inserts a video file's sound without its picture; Russian and
   Spanish words to leave out work in the Library search.
+- Placing timeline markers on one use of a song keeps the markers of its
+  other uses in the same sequence or composition. Pasting keeps markers that
+  differ only in length.
+- A data file that briefly cannot be read (a network or cloud Documents
+  folder) is never taken as deleted: nothing is cleared, and that save waits
+  for the next change. Delete my data in one host stays done in the other one,
+  even after new data was saved there.
 
 ### Metronome audio and destination
 

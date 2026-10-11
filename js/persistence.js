@@ -191,7 +191,7 @@
       var listing = _listOwnFiles(csInterface, true);
       var result = _deleteListedFiles(fs, listing.files);
       _saveBlocked = {};
-      _synced = {};
+      _forgetSync();
       _removeFolderIfEmpty(fs, listing.dataDir + "/tmp");
       var folderRemoved = _removeFolderIfEmpty(fs, listing.dataDir);
       return {
@@ -218,18 +218,87 @@
   // What this panel last read or wrote, to notice another host's save
   // (Premiere and After Effects can share Documents/Downbeat).
   var _synced = {}; // file path -> "mtimeMs:size"
+  // Each data file carries a generation: a random ID written when the file
+  // is created from nothing and kept by every later save. Delete my data in
+  // one host followed by a fresh save there gives the file a new
+  // generation, which tells the other host its copy is gone - noticing
+  // only that the file was missing is not enough when the deleting host
+  // saves again before the other one looks. Files from before generations
+  // count as "" and keep it.
+  var _gen = {}; // file path -> generation this panel last read or wrote
+  function _forgetSync() {
+    _synced = {};
+    _gen = {};
+  }
+  // After another host's Delete my data: every file this panel had synced
+  // must be read again before it is saved over (it may hold the other
+  // host's new data), and still counts as deleted while it is missing.
+  function _resyncAll() {
+    for (var p in _synced) {
+      if (_synced.hasOwnProperty(p)) { _synced[p] = "?"; }
+    }
+    _gen = {};
+  }
+  function _newGeneration() {
+    return Date.now().toString(36) + "-" + Math.floor(Math.random() * 1e9).toString(36);
+  }
+  function _generationOf(value) {
+    if (Array.isArray(value)) {
+      for (var i = value.length - 1; i >= 0; i--) {
+        var meta = value[i] && value[i].downbeatLibraryMeta;
+        if (meta && typeof meta === "object") { return typeof meta.generation === "string" ? meta.generation : ""; }
+      }
+      return "";
+    }
+    return value && typeof value === "object" && typeof value.dataGeneration === "string" ? value.dataGeneration : "";
+  }
+  // The generation a save writes: the file's own while it exists, a new one
+  // when it does not.
+  function _generationForSave(fs, filePath) {
+    var stat = _statState(fs, filePath);
+    if (stat.error) {
+      throw stat.error; // not saved over a file that could not be checked
+    }
+    if (stat.missing) {
+      return _newGeneration();
+    }
+    if (_gen[filePath] === undefined) {
+      try { _gen[filePath] = _generationOf(JSON.parse(fs.readFileSync(filePath, "utf8"))); } catch (e) { _gen[filePath] = ""; }
+    }
+    return _gen[filePath];
+  }
 
-  function _stamp(fs, filePath) {
+  // { stamp } for a file that is there, { missing: true } only when the
+  // system says it does not exist, { error } for anything else - a drive or
+  // cloud folder that briefly fails is not a deleted file.
+  function _statState(fs, filePath) {
     try {
       var st = fs.statSync(filePath);
-      return st.mtimeMs + ":" + st.size;
+      return { stamp: st.mtimeMs + ":" + st.size };
     } catch (e) {
-      return null;
+      if (e && (e.code === "ENOENT" || e.code === "ENOTDIR")) {
+        return { missing: true };
+      }
+      return { error: e };
     }
+  }
+  function _stamp(fs, filePath) {
+    return _statState(fs, filePath).stamp || null;
   }
   function _noteSynced(fs, filePath) {
     var stamp = _stamp(fs, filePath);
     if (stamp) { _synced[filePath] = stamp; } else { delete _synced[filePath]; }
+  }
+
+  // A shallow copy of `object` with its generation, so the caller's own
+  // object is never changed.
+  function _withGeneration(object, generation) {
+    var out = {};
+    for (var k in (object || {})) {
+      if (object.hasOwnProperty(k)) { out[k] = object[k]; }
+    }
+    out.dataGeneration = generation;
+    return out;
   }
 
   function _two(n) { return (n < 10 ? "0" : "") + n; }
@@ -256,8 +325,14 @@
   // when it parsed and passed `validate`. Throws otherwise, with
   // err.setAside (where the bad file went) or err.blocked.
   function _readJsonFile(fs, filePath, validate) {
-    if (!fs.existsSync(filePath)) {
+    var stat = _statState(fs, filePath);
+    if (stat.missing) {
       return { existed: false };
+    }
+    if (stat.error) {
+      _saveBlocked[filePath] = true;
+      stat.error.blocked = true;
+      throw stat.error;
     }
     var raw;
     try {
@@ -282,13 +357,14 @@
       throw parseErr;
     }
     _noteSynced(fs, filePath);
+    _gen[filePath] = _generationOf(value);
     return { existed: true, value: value };
   }
   function _loadFailure(e) {
     return { ok: false, error: e.message ? e.message : String(e), setAside: e.setAside || null, blocked: !!e.blocked };
   }
 
-  function _writeAtomic(fs, filePath, text) {
+  function _writeAtomic(fs, filePath, text, generation) {
     if (_saveBlocked[filePath]) {
       throw new Error("not saved: " + filePath + " could not be read when the panel started, so it is left as it is. Restart the host to try again.");
     }
@@ -306,32 +382,54 @@
       }
     }
     _noteSynced(fs, filePath);
+    _gen[filePath] = generation;
   }
 
   // The file's content when another host saved it since this panel last
   // read or wrote it: { changed: true, value }; else { changed: false }.
-  // Read errors count as unchanged - the next save simply writes ours.
+  // { deleted: true } means Delete my data ran in the other host: the file
+  // this panel had seen is gone, or came back with a new generation (then
+  // `value` holds the new content as well). Every other file is then read
+  // again before the caller's emptied state could be saved over it.
+  // { unavailable: true } means the file could not be checked (a drive or
+  // cloud folder failing for a moment): the caller does not save this time,
+  // and nothing counts as deleted.
   function readIfChanged(csInterface, kind) {
     var name = kind === "settings" ? SETTINGS_FILE_NAME : kind === "sound-library" ? SOUND_LIBRARY_FILE_NAME : FILE_NAME;
     try {
       var fs = window.cep_node.require("fs");
       var filePath = _getDataDir(csInterface) + "/" + name;
-      var stamp = _stamp(fs, filePath);
-      if (!stamp && _synced[filePath]) {
-        // This panel read or wrote the file and now it is gone: Delete my
-        // data ran in the other host (or the user removed it). The caller
-        // drops what it holds instead of writing it back.
-        delete _synced[filePath];
-        return { changed: false, deleted: true };
+      var stat = _statState(fs, filePath);
+      if (stat.error) {
+        return { changed: false, unavailable: true };
       }
-      if (!stamp || stamp === _synced[filePath]) {
+      if (stat.missing) {
+        if (_synced[filePath]) {
+          _resyncAll();
+          delete _synced[filePath];
+          return { changed: false, deleted: true };
+        }
+        return { changed: false };
+      }
+      if (stat.stamp === _synced[filePath]) {
         return { changed: false };
       }
       var value = JSON.parse(fs.readFileSync(filePath, "utf8"));
-      _synced[filePath] = stamp;
+      var generation = _generationOf(value);
+      var known = _gen[filePath];
+      if (known !== undefined && generation !== "" && generation !== known) {
+        _resyncAll();
+        _synced[filePath] = stat.stamp;
+        _gen[filePath] = generation;
+        return { changed: true, deleted: true, value: value };
+      }
+      _synced[filePath] = stat.stamp;
+      _gen[filePath] = generation;
       return { changed: true, value: value };
     } catch (e) {
-      return { changed: false };
+      // Read or parse errors (another host mid-write on Windows, a damaged
+      // file): not checked, so nothing is saved over it this time.
+      return { changed: false, unavailable: true };
     }
   }
 
@@ -375,10 +473,13 @@
           updatedAt: e.updatedAt || null
         });
       }
-      if (meta) {
-        stripped.push({ mediaPath: "", downbeatLibraryMeta: meta });
+      var generation = _generationForSave(fs, filePath);
+      var metaOut = { generation: generation };
+      for (var mk in (meta || {})) {
+        if (meta.hasOwnProperty(mk) && mk !== "generation") { metaOut[mk] = meta[mk]; }
       }
-      _writeAtomic(fs, filePath, JSON.stringify(stripped, null, 2));
+      stripped.push({ mediaPath: "", downbeatLibraryMeta: metaOut });
+      _writeAtomic(fs, filePath, JSON.stringify(stripped, null, 2), generation);
       return { ok: true, path: filePath, count: stripped.length };
     } catch (e) {
       return { ok: false, error: e.message ? e.message : String(e) };
@@ -416,7 +517,8 @@
       var dir = _getDataDir(csInterface);
       fs.mkdirSync(dir, { recursive: true });
       var filePath = dir + "/" + SETTINGS_FILE_NAME;
-      _writeAtomic(fs, filePath, JSON.stringify(settings, null, 2));
+      var generation = _generationForSave(fs, filePath);
+      _writeAtomic(fs, filePath, JSON.stringify(_withGeneration(settings, generation), null, 2), generation);
       // Restricted to the current OS user (owner read/write only, 0600) so
       // another local account on a shared machine cannot read the file.
       // Not encrypted.
@@ -463,7 +565,8 @@
       var dir = _getDataDir(csInterface);
       fs.mkdirSync(dir, { recursive: true });
       var filePath = dir + "/" + SOUND_LIBRARY_FILE_NAME;
-      _writeAtomic(fs, filePath, JSON.stringify(state));
+      var generation = _generationForSave(fs, filePath);
+      _writeAtomic(fs, filePath, JSON.stringify(_withGeneration(state, generation)), generation);
       return { ok: true, path: filePath };
     } catch (e) {
       return { ok: false, error: e.message ? e.message : String(e) };

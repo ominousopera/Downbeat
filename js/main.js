@@ -118,9 +118,15 @@
     // Another host may have saved since (Premiere and After Effects share
     // Documents/Downbeat): its newer entries are taken in first.
     var fresh = window.BeatMarkerPersistence.readIfChanged(csInterface, "library");
+    if (fresh.unavailable) {
+      log("WARNING: the track library file could not be checked just now (Documents/Downbeat); not saved this time, nothing changed on disk.");
+      return;
+    }
     if (fresh.deleted) {
       _library.dataDeletedElsewhere();
-      return; // Delete my data ran in the other host: nothing is written back
+      if (!fresh.changed) {
+        return; // Delete my data ran in the other host: nothing is written back
+      }
     }
     if (fresh.changed) {
       window.BeatMarkerLibrary.absorb(fresh.value);
@@ -226,6 +232,13 @@
     // Starts from the file when another host saved it since: its choices
     // stay, only `overrides` change.
     var fresh = window.BeatMarkerPersistence.readIfChanged(csInterface, "settings");
+    if (fresh.unavailable) {
+      log("WARNING: settings.json could not be checked just now; this change is kept in the panel and saved next time.");
+      for (var pendingKey in overrides) {
+        if (overrides.hasOwnProperty(pendingKey)) { initialSettings[pendingKey] = overrides[pendingKey]; }
+      }
+      return;
+    }
     if (fresh.deleted) {
       initialSettings = {}; // Delete my data ran in the other host: start from defaults
     }

@@ -346,11 +346,17 @@ function _applyMarkerLabel(marker, label) {
 // clip, so placing again replaces instead of stacking. Paste markers does not
 // pass it.
 // Where Place last put timeline (sequence / composition) markers, per
-// sequence and media, for this host session. Timeline markers stay where
-// they were when the clip moves, so re-placing also removes Downbeat's own
-// markers at exactly those times; only markers with Downbeat's own names at
-// those exact times go.
+// sequence and clip instance, for this host session. Timeline markers stay
+// where they were when the clip moves, so re-placing also removes
+// Downbeat's own markers at exactly those times; only markers with
+// Downbeat's own names at those exact times go. The key is the clip's own
+// ID, not its media, so another use of the same song keeps its markers.
+// No ID from the host means no key, so nothing is removed.
 var _dbPlacedTimeline = {};
+function _dbPlacedKey(ownerId, itemId) {
+    if (itemId === undefined || itemId === null || itemId === "") { return null; }
+    return String(ownerId) + "|" + String(itemId);
+}
 function _dbRemoveOwnAtTimes(markers, times) {
     var doomed = [];
     var m = markers.getFirstMarker();
@@ -390,9 +396,9 @@ function createMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJ
         var placedKey = null;
         if (replaceOwn === true) {
             var ownClip = _findSelectedAudioClipOrThrow(sequence).clip;
-            placedKey = String(sequence.sequenceID || sequence.name) + "|" + ownClip.projectItem.getMediaPath();
+            placedKey = _dbPlacedKey(sequence.sequenceID || sequence.name, ownClip.nodeId);
             replacedCount = _removeOwnMarkersAroundClip(sequence, ownClip);
-            if (_dbPlacedTimeline[placedKey]) {
+            if (placedKey && _dbPlacedTimeline[placedKey]) {
                 replacedCount += _dbRemoveOwnAtTimes(sequence.markers, _dbPlacedTimeline[placedKey]);
             }
         }
@@ -853,12 +859,22 @@ function _dbRestorePremiereMarker(marker, transfer) {
     else if (m.type === "WebLink") { marker.setTypeAsWebLink(m.url || "", m.frameTarget || ""); }
     else if (m.type !== "Comment") { throw new Error("Unsupported marker type."); }
 }
-// Whether `markers` already holds a marker at `time` with this name and comments.
-function _dbHasSameMarker(markers, time, data) {
+// Whether `markers` already held, before this paste, a marker equal to
+// `transfer`: same start, end, name, comments and type. Markers this paste
+// created are passed in `fresh` and never count, so two source markers that
+// differ only in length both arrive.
+function _dbHasSameMarker(markers, transfer, fresh) {
+    var data = transfer.data;
     var m = markers.getFirstMarker();
     while (m) {
-        if (Math.abs(m.start.seconds - time) < 0.0005 && String(m.name || "") === String(data.label || "") &&
-                String(m.comments || "") === String(data.comments || "")) {
+        var isFresh = false;
+        for (var f = 0; f < fresh.length; f++) { if (fresh[f].marker === m) { isFresh = true; break; } }
+        var end = m.end && typeof m.end.seconds === "number" ? m.end.seconds : m.start.seconds;
+        if (!isFresh && Math.abs(m.start.seconds - transfer.time) < 0.0005 &&
+                Math.abs(end - (transfer.time + transfer.duration)) < 0.0005 &&
+                String(m.name || "") === String(data.label || "") &&
+                String(m.comments || "") === String(data.comments || "") &&
+                (m.type === undefined || data.type === undefined || String(m.type) === String(data.type))) {
             return true;
         }
         m = markers.getNextMarker(m);
@@ -880,9 +896,9 @@ function pasteMarkersData(dataJson, referenceJson) {
         // every sequence. Pasted onto the same file they go back to their own
         // source times - mapping them through another instance's trim would
         // add an off-beat second set to the shared media, and pasting where
-        // they still are would double them everywhere. A marker already at
-        // the same time with the same name and comments is never created
-        // twice.
+        // they still are would double them everywhere. A marker that is
+        // already there, equal in time, length, name, comments and type, is
+        // never created twice.
         var kept = 0;
         var source = JSON.parse(dataJson);
         if (source.mediaPath && _dbSamePath(source.mediaPath, info.mediaPath)) {
@@ -900,7 +916,7 @@ function pasteMarkersData(dataJson, referenceJson) {
         for (var g = 0; g < groups.length; g++) {
             for (var i = 0; i < groups[g].length; i++) {
                 var transfer = groups[g][i];
-                if (_dbHasSameMarker(collections[g], transfer.time, transfer.data)) {
+                if (_dbHasSameMarker(collections[g], transfer, created)) {
                     kept++;
                     continue;
                 }

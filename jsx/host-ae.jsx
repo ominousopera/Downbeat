@@ -278,7 +278,7 @@ function dbAeCreateMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, refere
         // See _dbPlacedTimeline in host.jsx: composition markers stay put
         // when the layer moves, so re-placing also clears Downbeat's own
         // ones at the times it used last time.
-        var placedKey = layer ? String(comp.id) + "|" + layer.source.file.fsName : null;
+        var placedKey = layer ? _dbPlacedKey(comp.id, layer.id) : null;
         var replaced = 0;
         var r = _dbAeWithUndo("Downbeat: place markers", function () {
             if (layer) {

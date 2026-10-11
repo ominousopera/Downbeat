@@ -43,8 +43,10 @@ function CompItem(opts) {
 Object.defineProperty(CompItem.prototype, "numLayers", { get: function () { return this.layers.length; } });
 Object.defineProperty(CompItem.prototype, "selectedLayers", { get: function () { return this.layers.filter(function (l) { return l.selected; }); } });
 CompItem.prototype.layer = function (i) { return this.layers[i - 1]; };
+// Each layer has its own id, like Layer.id in After Effects 22 and later.
+let layerSerial = 0;
 function Layer(comp, opts) {
-  Object.assign(this, { stretch: 100, timeRemapEnabled: false, hasAudio: false, hasVideo: false, selected: false, source: null }, opts);
+  Object.assign(this, { id: ++layerSerial, stretch: 100, timeRemapEnabled: false, hasAudio: false, hasVideo: false, selected: false, source: null }, opts);
   this.comp = comp;
   this.markers = new MarkerProp();
   this.scale = new ScaleProp(opts.threeD ? 3 : 2);
@@ -164,7 +166,10 @@ MarkerCollection.prototype.getFirstMarker = function () { return this.list[0]; }
 MarkerCollection.prototype.getNextMarker = function (m) { return this.list[this.list.indexOf(m) + 1]; };
 MarkerCollection.prototype.deleteMarker = function (m) { this.list.splice(this.list.indexOf(m), 1); };
 Object.defineProperty(MarkerCollection.prototype, "numMarkers", { get: function () { return this.list.length; } });
+// Each track item has its own nodeId, like Premiere's TrackItem.nodeId.
+let pclipSerial = 0;
 function PClip(projectItem, start, end, inPoint, selected) {
+  this.nodeId = "clip-" + (++pclipSerial);
   this.name = projectItem.name;
   this.projectItem = projectItem;
   this.start = T(start);

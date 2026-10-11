@@ -151,9 +151,15 @@
     // Documents/Downbeat): its newer records are taken in before writing.
     function _libAbsorbFromDisk() {
       var fresh = window.BeatMarkerPersistence.readIfChanged(ctx.csInterface(), "sound-library");
+      if (fresh.unavailable) {
+        log("WARNING: the folder library file could not be checked just now (Documents/Downbeat); not saved this time, nothing changed on disk.");
+        return null;
+      }
       if (fresh.deleted) {
         dataDeletedElsewhere();
-        return null;
+        if (!fresh.changed) {
+          return null;
+        }
       }
       return fresh.changed ? SL.absorb(fresh.value) : false;
     }
@@ -616,6 +622,11 @@
         var timelineFresh = window.BeatMarkerPersistence.readIfChanged(ctx.csInterface(), "library");
         if (timelineFresh.deleted) {
           dataDeletedElsewhere();
+          if (timelineFresh.changed) {
+            window.BeatMarkerLibrary.absorb(timelineFresh.value);
+          }
+          _libAbsorbFromDisk();
+          renderLibrary();
         } else {
           var timelineChanged = timelineFresh.changed && window.BeatMarkerLibrary.absorb(timelineFresh.value);
           if (_libAbsorbFromDisk() || timelineChanged) {
