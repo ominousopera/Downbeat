@@ -101,6 +101,14 @@ Básica vuelve al instante; Afinada ejecuta de nuevo el segundo detector
 En una pista difícil de leer, la línea bajo **Cuadrícula** lo indica y
 sugiere **Afinada**, que ahí suele ser más precisa.
 
+Con **Afinada**, el segundo detector también coloca el «uno» de cada
+compás. Un «uno» que caería a menos de un tiempo y medio de otro se omite,
+así que dos tiempos vecinos nunca quedan marcados ambos como «uno». Si aun
+así sus marcadores del «uno» quedan a distancias irregulares, un aviso bajo
+**El «uno» es el tiempo** lo indica: escucha el clic y, si el «uno» no cae
+bien, cambia la **Cuadrícula** a **Básica** y elige el «uno» real con
+**1 2 3 4**.
+
 ## Tipos de marcador
 
 Cada marcador tiene un color y una etiqueta según su función:

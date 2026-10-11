@@ -322,7 +322,8 @@
     }
     return best;
   }
-  // Diagnostic regularity measure for a downbeat-times array. Returns
+  // Regularity measure for a downbeat-times array (logged, and behind the
+  // "uneven" warning through downbeatsLookUneven below). Returns
   // { medianIntervalSec, deviatingFraction, intervalCount }, where
   // deviatingFraction is the share of intervals that differ from the median
   // by more than deviationThreshold (default 0.20, relative). Null when
@@ -356,6 +357,71 @@
       deviatingFraction: deviating / diffs.length,
       intervalCount: diffs.length
     };
+  }
+  // Drops each "1" that comes less than 1.5 beats after another, so two
+  // neighbouring beats are never both marked as the start of a bar. Times
+  // are never moved and no "1" is added. The limit is in time at the local
+  // tempo (0.375 of a 4-beat bar), not in beat count, because the beat list
+  // can miss or add a beat; "1"s two beats apart are kept, since that is a
+  // whole bar when the beats were found at half the tempo. Among the
+  // subsets that keep the most "1"s, the one spaced closest to whole bars
+  // wins. Returns { times, dropped }.
+  var THIN_MIN_BAR_FRACTION = 0.375;
+  var THIN_SPACING_WEIGHT = 0.5;
+  function thinCloseDownbeats(beatsArray, downbeatTimes) {
+    var D = downbeatTimes ? Array.prototype.slice.call(downbeatTimes).sort(function (a, b) { return a - b; }) : [];
+    var n = D.length;
+    if (n < 3 || !beatsArray || beatsArray.length < 8) {
+      return { times: D, dropped: 0 };
+    }
+    // a 4-beat bar at the local tempo around each "1"
+    var bars = [];
+    for (var b = 0; b < n; b++) {
+      var i0 = _nearestBeatIndex(beatsArray, D[b]);
+      var around = [];
+      for (var j = Math.max(1, i0 - 8); j <= Math.min(beatsArray.length - 1, i0 + 8); j++) {
+        around.push(beatsArray[j] - beatsArray[j - 1]);
+      }
+      bars.push(4 * _median(around));
+    }
+    var tooClose = false;
+    for (var c = 1; c < n; c++) {
+      if (D[c] - D[c - 1] < THIN_MIN_BAR_FRACTION * bars[c]) { tooClose = true; break; }
+    }
+    if (!tooClose) {
+      return { times: D, dropped: 0 };
+    }
+    var best = [], prev = [];
+    for (var i = 0; i < n; i++) {
+      best.push(1);
+      prev.push(-1);
+      for (var k = i - 1; k >= Math.max(0, i - 16); k--) {
+        var gap = D[i] - D[k];
+        if (gap < THIN_MIN_BAR_FRACTION * bars[i]) { continue; }
+        var inBars = gap / bars[i];
+        var whole = Math.max(1, Math.round(inBars));
+        var v = best[k] + 1 - THIN_SPACING_WEIGHT * Math.abs(inBars - whole);
+        if (v > best[i]) { best[i] = v; prev[i] = k; }
+      }
+    }
+    var end = 0;
+    for (var e = 1; e < n; e++) {
+      if (best[e] > best[end]) { end = e; }
+    }
+    var kept = [];
+    for (var at = end; at >= 0; at = prev[at]) { kept.push(D[at]); }
+    kept.reverse();
+    return { times: kept, dropped: n - kept.length };
+  }
+  // True when the "1" markers are too uneven to trust: at least a quarter
+  // of the gaps differ from the median gap by more than 20%. Drives the
+  // "uneven" warning for the second detector's grid. Needs at least 8 gaps,
+  // since a short clip's few bars say too little.
+  var UNEVEN_DEVIATING_FRACTION = 0.25;
+  var UNEVEN_MIN_INTERVALS = 8;
+  function downbeatsLookUneven(downbeatTimes) {
+    var r = computeDownbeatRegularity(downbeatTimes);
+    return !!r && r.intervalCount >= UNEVEN_MIN_INTERVALS && r.deviatingFraction >= UNEVEN_DEVIATING_FRACTION;
   }
   // "Detailed" mode: every beat, each labeled "D" (downbeat) or "b" (any
   // other beat). The single-letter labels become the marker names in Premiere
@@ -407,6 +473,8 @@
     interpolateDownbeatMidpoints: interpolateDownbeatMidpoints,
     computeGridDensityRatio: computeGridDensityRatio,
     computeNativeDownbeatPhase: computeNativeDownbeatPhase,
-    computeDownbeatRegularity: computeDownbeatRegularity
+    computeDownbeatRegularity: computeDownbeatRegularity,
+    thinCloseDownbeats: thinCloseDownbeats,
+    downbeatsLookUneven: downbeatsLookUneven
   };
 })(window);

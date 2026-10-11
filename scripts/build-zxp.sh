@@ -116,6 +116,8 @@ node "$HERE/scripts/test-frame-snap.js" > /dev/null 2>&1 \
   || { echo "  frame snap test FAILED - run: node scripts/test-frame-snap.js"; exit 1; }
 node "$HERE/scripts/test-even-out.js" > /dev/null 2>&1 \
   || { echo "  even-out test FAILED - run: node scripts/test-even-out.js"; exit 1; }
+node "$HERE/scripts/test-thin-downbeats.js" > /dev/null 2>&1 \
+  || { echo "  close-downbeats test FAILED - run: node scripts/test-thin-downbeats.js"; exit 1; }
 node "$HERE/scripts/test-lib-preview.js" > /dev/null 2>&1 \
   || { echo "  Library preview pane test FAILED - run: node scripts/test-lib-preview.js"; exit 1; }
 echo "  host and marker tests passed"

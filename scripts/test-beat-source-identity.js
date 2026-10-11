@@ -16,7 +16,7 @@ function fixture() {
     BEATTHIS_DENSITY_RATIO_HALF_MIN: 0.45, BEATTHIS_DENSITY_RATIO_HALF_MAX: 0.55,
     window: { BeatMarkerLibrary: { fileIdentity: identity, sameIdentity: function (a, b) { return a.size === b.size && a.mtimeMs === b.mtimeMs; } },
       BeatMarkerAudio: { TARGET_SAMPLE_RATE: 44100, resampleMono: async function (s) { return s; } },
-      BeatMarkerCuesheet: { computeGridDensityRatio: function () { return 1; }, computeNativeDownbeatPhase: function () { return 0; }, computeDownbeatRegularity: function () { return null; } } },
+      BeatMarkerCuesheet: { computeGridDensityRatio: function () { return 1; }, computeNativeDownbeatPhase: function () { return 0; }, computeDownbeatRegularity: function () { return null; }, thinCloseDownbeats: function (b, d) { return { times: d, dropped: 0 }; } } },
     I18n: { t: function () { return "file changed"; } }, log: function (s) { logs.push(s); },
     _snapshotBeatFields: function () { return {}; }, _applyBeatFieldsAndRefreshUI: function (f) { applied.push(f); },
     _updateGridConfidenceHint: function () {},

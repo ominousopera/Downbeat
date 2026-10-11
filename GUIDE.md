@@ -92,6 +92,13 @@ back at once; Refined runs the second detector again (a few seconds).
 On a track that is hard to read, the line under **Beat grid** says so and
 suggests **Refined**, which is often more accurate there.
 
+With **Refined**, the second detector also places the "1" of each bar. A
+"1" that would come less than a beat and a half after another is left out,
+so two neighbouring beats are never both marked as a "1". If its "1"
+markers still come at uneven distances, a warning under **The "1" is beat**
+says so: listen to the click, and if the "1" is off, switch **Beat grid** to
+**Basic** and pick the real "1" with **1 2 3 4**.
+
 ## Marker types
 
 Each marker is colored and labeled by its role:

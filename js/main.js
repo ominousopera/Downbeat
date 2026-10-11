@@ -874,9 +874,19 @@
   var retempoHalfBtn = document.getElementById("retempoHalfBtn");
   var retempoDoubleBtn = document.getElementById("retempoDoubleBtn");
   var PHASE_MARGIN_UNCERTAIN_THRESHOLD = 0.18;
+  // The same row also warns when the second detector's "1" markers are
+  // uneven (downbeatsLookUneven in js/cuesheet.js): its grids have no
+  // margin, so the margin line never shows for them. The text points to
+  // the Basic grid and the "1" buttons, the usual way out on such tracks.
+  var phaseUncertainHint = document.getElementById("phaseUncertainHint");
   function _updatePhaseUncertainHint(marginRatio) {
     var uncertain = typeof marginRatio === "number" && marginRatio < PHASE_MARGIN_UNCERTAIN_THRESHOLD;
-    phaseUncertainRow.style.display = uncertain ? "" : "none";
+    var uneven = !uncertain && !!lastAnalysis && !!lastAnalysis.downbeatTimes &&
+      window.BeatMarkerCuesheet.downbeatsLookUneven(lastAnalysis.downbeatTimes);
+    var key = uneven ? "analyze.downbeatsUneven" : "analyze.phaseUncertain";
+    phaseUncertainHint.setAttribute("data-i18n", key);
+    setTranslatedText(phaseUncertainHint, key);
+    phaseUncertainRow.style.display = (uncertain || uneven) ? "" : "none";
   }
   var GRID_CONFIDENCE_LOW_THRESHOLD = 1.0;
   function _updateGridConfidenceHint(confidence) {
@@ -1611,13 +1621,17 @@
         // (pre-interpolation) downbeats, since interpolated midpoints are not
         // beatsArray members and would only add noise to the vote.
         var nativePhase = window.BeatMarkerCuesheet.computeNativeDownbeatPhase(newBeats, rawDownbeatTimes);
-        // Diagnostic-only regularity measure (see computeDownbeatRegularity()
-        // in js/cuesheet.js), computed on the final (possibly interpolated)
-        // downbeatTimes, since that is what gets placed.
+        // Regularity of the model's own downbeats (see
+        // computeDownbeatRegularity() in js/cuesheet.js), on the final
+        // (possibly interpolated) downbeatTimes before the thinning below.
         var regularity = window.BeatMarkerCuesheet.computeDownbeatRegularity(finalDownbeatTimes);
+        // A "1" less than 1.5 beats after another is dropped
+        // (thinCloseDownbeats in js/cuesheet.js).
+        var thinned = window.BeatMarkerCuesheet.thinCloseDownbeats(newBeats, finalDownbeatTimes);
         return {
           newBeats: newBeats,
-          downbeatTimes: finalDownbeatTimes,
+          downbeatTimes: thinned.times,
+          thinnedCount: thinned.dropped,
           nativePhase: nativePhase !== null ? nativePhase : 0,
           halfTimeCorrected: halfTimeCorrected,
           regularity: regularity,
@@ -1655,8 +1669,12 @@
         log("Alternative analysis applied: " + merged.newBeats.length + " beats, " +
             merged.downbeatTimes.length + " native downbeats" +
             (merged.halfTimeCorrected ? " (half-time grid corrected)" : "") + ".");
+        if (merged.thinnedCount) {
+          log("Removed " + merged.thinnedCount + " \"1\" markers that came less than 1.5 beats after another.");
+        }
         if (merged.regularity) {
-          // Diagnostic only - see computeDownbeatRegularity()'s comment.
+          // Logged for the record; the warning row reads the placed
+          // (thinned) downbeats instead - see _updatePhaseUncertainHint.
           log("Native downbeat spacing regularity: " +
               Math.round((1 - merged.regularity.deviatingFraction) * 100) + "% of " +
               merged.regularity.intervalCount + " intervals within 20% of the median (" +
@@ -3047,7 +3065,11 @@
         clipInfo: freshClipInfo, // the LIVE position, not the cached one - the clip may have moved since it was analyzed
         audioPath: entry.mediaPath,
         phase: entry.phase,
-        downbeatTimes: entry.downbeatTimes || null // Beat This! downbeats, when they were in use
+        // Beat This! downbeats, when they were in use, thinned the same way
+        // as a fresh analysis (thinning thinned times changes nothing).
+        downbeatTimes: entry.downbeatTimes && entry.downbeatTimes.length
+          ? window.BeatMarkerCuesheet.thinCloseDownbeats(entry.beatsArray, entry.downbeatTimes).times
+          : null
       };
       _updatePhaseShiftUi();
       _setBpmText(entry.bpm.toFixed(2));
