@@ -74,6 +74,33 @@ function comments(prop) {
   check("Premiere 120% clip: Shift and the 1 buttons count every Downbeat marker", count === 24, "counted " + count);
 })();
 
+// ---- Nothing an editor made is removed by Copy or Clear, whatever is passed ----
+(function () {
+  const pp = mocks.makePremiereHost({ mediaPath: "/music/song.wav", durationSec: 20, clipStart: 0 });
+  const ph = mocks.loadHost(pp.context);
+  const mine = pp.clipMarkers.createMarker(3); mine.name = "Verse";
+  const seqMine = pp.sequence.markers.createMarker(4); seqMine.name = "Scene";
+  ph.run("createClipMarkers(" + arg([1, 2]) + "," + arg(["D", "b"]) + ", true)");
+  let r = JSON.parse(ph.run("getMarkersDataForSelectedClip(true)")); // an old caller asking to move
+  check("Premiere Copy removes nothing, even when asked to move",
+    r.ok && pp.clipMarkers.list.length === 3 && pp.sequence.markers.list.length === 1, JSON.stringify(r.data && { seq: r.data.sequenceMarkers.length, clip: r.data.clipMarkers.length }));
+  r = JSON.parse(ph.run("clearMarkersForSelectedClip(false)"));
+  check("Premiere Clear removes only Downbeat's markers, whatever is passed",
+    r.ok && pp.clipMarkers.list.map(function (m) { return m.name; }).join() === "Verse" && pp.sequence.markers.list[0] === seqMine);
+
+  const fa = mocks.makeAeHost({ mediaPath: "/music/song.wav", durationSec: 20, startTime: 0, frameRate: 25 });
+  const ah = mocks.loadHost(fa.context);
+  const lm = fa.comp.layers[0].property("Marker");
+  lm.setValueAtTime(3, new mocks.MarkerValue("Verse"));
+  fa.comp.markerProperty.setValueAtTime(4, new mocks.MarkerValue("Scene"));
+  ah.run("createClipMarkers(" + arg([1, 2]) + "," + arg(["D", "b"]) + ", true)");
+  r = JSON.parse(ah.run("getMarkersDataForSelectedClip(true)"));
+  check("AE Copy removes nothing, even when asked to move", r.ok && lm.numKeys === 3 && fa.comp.markerProperty.numKeys === 1);
+  r = JSON.parse(ah.run("clearMarkersForSelectedClip(false)"));
+  check("AE Clear removes only Downbeat's markers, whatever is passed",
+    r.ok && comments(lm).join() === "3.00=Verse" && comments(fa.comp.markerProperty).join() === "4.00=Scene", comments(lm).join());
+})();
+
 if (failures) {
   console.error(failures + " check(s) failed");
   process.exit(1);

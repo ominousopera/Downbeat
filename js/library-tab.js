@@ -641,63 +641,9 @@
       return -1;
     }
 
-    var libConfirmPanel = document.getElementById("libConfirmPanel");
-    var libConfirmKey = document.getElementById("libConfirmKey");
-    var libConfirmBpm = document.getElementById("libConfirmBpm");
-    var libConfirmStatus = document.getElementById("libConfirmStatus");
-    function _showConfirmation(path) {
-      var item = SL.getState().files[path] || window.BeatMarkerLibrary.get(path);
-      libConfirmPanel.hidden = !item || !!(item.status && item.status !== "done");
-      if (libConfirmPanel.hidden) { return; }
-      libConfirmKey.value = item.camelot || "";
-      libConfirmBpm.value = item.confirmedBpm ? item.confirmedBpm.value : (item.bpm || "");
-      setTranslatedText(libConfirmStatus, item.confirmedKey || item.confirmedBpm ? "library.confirmed" : "library.detected");
-      document.getElementById("libConfirmResetBtn").hidden = !(item.confirmedKey || item.confirmedBpm);
-    }
-    function _saveConfirmation(reset) {
-      if (!libSelectedPath || libScan.running) { return; }
-      try {
-        var path = libSelectedPath, fs = window.cep_node.require("fs"), st = fs.statSync(path);
-        var folder = SL.getState().files[path];
-        var key = libConfirmKey.value.trim().toUpperCase();
-        var raw = String(libConfirmBpm.value).trim(), bpm = raw ? Number(raw) : null;
-        if (!reset && ((key && !/^([1-9]|1[0-2])[AB]$/.test(key)) ||
-            (bpm !== null && (!isFinite(bpm) || bpm <= 0 || bpm > 999)))) {
-          throw new Error(I18n.t("library.confirmInvalid"));
-        }
-        if (folder) {
-          if (folder.status !== "done") { throw new Error(I18n.t("selection.needAnalyze")); }
-          if (folder.size !== st.size || folder.mtimeMs !== Math.round(st.mtimeMs)) {
-            throw new Error(I18n.t("analysis.fileChanged"));
-          }
-          if (reset) { SL.clearConfirmed(path); } else { SL.confirm(path, key, bpm); }
-        } else {
-          var track = window.BeatMarkerLibrary.get(path);
-          if (!track) { throw new Error(I18n.t("analysis.fileChanged")); }
-          if (reset) {
-            window.BeatMarkerLibrary.clearConfirmedKey(path);
-            window.BeatMarkerLibrary.clearConfirmedBpm(path);
-          } else {
-            if (key) { window.BeatMarkerLibrary.confirmKey(path, track.label, key, track.material || "music"); }
-            if (bpm !== null) { window.BeatMarkerLibrary.confirmBpm(path, track.label, bpm); }
-          }
-        }
-        if (!folder) { ctx.refreshTimelineKey(path); }
-        var effective = folder || window.BeatMarkerLibrary.get(path);
-        if (_libPaneItem && _libPaneItem.path === path && effective) {
-          ["camelot", "key", "scale", "strength", "keyFrom", "bpmFrom"].forEach(function (field) { _libPaneItem[field] = effective[field]; });
-          _libPaneItem.bpm = effective.confirmedBpm ? effective.confirmedBpm.value : effective.bpm;
-          _libApplyInKey(); _libPaneRefresh();
-        }
-        persistSoundLibrary(); persistLibrary(); renderLibrary(); _showConfirmation(path);
-      } catch (err) { libConfirmStatus.textContent = err.message || String(err); }
-    }
-    document.getElementById("libConfirmApplyBtn").addEventListener("click", function () { _saveConfirmation(false); });
-    document.getElementById("libConfirmResetBtn").addEventListener("click", function () { _saveConfirmation(true); });
 
     function _libSelect(path, scroll) {
       libSelectedPath = path;
-      _showConfirmation(path);
       _libUpdateRowStates();
       _libPaneSelect(path);
       var i = _libShownIndex(path);
@@ -792,8 +738,6 @@
         _libPaneLoading = null; _libPanePeaks = null; libPlayingPath = null;
         libPane.hidden = true;
       }
-      if (libConfirmPanel && libSelectedPath && !SL.getState().files[libSelectedPath] &&
-          !window.BeatMarkerLibrary.get(libSelectedPath)) { libConfirmPanel.hidden = true; }
       if (keepRows !== true) {
         libExtraRows = 0;
       }
@@ -904,7 +848,6 @@
       libSection = section;
       persistSettings({ librarySection: section });
       libSelectedPath = null;
-      if (libConfirmPanel) { libConfirmPanel.hidden = true; }
       renderLibrarySortSelect();
       renderLibrary();
     }
@@ -2290,13 +2233,20 @@
       clearTimeout(_libClearArmedTimer);
       _libClearArmedTimer = null;
       setTranslatedText(clearLibraryBtn, "library.clear");
-      SL.SECTIONS.forEach(function (section) { SL.clearSection(section); });
+      // Only Downbeat's own records go; no audio file or folder on disk is touched.
+      SL.clearAll();
       window.BeatMarkerLibrary.clear();
+      if (_libPlayer) { _libPlayer.stop(); }
+      if (libPlayingPath) { libPreviewAudio.pause(); libPlayingPath = null; }
+      _libPaneItem = null; _libPaneReady = false; libPane.hidden = true;
+      libSelectedPath = null;
+      _libScope = { music: [], sfx: [] };
+      persistSettings({ libraryFolderScope: _libScope });
       persistSoundLibrary();
       persistLibrary();
       renderLibrary();
       setTranslatedText(libraryAdminStatus, "library.cleared");
-      log("Library cleared (Music and SFX) - the folders stay; Rescan analyzes them again.");
+      log("Library cleared: folders, scanned sounds, favourites and analyzed clips removed from Downbeat's records; no audio file was touched. Asked to reopen the panel.");
     });
     // Save a copy / Load a copy. The copy is one JSON file: the folder
     // library as is (records keep size and modification time, so a Rescan
@@ -2382,7 +2332,6 @@
       _libPersistTimer = null;
       SL.loadState(null);
       libSelectedPath = null;
-      if (libConfirmPanel) { libConfirmPanel.hidden = true; }
       renderLibrary();
     }
     function applySettings(settings) {

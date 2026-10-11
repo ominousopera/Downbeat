@@ -206,11 +206,8 @@
         })
         .then(function () { return _clickAndWaitForButton(ctx.razorTestBtn(), "Test cut (run once - cuts the selected clip's track)"); })
         .then(function () {
-          // Copy + Paste markers. Copy is non-destructive by default
-          // (removeAfterCopyCheckbox is unchecked); the checkbox is left as
-          // it is, so a user's preference is not flipped mid-test. The
-          // clearMarkersBtn cleanup right after this block removes the
-          // duplicates.
+          // Copy + Paste markers. Copy only reads. The clearMarkersBtn
+          // cleanup right after this block removes the duplicates.
           return _clickAndWaitForButton(ctx.copyMarkersBtn(), "Copy markers (from the selected clip)").then(function () {
             if (!ctx._copiedMarkers()) {
               _selfTestCopyPasteResult = "skip";

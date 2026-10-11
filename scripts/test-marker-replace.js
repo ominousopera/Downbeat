@@ -74,8 +74,9 @@ check("Premiere: Clear removes every Downbeat marker on the media (other pieces 
   leftClip === "Chorus@20" && p.sequence.markers.list.length === 1 && p.sequence.markers.list[0] === seqTheirs,
   JSON.stringify(r.data) + " | clip: " + leftClip);
 r = JSON.parse(ph.run("clearMarkersForSelectedClip()"));
-check("Premiere: a move after copy still removes everything it copied",
-  r.ok && r.data.clipMarkersRemoved === 1 && p.clipMarkers.list.length === 0 && p.sequence.markers.list.length === 0, JSON.stringify(r.data));
+check("Premiere: Clear without any flag still leaves the editor's markers (no call clears them)",
+  r.ok && r.data.clipMarkersRemoved === 0 && r.data.sequenceMarkersRemoved === 0 &&
+  p.clipMarkers.list.length === 1 && p.sequence.markers.list.length === 1, JSON.stringify(r.data));
 // After Effects: layer markers (ours, the editor's) and comp markers.
 a.comp.markerProperty.setValueAtTime(6, new mocks.MarkerValue("D"));
 a.comp.markerProperty.setValueAtTime(9, new mocks.MarkerValue("Scene 2"));

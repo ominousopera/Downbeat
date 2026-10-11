@@ -3,9 +3,10 @@
 // jsx/host.jsx on the Premiere stand-in:
 //   - Enter held down or pressed twice while an insert is still running
 //     inserts the sound once;
-//   - Settings > Clear removes analysis results only: favourites and
-//     confirmed keys / tempos stay, in the folder library and in the
-//     timeline-clip library, as its hint says.
+//   - Settings > Clear empties the whole library (added folders, scanned
+//     records, favourites, analyzed clips) and asks to reopen the panel -
+//     yet touches NO file on disk: every audio file, its folder, and
+//     anything else in Documents/Downbeat stay exactly as they were.
 // Run: node scripts/test-library-user-data.js
 const fs = require("fs");
 const os = require("os");
@@ -86,25 +87,39 @@ wait(800).then(function () {
 }).then(function () {
   check("after the insert finished, Enter inserts again", inserts === 2 && clipsNamed(selectedName) === 2, "insert calls " + inserts);
 
-  // Clear keeps what the user made.
+  // Clear empties the library and touches no file.
   SL.confirm(FAV, "9A", 120);
   TL.confirmKey("/music/confirmed.wav", "confirmed.wav", "5B", "music");
   TL.upsertAnalysis("/music/analyzed.wav", "analyzed.wav", { bpm: 100, beatsArray: [0, 0.6], confidence: 2, phase: 0, clipInfo: null });
+  const NOTE = path.join(DOCS, "Downbeat", "my notes.txt");
+  fs.writeFileSync(NOTE, "mine");
+  const NESTED = path.join(SFX, "sub");
+  fs.mkdirSync(NESTED);
+  fs.writeFileSync(path.join(NESTED, "keep.wav"), "x");
+  function snapshot(dir) {
+    const out = {};
+    (function walk(d) {
+      fs.readdirSync(d).forEach(function (n) {
+        const full = path.join(d, n), st = fs.statSync(full);
+        if (st.isDirectory()) { out[full + "/"] = true; walk(full); } else { out[full] = st.size + ":" + st.mtimeMs; }
+      });
+    })(dir);
+    return out;
+  }
+  const audioBefore = snapshot(SFX);
   $.clearLibraryBtn._fire("click");
+  check("one click only arms Clear; nothing is removed yet", Object.keys(SL.getState().files).length > 0);
   $.clearLibraryBtn._fire("click");
   const saved = JSON.parse(fs.readFileSync(path.join(DOCS, "Downbeat", "sound-library.json"), "utf8"));
-  const fav = saved.files[FAV];
-  check("Clear keeps a favourite with its confirmed key and tempo, waiting for analysis",
-    !!(fav && fav.fav && fav.confirmedKey && fav.confirmedKey.camelot === "9A" && fav.confirmedBpm && fav.confirmedBpm.value === 120 &&
-       fav.status === "pending" && fav.camelot === "9A" && fav.bpm === 120 && fav.durationSec === undefined),
-    JSON.stringify(fav));
-  check("Clear removes a record with nothing of the user's", !saved.files[PLAIN]);
+  check("Clear empties folders, records and favourites", Object.keys(saved.files).length === 0 &&
+    saved.folders.music.length === 0 && saved.folders.sfx.length === 0, JSON.stringify(saved.folders));
   const timeline = JSON.parse(fs.readFileSync(path.join(DOCS, "Downbeat", "library.json"), "utf8"));
-  const kept = timeline.find(function (e) { return e.mediaPath === "/music/confirmed.wav"; });
-  check("Clear keeps a timeline clip's confirmed key and drops plain analyses",
-    !!(kept && kept.confirmedKey && kept.confirmedKey.camelot === "5B" && kept.camelot === "5B") &&
-    !timeline.some(function (e) { return e.mediaPath === "/music/analyzed.wav"; }), JSON.stringify(timeline));
-  check("the Clear hint names favourites and confirmations as kept", /Favorites, confirmed keys and tempos/.test(window.BeatMarkerI18n.t("settings.libraryHint")));
+  check("Clear empties the timeline-clip library too", timeline.length === 0, JSON.stringify(timeline));
+  check("Clear touches no audio file or folder on disk", JSON.stringify(snapshot(SFX)) === JSON.stringify(audioBefore));
+  check("Clear leaves other files in Documents/Downbeat alone", fs.readFileSync(NOTE, "utf8") === "mine");
+  check("after Clear the panel asks to be reopened", /reopen the Downbeat panel/.test($.libraryAdminStatus.textContent), $.libraryAdminStatus.textContent);
+  check("the Clear hint says audio files are never touched", /never touched/.test(window.BeatMarkerI18n.t("settings.libraryHint")));
+  check("selecting a sound shows no Key / BPM confirmation panel", !panel.allEls.some(function (e) { return e.id === "libConfirmPanel"; }));
   if (failures) {
     console.error(failures + " check(s) failed");
     process.exit(1);

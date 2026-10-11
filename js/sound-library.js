@@ -533,27 +533,19 @@
     return rec.pitchCrest >= PITCH_GATE.crest ||
       (rec.pitchFlatness <= PITCH_GATE.flatness && (rec.strength || 0) >= PITCH_GATE.strength);
   }
-  // Empties the section's analysis results; its folders stay, so Rescan
-  // rebuilds it. A favourite or a confirmed key or tempo stays on its
-  // record, which waits for analysis again.
-  var ANALYSIS_FIELDS = ["status", "error", "v", "durationSec", "bpm", "bpmConfidence", "bpmFrom", "camelot", "key", "scale",
-    "strength", "keyFrom", "keyAgreement", "pitchCrest", "pitchFlatness", "detected", "nameChecked"];
-  function clearSection(section) {
-    state.clearedAt[section] = _now();
-    for (var p in state.files) {
-      if (!state.files.hasOwnProperty(p) || state.files[p].section !== section) {
-        continue;
-      }
-      var rec = state.files[p];
-      if (!rec.fav && !rec.confirmedKey && !rec.confirmedBpm) {
-        delete state.files[p];
-        continue;
-      }
-      ANALYSIS_FIELDS.forEach(function (k) { delete rec[k]; });
-      rec.status = "pending";
-      _applyConfirmed(rec);
-      rec.updatedAt = state.clearedAt[section];
-    }
+  // Settings > Clear: the folder library starts over - every added folder,
+  // every scanned record, favourites and confirmations go. Only this state
+  // changes: the audio files and their folders on disk are never touched.
+  // The times kept below let another host that is open at once take the
+  // clear in instead of writing the old library back (see absorb()).
+  function clearAll() {
+    var now = _now();
+    SECTIONS.forEach(function (sec) {
+      state.clearedAt[sec] = now;
+      state.folders[sec].forEach(function (dir) { state.removedFolders[_folderKey(sec, dir)] = now; });
+      state.folders[sec] = [];
+    });
+    state.files = {};
   }
 
   // Takes in what another host saved (the parsed sound-library.json) and
@@ -871,7 +863,7 @@
     setResult: setResult,
     setFavorite: setFavorite,
     hasPitch: hasPitch,
-    clearSection: clearSection,
+    clearAll: clearAll,
     counts: counts,
     outdatedCount: outdatedCount,
     search: search,

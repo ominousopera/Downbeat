@@ -148,17 +148,17 @@ function sleep(ms) { const end = Date.now() + ms; while (Date.now() < end) { /* 
   check("adding that folder again later counts", SB.getFolders("music").indexOf("/lib/Music") !== -1);
 
   sleep(5);
-  SA.clearSection("sfx");
+  SA.clearAll();
   save(A);
   sleep(5);
-  SB.setResult("/lib/SFX/a.wav", { ok: true, durationSec: 1, camelot: "8A" }); // B analyzed it again after the Clear
-  save(B);
+  save(B); // B still holds the whole old library and saves without changes
   load(A);
-  const after = SA.getState().files;
-  check("Clear in one host is not undone by the other host's older results, newer ones count",
-    after["/lib/SFX/b.wav"] && after["/lib/SFX/b.wav"].status === "pending" && after["/lib/SFX/b.wav"].fav === true &&
-    after["/lib/SFX/a.wav"] && after["/lib/SFX/a.wav"].status === "done",
-    JSON.stringify(Object.keys(after).map(function (k) { return k + ":" + after[k].status; })));
+  const after = SA.getState();
+  check("Clear in one host is not undone by the other host's older library",
+    Object.keys(after.files).length === 0 && after.folders.music.length === 0 && after.folders.sfx.length === 0,
+    JSON.stringify(Object.keys(after.files)) + " " + JSON.stringify(after.folders));
+  check("... and the other host takes the clear in as well",
+    Object.keys(SB.getState().files).length === 0 && SB.getFolders("sfx").length === 0);
 })();
 
 // ---- 3. Two hosts sharing the timeline-clip library ----

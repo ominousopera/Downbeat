@@ -152,11 +152,6 @@
     hostIsAe: function () { return hostIsAe; },
     initialSettings: function () { return initialSettings; },
     selectedPlayback: _selectedPlayback,
-    refreshTimelineKey: function (mediaPath) {
-      return getClipInfo().then(function (clipInfo) {
-        if (clipInfo.mediaPath === mediaPath) { _restoreCachedKey(clipInfo); }
-      }).catch(function (err) { log(err.message || String(err)); });
-    },
     tempFileStarted: function () { _bridge.tempFileStarted(); },
     tempFileDone: function () { _bridge.tempFileDone(); }
   });
@@ -2372,7 +2367,6 @@
   var copyMarkersBtn = document.getElementById("copyMarkersBtn");
   var pasteMarkersBtn = document.getElementById("pasteMarkersBtn");
   var copyMarkersStatus = document.getElementById("copyMarkersStatus");
-  var removeAfterCopyCheckbox = document.getElementById("removeAfterCopyCheckbox");
   var _copiedMarkers = null;
   // { clipName, sequenceMarkers: [{localSeconds,label}], clipMarkers: [{localSeconds,label}] }
   function _flashCopyMarkersStatus(message) {
@@ -2382,7 +2376,7 @@
   copyMarkersBtn.addEventListener("click", function () {
     copyMarkersBtn.disabled = true;
     showBusy("busy.default");
-    evalJson("getMarkersDataForSelectedClip(" + (removeAfterCopyCheckbox.checked ? "true" : "false") + ")")
+    evalJson("getMarkersDataForSelectedClip()")
       .then(function (data) {
         var total = data.sequenceMarkers.length + data.clipMarkers.length;
         if (total === 0) {
@@ -2395,9 +2389,6 @@
         log("Copied " + data.sequenceMarkers.length + " sequence marker(s) + " + data.clipMarkers.length +
             " clip marker(s) from \"" + data.clipName + "\".");
         _flashCopyMarkersStatus(I18n.t("analyze.copyMarkersDone", { count: String(total) }));
-        if (data.removed) {
-          log("Moved " + total + " captured marker(s) from the source.");
-        }
           return Promise.resolve();
       })
       .catch(function (err) {

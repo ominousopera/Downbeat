@@ -69,7 +69,7 @@
       <button id="clearLibraryBtn" type="button" class="ghost settings-full-btn" data-i18n="library.clear">Clear</button>
     </div>
     <div class="row settings-hint-row">
-      <span class="hint" data-i18n="settings.libraryHint">Library data is saved in Documents/Downbeat. Clear removes saved analysis results. Favorites, confirmed keys and tempos, your folder list and original audio files stay.</span>
+      <span class="hint" data-i18n="settings.libraryHint">Library data is saved in Documents/Downbeat. Clear empties the library: added folders, scanned sounds, favorites and analyzed clips. Your audio files and folders on disk are never touched.</span>
     </div>
     <div class="row g-status-row">
       <span id="libraryAdminStatus" class="hint"></span>
@@ -424,9 +424,6 @@
       <span id="copyMarkersStatus" class="hint"></span>
     </div>
     <div class="row">
-      <label><input type="checkbox" id="removeAfterCopyCheckbox"> <span data-i18n="analyze.removeAfterCopyLabel">Remove from source after copy (move instead of copy)</span></label>
-    </div>
-    <div class="row">
       <span class="hint" data-i18n="analyze.copyMarkersHint">Copies this clip's markers into memory (sequence + clip markers, all types). Select a clip in another sequence or elsewhere in this one, then Paste - no need to analyze the same track again.</span>
     </div>
   </section>
@@ -632,20 +629,6 @@
       <div id="libraryDisplay"></div>
       <div class="row g-lib-keys">
         <span class="hint" data-i18n="library.keysHint">↑ ↓ choose a file · Space listens · Enter inserts</span>
-      </div>
-      <div id="libConfirmPanel" hidden>
-        <div class="row">
-          <label class="hint" for="libConfirmKey" data-i18n="library.keyLabel">Key</label>
-          <input id="libConfirmKey" type="text" placeholder="8A" style="width:3.5em" maxlength="3">
-          <label class="hint" for="libConfirmBpm" data-i18n="library.bpmLabel">BPM</label>
-          <input id="libConfirmBpm" type="number" min="0.01" max="999" step="0.01" style="width:5em">
-        </div>
-        <div class="row">
-          <button id="libConfirmApplyBtn" type="button" class="ghost" data-i18n="library.confirmApply">Confirm values</button>
-          <button id="libConfirmResetBtn" type="button" class="ghost" data-i18n="library.confirmReset">Use detected values</button>
-        </div>
-        <div class="row"><span id="libConfirmStatus" class="hint" aria-live="polite"></span></div>
-        <div class="row"><span class="hint" data-i18n="library.confirmHint">Saved for matching. This does not change the beat grid; use Analyze or Set BPM for timeline markers.</span></div>
       </div>
     </div>
     <audio id="libPreviewAudio" preload="none"></audio>

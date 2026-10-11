@@ -155,27 +155,12 @@
     _removedAt[mediaPath] = Date.now();
   }
 
-  // Settings > Clear: analysis results go; an entry with a confirmed key or
-  // tempo keeps that confirmation.
+  // Settings > Clear: every analyzed clip goes. Only this map changes; no
+  // file is touched. The time keeps another open host from writing the
+  // entries back (see absorb()).
   function clear() {
     _clearedAt = Date.now();
-    for (var path in entries) {
-      if (!entries.hasOwnProperty(path)) { continue; }
-      var entry = entries[path];
-      var slots = Array.isArray(entry.intervalKeys) ? entry.intervalKeys.filter(function (slot) { return slot && slot.confirmedKey; }) : [];
-      if (!entry.confirmedKey && !entry.confirmedBpm && !slots.length) {
-        delete entries[path];
-        continue;
-      }
-      ["bpm", "beatsArray", "downbeatTimes", "confidence", "clipInfo"].forEach(function (k) { entry[k] = null; });
-      entry.phase = 0;
-      entry.intervalKeys = slots;
-      [entry].concat(slots).forEach(function (slot) {
-        slot.detectedKey = null;
-        if (slot.confirmedKey) { _applyKey(slot); } else { ["key", "scale", "strength", "camelot"].forEach(function (k) { slot[k] = null; }); }
-      });
-      entry.updatedAt = _clearedAt;
-    }
+    entries = {};
   }
   // Replaces the in-memory map with entries loaded from disk (see
   // js/persistence.js load()). Loaded entries never have `clipInfo`: it is

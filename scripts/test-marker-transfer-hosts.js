@@ -65,7 +65,9 @@ for (const ae of [false,true]) {
   const host=mocks.loadHost(fake.context);
   if(ae){const value=new fake.context.MarkerValue("Long");value.duration=3;fake.comp.selectedLayers[0].markers.setValueAtTime(2,value);}
   else{const value=fake.clipMarkers.createMarker(2);value.name="Long";value.end=5;}
-  const data=run(host,"getMarkersDataForSelectedClip(true)").data;
+  const data=run(host,"getMarkersDataForSelectedClip()").data;
+  // Copy never removes; the editor deletes the original by hand before pasting back.
+  if(ae){fake.comp.selectedLayers[0].markers.removeKey(1);}else{fake.clipMarkers.deleteMarker(fake.clipMarkers.list[0]);}
   const info=run(host,"getSelectedAudioInfo()").data;
   const result=paste(host,data,info);
   assert.strictEqual(result.ok,true);assert.strictEqual(result.data.created,1);assert.strictEqual(result.data.skipped,0);

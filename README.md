@@ -135,7 +135,8 @@ to the beat takes minutes.
   a click track lets you check it by ear.
 - **Refined / Basic.** If the markers miss the beats, switch between the two
   detectors' results with one click.
-- **Copy and paste markers** within the same host, or move them. Positions use
+- **Copy and paste markers** within the same host (copying never removes
+  anything from the source). Positions use
   the audible clip start and adapt to target trim/speed; comments, duration and
   supported metadata are preserved.
 - **Add a metronome track.** Render the current grid as a WAV and insert it below
@@ -221,8 +222,6 @@ shrinks to the sounds that fit it.
   separate, non-overlapping audio folders; a whole drive, card or network share
   can be added, the system disk cannot. Unreadable
   folders retain records and favourites; Start scan retries failed files.
-- **Confirm Key/BPM** for a selected Library row, or reset to detected/file-name
-  values. Backups preserve confirmations; changed audio invalidates old results.
 - **Preview in the panel** with play, loop, reverse and volume. Drag across the
   waveform to pick just a part of the sound, and drag the fade handles to add
   a fade in and a fade out.
@@ -250,6 +249,11 @@ shrinks to the sounds that fit it.
   Library, but not inserted.
 - **After Effects.** A smaller set of features, listed in the note at the top:
   whole-frame markers, constant positive stretch, cutting by hand.
+- **Undo in Premiere Pro.** Premiere does not record a plug-in's marker
+  changes, so ⌘Z / Ctrl+Z does not bring back markers Downbeat placed or
+  cleared; press Place markers again. In After Effects, Undo works.
+- **Arrow keys in the Library (Premiere Pro).** Premiere can keep ↑ ↓ for its
+  timeline; choose sounds with the mouse there. Enter and Space work.
 
 ## FAQ
 
@@ -378,10 +382,10 @@ At speeds between whole semitones there is no exact Camelot target.
 </details>
 
 <details>
-<summary><b>How do I copy or move markers from a trimmed clip?</b></summary>
+<summary><b>How do I copy markers from a trimmed clip?</b></summary>
 
 Use Marker tools → Copy markers, select the target, then Paste markers here.
-Enable Remove from source after copy to move the captured markers. Transfer
+Copying never removes markers from the source. Transfer
 uses audible offsets rather than absolute source time, preserves supported
 metadata in the same host, and skips starts outside the target clip. A duration
 can extend past the clip end. Changing the selection or timing during a host
@@ -652,8 +656,11 @@ spaces), and `scripts/check-code.js` checks it before every build.
   in the other's newer saves (favorites, confirmations, folders, settings)
   instead of overwriting them, and the start-up clean-up removes only
   temporary files older than six hours.
-- Settings → Clear removes analysis results only; favorites and confirmed
-  keys and tempos stay.
+- Settings → Clear empties the whole library (folders, scanned sounds,
+  favorites, analyzed clips) and asks to reopen the panel; audio files on
+  disk are never touched.
+- The Library's Key/BPM confirmation panel and the "move markers" option are
+  gone: copying markers never removes anything.
 - After Effects: placing or pasting markers leaves your own marker where a
   beat falls on the same moment. Premiere: placing again on a re-sped clip
   replaces the whole earlier set.
@@ -680,11 +687,9 @@ Older entries without file identity require analysis again.
 ### Analysis controls
 
 Key can analyze the whole source or the selected clip's source interval, with
-separate cached answers for trims. Key overrides are retained. Select a Library
-row to confirm Camelot/BPM or restore the detector/file-name values; backups
-keep those confirmations. BPM confirmation is for matching and never relabels
-an existing beat grid. Changed media invalidates saved results and confirmations
-using file size/modification time; unchanged attributes cannot reveal a change.
+separate cached answers for trims. Key overrides are retained.
+Changed media invalidates saved results and key overrides using file
+size/modification time; unchanged attributes cannot reveal a change.
 Identical constrained BPM passes reuse the same decoded audio and limits.
 Long Music analyses skip the chord witness when profiles and S-KEY agree, using
 the same final-key decision; short clips and SFX keep the full pass. This reduces

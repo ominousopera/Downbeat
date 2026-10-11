@@ -383,7 +383,9 @@ function _dbAeMarkerTimes(markerProp) {
     }
     return out;
 }
-function dbAeClearMarkersForSelectedClip(ownOnly) {
+// Downbeat's own markers (comment = one of its type codes) on the layer and
+// among the composition markers inside its range; never an editor's.
+function dbAeClearMarkersForSelectedClip() {
     return _dbAeResult(function () {
         var comp = _dbAeActiveCompOrThrow();
         var layer = _dbAeSelectedAudioLayerOrThrow(comp);
@@ -393,7 +395,7 @@ function dbAeClearMarkersForSelectedClip(ownOnly) {
         _dbAeWithUndo("Downbeat: clear markers", function () {
             var lm = layer.property("Marker");
             for (var i = lm.numKeys; i >= 1; i--) {
-                if (ownOnly === true && !AE_LABEL_COLOR_INDEX.hasOwnProperty(lm.keyValue(i).comment)) {
+                if (!AE_LABEL_COLOR_INDEX.hasOwnProperty(lm.keyValue(i).comment)) {
                     continue;
                 }
                 lm.removeKey(i);
@@ -404,7 +406,7 @@ function dbAeClearMarkersForSelectedClip(ownOnly) {
                 for (var j = cm.numKeys; j >= 1; j--) {
                     var t = cm.keyTime(j);
                     if (t >= layer.inPoint - epsilon && t <= layer.outPoint + epsilon &&
-                            (ownOnly !== true || AE_LABEL_COLOR_INDEX.hasOwnProperty(cm.keyValue(j).comment))) {
+                            AE_LABEL_COLOR_INDEX.hasOwnProperty(cm.keyValue(j).comment)) {
                         cm.removeKey(j);
                         compRemoved++;
                     }
@@ -463,12 +465,13 @@ function _dbAeTransferData(value, offset) {
 // composition markers inside the layer as seconds from the layer's start
 // (sequenceMarkers) - the same shapes Premiere's half returns, so the panel's
 // paste works unchanged.
-function dbAeGetMarkersDataForSelectedClip(removeCaptured) {
+// Copy only reads; nothing is removed (see host.jsx getMarkersDataForSelectedClip).
+function dbAeGetMarkersDataForSelectedClip() {
     return _dbAeResult(function () {
         var comp = _dbAeActiveCompOrThrow();
         var layer = _dbAeSelectedAudioLayerOrThrow(comp);
         var props = [comp.markerProperty, layer.property("Marker")];
-        var groups = [[], []], captured = [[], []];
+        var groups = [[], []];
         for (var g = 0; g < props.length; g++) {
             var prop = props[g];
             if (!prop) { continue; }
@@ -476,18 +479,10 @@ function dbAeGetMarkersDataForSelectedClip(removeCaptured) {
                 var t = prop.keyTime(i);
                 if (t >= layer.inPoint - 0.0005 && t <= layer.outPoint + 0.0005) {
                     groups[g].push(_dbAeTransferData(prop.keyValue(i), Math.max(0, t - layer.inPoint)));
-                    captured[g].push(i);
                 }
             }
         }
-        if (removeCaptured === true) {
-            _dbAeWithUndo("Downbeat: move markers", function () {
-                for (var g = 0; g < props.length; g++) {
-                    for (var j = captured[g].length - 1; j >= 0; j--) { props[g].removeKey(captured[g][j]); }
-                }
-            });
-        }
-        return { version: 2, host: "ae", clipName: layer.name, sequenceMarkers: groups[0], clipMarkers: groups[1], removed: removeCaptured === true };
+        return { version: 2, host: "ae", clipName: layer.name, sequenceMarkers: groups[0], clipMarkers: groups[1] };
     });
 }
 function dbAePasteMarkersData(dataJson, referenceJson) {

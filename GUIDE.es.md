@@ -33,7 +33,10 @@ Todo se ejecuta en tu equipo: nunca se sube nada.
    marcador por instante, así que un tiempo que cae justo sobre uno de tus
    marcadores se omite allí (el registro lo cuenta). Para empezar de cero,
    **Borrar** quita los marcadores de Downbeat del clip —de cada trozo
-   después de un corte— y deja los tuyos.
+   después de un corte— y deja los tuyos. En Premiere Pro, Deshacer (⌘Z /
+   Ctrl+Z) no recupera los marcadores que Downbeat colocó o quitó: Premiere
+   no registra los cambios de marcadores de un plugin; pulsa **Colocar
+   marcadores** otra vez. En After Effects, Deshacer funciona.
 5. Corta en los marcadores en Premiere: con el ajuste activado (S), la
    herramienta Cuchilla (C) se ajusta a los marcadores. Cada marcador está
    al inicio del fotograma de vídeo en el que empieza su tiempo, así que
@@ -379,10 +382,10 @@ Biblioteca (ver abajo).
 
 En **Más**. **Copiar marcadores** guarda en memoria los marcadores del
 clip seleccionado. Selecciona otro clip —en la misma secuencia o en
-otra— y **Pegar marcadores aquí** los recrea en la posición correcta.
-«Eliminar del origen tras copiar» los mueve en vez de copiarlos.
+otra— y **Pegar marcadores aquí** los recrea en la posición correcta. Copiar
+nunca elimina nada; borra los marcadores que ya no necesites en la propia aplicación.
 
-Solo se transfieren los marcadores dentro del intervalo audible del clip seleccionado. Sus posiciones se miden desde el inicio audible y se adaptan al recorte y la velocidad del destino. Se conservan nombres, comentarios, duraciones y metadatos compatibles; se omiten los marcadores que empiezan fuera del destino; su duración puede superar el final. La transferencia funciona dentro de la misma aplicación. Mover lee y elimina los marcadores capturados en una sola operación.
+Solo se transfieren los marcadores dentro del intervalo audible del clip seleccionado. Sus posiciones se miden desde el inicio audible y se adaptan al recorte y la velocidad del destino. Se conservan nombres, comentarios, duraciones y metadatos compatibles; se omiten los marcadores que empiezan fuera del destino; su duración puede superar el final. La transferencia funciona dentro de la misma aplicación.
 
 ## Ajustes
 
@@ -398,10 +401,10 @@ El icono del engranaje, arriba a la derecha:
     hay y nunca quita nada, así que también sirve para pasar una
     biblioteca a un plugin reinstalado (en otro equipo, los archivos en
     otras rutas se descartan en el siguiente Iniciar análisis).
-  - **Borrar** olvida todos los resultados del análisis (pulsa dos veces
-    para confirmar). Tus carpetas, favoritos y tonalidades y tempos
-    confirmados se quedan, e Iniciar análisis en la pestaña Biblioteca
-    vuelve a analizar los archivos.
+  - **Borrar** vacía la biblioteca (pulsa dos veces para confirmar): las
+    carpetas añadidas, todos los sonidos analizados, los favoritos y los
+    clips analizados. Tus archivos y carpetas de audio en el disco nunca se
+    tocan. Después, cierra y vuelve a abrir el panel de Downbeat.
 - **Actualizaciones**: **Comprobar ahora** aparece primero y consulta una
   sola vez aunque los avisos estén desactivados. **Avisarme de una versión
   nueva** activa una comprobación cada tres días, sin descargas ni instalación
@@ -562,13 +565,9 @@ muestra aparte. Los intervalos muy breves o con cambios de tonalidad pueden ser
 poco fiables.
 
 La tonalidad manual se guarda para el archivo o intervalo; **Usar tonalidad
-detectada** recupera el último análisis. En Library, selecciona una fila
-analizada, introduce Camelot y/o BPM y pulsa **Confirmar valores**. Se usan para
-buscar coincidencias y se conservan en las copias. **Usar valores detectados**
-recupera el análisis o las etiquetas del nombre. Confirmar BPM no mueve los
-beats existentes: usa Analyze o Set BPM para una cuadrícula nueva. Reemplazar
-el audio borra el análisis y sus confirmaciones. Tamaño/fecha no detectan un
-cambio que conserve ambos atributos.
+detectada** recupera el último análisis. Reemplazar el audio borra el análisis
+y la tonalidad manual. Tamaño/fecha no detectan un cambio que conserve ambos
+atributos.
 
 Para música de al menos dos minutos, los acordes se analizan solo si los
 perfiles y S-KEY discrepan. Cuando coinciden, la regla garantiza la misma

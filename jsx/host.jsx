@@ -667,15 +667,14 @@ function razorAtManySeconds(secondsJsonArray, labelsJsonArray, replaceOwn, refer
     return JSON.stringify(result);
 }
 // Cleanup for the two kinds of markers this plugin can create, scoped to the
-// selected clip only: it never deletes every marker in the sequence, which
-// would also wipe markers an editor placed by hand. Unlike
-// createClipMarkers()'s replaceOwn, Clear is not limited to this instance's
-// in/out range: it means "start over", so every Downbeat marker on the media
-// goes, also on the other pieces after a cut. "Remove from source after
-// copy" calls it without the flag: a move removes everything it copied.
-function clearMarkersForSelectedClip(ownOnly) {
+// selected clip. Only Downbeat's own markers - named with one of its type
+// codes (LABEL_COLOR_INDEX) - are ever removed; markers an editor placed by
+// hand always stay. Unlike createClipMarkers()'s replaceOwn, Clear is not
+// limited to this instance's in/out range: it means "start over", so every
+// Downbeat marker on the media goes, also on the other pieces after a cut.
+function clearMarkersForSelectedClip() {
     if (_dbIsAe()) {
-        return dbAeClearMarkersForSelectedClip(ownOnly);
+        return dbAeClearMarkersForSelectedClip();
     }
     var result = { ok: false, error: null, data: null };
     try {
@@ -692,7 +691,7 @@ function clearMarkersForSelectedClip(ownOnly) {
         while (sm) {
             var markerSeconds = sm.start.seconds;
             if (markerSeconds >= clipStart - epsilon && markerSeconds <= clipEnd + epsilon &&
-                    (ownOnly !== true || LABEL_COLOR_INDEX.hasOwnProperty(sm.name))) {
+                    LABEL_COLOR_INDEX.hasOwnProperty(sm.name)) {
                 seqToDelete.push(sm);
             }
             sm = seqMarkers.getNextMarker(sm);
@@ -708,20 +707,7 @@ function clearMarkersForSelectedClip(ownOnly) {
             clipMarkersAttempted = true;
             var clipMarkers = projectItem.getMarkers();
             if (clipMarkers) {
-                if (ownOnly === true) {
-                    clipMarkersRemoved = _removeOwnMarkersInRange(clipMarkers, -1e9, 1e9);
-                } else {
-                    var clipToDelete = [];
-                    var cm = clipMarkers.getFirstMarker();
-                    while (cm) {
-                        clipToDelete.push(cm);
-                        cm = clipMarkers.getNextMarker(cm);
-                    }
-                    for (var j = 0; j < clipToDelete.length; j++) {
-                        clipMarkers.deleteMarker(clipToDelete[j]);
-                        clipMarkersRemoved++;
-                    }
-                }
+                clipMarkersRemoved = _removeOwnMarkersInRange(clipMarkers, -1e9, 1e9);
             }
         }
         result.ok = true;
@@ -759,8 +745,11 @@ function _dbPremiereMarkerData(marker, offset, duration) {
     if (data.type === "WebLink") { data.url = marker.url; data.frameTarget = marker.frameTarget; }
     return data;
 }
-function getMarkersDataForSelectedClip(removeCaptured) {
-    if (_dbIsAe()) { return dbAeGetMarkersDataForSelectedClip(removeCaptured); }
+// Copy only reads: nothing is ever removed here. Premiere cannot undo a
+// script's marker changes, so removing markers at copy time would lose
+// them if the panel closed before Paste.
+function getMarkersDataForSelectedClip() {
+    if (_dbIsAe()) { return dbAeGetMarkersDataForSelectedClip(); }
     var result = { ok: false, error: null, data: null };
     try {
         var sequence = _getActiveSequenceOrThrow();
@@ -770,12 +759,11 @@ function getMarkersDataForSelectedClip(removeCaptured) {
         var info = infoResult.data;
         var seq = sequence.markers;
         var media = clip.projectItem.getMarkers();
-        var seqData = [], clipData = [], seqCaptured = [], clipCaptured = [];
+        var seqData = [], clipData = [];
         var marker = seq.getFirstMarker();
         while (marker) {
             if (marker.start.seconds >= clip.start.seconds - 0.0005 && marker.start.seconds <= clip.end.seconds + 0.0005) {
                 seqData.push(_dbPremiereMarkerData(marker, marker.start.seconds - clip.start.seconds, Math.max(0, marker.end.seconds - marker.start.seconds)));
-                seqCaptured.push(marker);
             }
             marker = seq.getNextMarker(marker);
         }
@@ -787,18 +775,12 @@ function getMarkersDataForSelectedClip(removeCaptured) {
                 var offset = info.reversed ? (info.outPointSeconds - t - dur) / info.speed : (t - info.inPointSeconds) / info.speed;
                 if (offset >= -0.0005) {
                     clipData.push(_dbPremiereMarkerData(marker, Math.max(0, offset), dur / info.speed));
-                    clipCaptured.push(marker);
                 }
             }
             marker = media.getNextMarker(marker);
         }
-        // Capture and deletion execute synchronously against the same collections.
-        if (removeCaptured === true) {
-            for (var i = 0; i < seqCaptured.length; i++) { seq.deleteMarker(seqCaptured[i]); }
-            for (var j = 0; j < clipCaptured.length; j++) { media.deleteMarker(clipCaptured[j]); }
-        }
         result.ok = true;
-        result.data = { version: 2, host: "premiere", clipName: clip.name, sequenceMarkers: seqData, clipMarkers: clipData, removed: removeCaptured === true };
+        result.data = { version: 2, host: "premiere", clipName: clip.name, sequenceMarkers: seqData, clipMarkers: clipData };
     } catch (e) { result.error = e.message || String(e); }
     return JSON.stringify(result);
 }

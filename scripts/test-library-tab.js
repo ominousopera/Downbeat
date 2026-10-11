@@ -198,8 +198,9 @@ waitFor(function () { return /Folder added/.test($.libScanStatus.textContent); }
     $.clearLibraryBtn._fire("click");
     const armed = rows().length === 2; // the first click only asks
     $.clearLibraryBtn._fire("click");
-    check("Clear needs a second click, then empties the library (folders stay)",
-      armed && rows().length === 0 && $.libFolderList.children.length === 2, $.libraryAdminStatus.textContent);
+    check("Clear needs a second click, then empties the library, folders included",
+      armed && rows().length === 0 && window.BeatMarkerSoundLibrary.getFolders("music").length === 0 &&
+      fs.existsSync(path.join(MUSIC, "Track One.mp3")) && fs.existsSync(path.join(MUSIC, "sub", "Track Two.mp3")), $.libraryAdminStatus.textContent);
     fake.context.File.nextOpen = path.join(WORK, "library copy.json");
     $.loadLibraryBackupBtn._fire("click");
     return waitFor(function () { return /Copy loaded/.test($.libraryAdminStatus.textContent); }, "load the copy", 10000);

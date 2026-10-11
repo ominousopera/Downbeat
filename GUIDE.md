@@ -31,7 +31,10 @@ Everything runs locally on your machine — nothing is ever uploaded.
    so a beat that falls exactly on one of your markers is left out there
    (the log counts it). To start over, **Clear** removes
    Downbeat's markers from the clip — from every piece of it after a cut —
-   and leaves yours.
+   and leaves yours. In Premiere Pro, Edit > Undo (⌘Z / Ctrl+Z) does not
+   bring back markers Downbeat placed or cleared — Premiere does not record
+   a plug-in's marker changes; press **Place markers** again instead. In
+   After Effects, Undo works.
 5. Cut at the markers in Premiere: with snapping on (S), the Razor tool (C)
    snaps to markers. Each marker sits on the start of the video frame its
    beat begins in, so a cut lands on the beat or just before it, never
@@ -339,10 +342,10 @@ below).
 
 In **Marker tools**. **Copy markers** reads the selected clip's markers into
 memory. Select a different clip — in the same sequence or another one — and
-**Paste markers here** re-creates them at the right position. "Remove from
-source after copy" moves them instead of copying.
+**Paste markers here** re-creates them at the right position. Copying never
+removes anything; delete unwanted markers in the host itself.
 
-Only markers inside the selected clip’s audible range are transferred. Positions are relative to its audible start and map to the target trim and speed. Names, comments, durations and supported host metadata are preserved; markers starting outside the target are skipped; durations may extend beyond its end. Transfers stay within the same host. Moving reads and removes the captured markers in one host operation.
+Only markers inside the selected clip’s audible range are transferred. Positions are relative to its audible start and map to the target trim and speed. Names, comments, durations and supported host metadata are preserved; markers starting outside the target are skipped; durations may extend beyond its end. Transfers stay within the same host.
 
 ## Settings
 
@@ -358,9 +361,10 @@ The gear icon, top right:
     what is already there and never removes anything, so it is also the
     way to move a library to a reinstalled plugin (on another computer,
     files at other paths are dropped on the next Start scan).
-  - **Clear** forgets all analysis results (click it twice to confirm).
-    Your folders, favorites and confirmed keys and tempos stay, and Start
-    scan in the Library tab analyzes the files again.
+  - **Clear** empties the library (click it twice to confirm): the added
+    folders, every scanned sound, favorites and analyzed clips. Your audio
+    files and folders on disk are never touched. Close and reopen the
+    Downbeat panel afterwards.
 - **Updates** — **Check now** is the first action and makes a one-time
   request even when background notifications are off. **Tell me when a new
   version is out** enables a check every three days; it does not download or
@@ -509,13 +513,9 @@ not change beat analysis or the preview. Speed is shown separately. Very short
 or musically mixed intervals can give unreliable keys.
 
 Key overrides are saved for the chosen file/interval. **Use detected key**
-restores the latest automatic answer. In Library, select a completed row, enter
-its Camelot key and/or BPM and choose **Confirm values**. These values are used
-for matching and saved with backups; **Use detected values** restores the
-underlying detector or file-name values. Confirming BPM does not move existing
-beats. Use Analyze or Set BPM when you need a new timeline grid. Replacing audio
-resets its analysis and confirmations; size/mtime checks cannot detect changes
-that preserve both attributes.
+restores the latest automatic answer. Replacing audio resets its analysis and
+key overrides; size/mtime checks cannot detect changes that preserve both
+attributes.
 
 For Music of at least two minutes, chord analysis runs only when the profile
 vote and S-KEY differ. Agreement guarantees the same final key under the voting

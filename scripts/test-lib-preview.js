@@ -139,10 +139,6 @@ waitFor(function () { return rows().length === 2; }, "listing the SFX folder")
       Math.abs(lastSource().playbackRate.value - Math.pow(2, 2 / 12)) < 1e-9 && !$.libPanePitchReset.hidden);
     check("with a pitch, the line under it says what the key becomes (A minor +2 = B minor)",
       !$.libPaneKey.hidden && /8A A minor → 10A B minor/.test($.libPaneKey.textContent), $.libPaneKey.textContent);
-    $.libConfirmKey.value = "10A"; $.libConfirmBpm.value = "128"; $.libConfirmApplyBtn._fire("click");
-    check("confirming a loaded sound refreshes the pitched key without reloading audio", /10A B minor → 12A/.test($.libPaneKey.textContent), $.libPaneKey.textContent);
-    $.libConfirmResetBtn._fire("click");
-    check("resetting a loaded sound restores its name key in the pane", /8A A minor → 10A B minor/.test($.libPaneKey.textContent), $.libPaneKey.textContent);
     const forward = lastSource().buffer;
     $.libPaneReverse.checked = true;
     $.libPaneReverse._fire("change");
@@ -251,10 +247,6 @@ waitFor(function () { return rows().length === 2; }, "listing the SFX folder")
     check("between-key playback clears the preview's automatic pitch", $.libPaneInKeyBtn.classList.contains("is-active"));
     fake.audioTrack.clips[0]._speed = 1;
     panel.runIntervals(); await waitFor(function () { return $.libPanePitchValue.textContent === "+2"; }, "In key restore");
-    $.libConfirmKey.value = "10A"; $.libConfirmBpm.value = ""; $.libConfirmApplyBtn._fire("click");
-    check("confirming the loaded sound recomputes In key immediately", $.libPanePitchValue.textContent === "0", $.libPanePitchValue.textContent);
-    $.libConfirmResetBtn._fire("click");
-    check("resetting the loaded sound recomputes In key from its name again", $.libPanePitchValue.textContent === "+2", $.libPanePitchValue.textContent);
     $.libPaneInKeyBtn._fire("click");
     check("... and off again goes back to the sound's own pitch", $.libPanePitchValue.textContent === "0" && !$.libPaneInKeyBtn.classList.contains("is-active"));
     await setClipKey("10B"); // D major: a minor sound goes to its relative, B minor

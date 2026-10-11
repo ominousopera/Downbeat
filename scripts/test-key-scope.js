@@ -88,28 +88,12 @@ function waitFor(fn) { return new Promise(function (resolve, reject) { const sta
     $.keyMaterialMusicBtn._fire("click");
     await new Promise(function (r) { setTimeout(r, 20); });
     $.libMatchClipBtn._fire("click");
+    // Switching section leaves matching; matching again in Music takes the playback key and tempo.
     $.libSectionMusicBtn._fire("click");
-    const row = $.libraryDisplay.children.find(function (r) { return /lib-row/.test(r.className || ""); });
-    assert.ok(row); row._fire("click");
-    assert.strictEqual($.libConfirmPanel.hidden, false);
-    $.libConfirmKey.value = "10A"; $.libConfirmBpm.value = "128"; $.libConfirmApplyBtn._fire("click");
-    assert.strictEqual(window.BeatMarkerLibrary.get(media).confirmedBpm.value, 128);
-    assert.strictEqual(window.BeatMarkerLibrary.get(media).bpm, 100);
-    assert.deepStrictEqual(window.BeatMarkerLibrary.get(media).beatsArray, originalGrid);
-    assert.strictEqual(window.BeatMarkerLibrary.getKey(media, "music").camelot, "10A");
-    await new Promise(function (r) { setTimeout(r, 20); });
-    assert.ok($.keyResultDisplay.textContent.startsWith("10A"));
     $.libMatchClipBtn._fire("click");
-    assert.strictEqual($.libKeySelect.value, "12A");
-    assert.strictEqual($.libBpmInput.value, (128 * Math.pow(2, 2 / 12)).toFixed(1));
-    $.libConfirmResetBtn._fire("click");
-    assert.strictEqual(window.BeatMarkerLibrary.getKey(media, "music").camelot, "8A");
-    assert.strictEqual(window.BeatMarkerLibrary.get(media).confirmedBpm, null);
-    await new Promise(function (r) { setTimeout(r, 20); });
-    assert.ok($.keyResultDisplay.textContent.startsWith("8A"));
-    $.libMatchClipBtn._fire("click"); $.libMatchClipBtn._fire("click");
     assert.strictEqual($.libKeySelect.value, "10A"); assert.strictEqual($.libBpmInput.value, "112.2");
-    console.log("PASS: confirmation controls preserve beat timing and reset detector values.");
+    assert.deepStrictEqual(window.BeatMarkerLibrary.get(media).beatsArray, originalGrid);
+    console.log("PASS: Match clip follows the playback key and tempo without changing beat timing.");
     console.log("PASS: real Detect key handlers select source scope, persist the choice and keep whole-file keys separately.");
   } finally { cp.execFile = original; fs.rmSync(tmp, { recursive: true, force: true }); }
 })().catch(function (e) { console.error(e); process.exitCode = 1; });
