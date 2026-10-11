@@ -113,7 +113,7 @@ wait(800).then(function () {
   const saved = JSON.parse(fs.readFileSync(path.join(DOCS, "Downbeat", "sound-library.json"), "utf8"));
   check("Clear empties folders, records and favourites", Object.keys(saved.files).length === 0 &&
     saved.folders.music.length === 0 && saved.folders.sfx.length === 0, JSON.stringify(saved.folders));
-  const timeline = JSON.parse(fs.readFileSync(path.join(DOCS, "Downbeat", "library.json"), "utf8"));
+  const timeline = JSON.parse(fs.readFileSync(path.join(DOCS, "Downbeat", "library.json"), "utf8")).filter(function (e) { return e.mediaPath; });
   check("Clear empties the timeline-clip library too", timeline.length === 0, JSON.stringify(timeline));
   check("Clear touches no audio file or folder on disk", JSON.stringify(snapshot(SFX)) === JSON.stringify(audioBefore));
   check("Clear leaves other files in Documents/Downbeat alone", fs.readFileSync(NOTE, "utf8") === "mine");

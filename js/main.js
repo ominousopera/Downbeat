@@ -118,10 +118,14 @@
     // Another host may have saved since (Premiere and After Effects share
     // Documents/Downbeat): its newer entries are taken in first.
     var fresh = window.BeatMarkerPersistence.readIfChanged(csInterface, "library");
+    if (fresh.deleted) {
+      _library.dataDeletedElsewhere();
+      return; // Delete my data ran in the other host: nothing is written back
+    }
     if (fresh.changed) {
       window.BeatMarkerLibrary.absorb(fresh.value);
     }
-    var result = window.BeatMarkerPersistence.save(csInterface, window.BeatMarkerLibrary.getAll());
+    var result = window.BeatMarkerPersistence.save(csInterface, window.BeatMarkerLibrary.getAll(), window.BeatMarkerLibrary.meta());
     if (!result.ok) {
       log("WARNING: could not save the track library to disk: " + result.error);
     }
@@ -222,6 +226,9 @@
     // Starts from the file when another host saved it since: its choices
     // stay, only `overrides` change.
     var fresh = window.BeatMarkerPersistence.readIfChanged(csInterface, "settings");
+    if (fresh.deleted) {
+      initialSettings = {}; // Delete my data ran in the other host: start from defaults
+    }
     var base = fresh.changed && fresh.value && typeof fresh.value === "object" && !Array.isArray(fresh.value) ? fresh.value : initialSettings;
     var merged = {};
     for (var existingKey in base) {
@@ -517,7 +524,7 @@
       return;
     }
     window.BeatMarkerLibrary.loadEntries(result.entries);
-    log("Loaded " + result.entries.length + " track(s) from a previous session (" + result.path + ").");
+    log("Loaded " + result.entries.filter(function (e) { return e && e.mediaPath; }).length + " track(s) from a previous session (" + result.path + ").");
   })();
   loadSoundLibrary();
   // HOST AND WORKER CALLS: js/bridge.js. _bridge is made right after
@@ -1753,9 +1760,14 @@
     // no cached onset rate to re-check against: neutral
     _refreshBeatClickPreview();
     var mediaPath = snap.clipInfo.mediaPath;
+    // Decided now, not when Set BPM ran: a key set or detected since then
+    // must survive the undo.
+    var now = window.BeatMarkerLibrary.get(mediaPath);
+    var keyDataNow = !!(now && (now.camelot || now.confirmedKey || now.confirmedBpm || now.detectedKey ||
+      (Array.isArray(now.intervalKeys) && now.intervalKeys.length)));
     if (snap.libraryFields) {
       window.BeatMarkerLibrary.upsertAnalysis(mediaPath, basename(mediaPath), snap.libraryFields);
-    } else if (snap.libraryHadOtherData) {
+    } else if (snap.libraryHadOtherData || keyDataNow) {
       window.BeatMarkerLibrary.upsertAnalysis(mediaPath, basename(mediaPath),
         { bpm: undefined, beatsArray: undefined, confidence: undefined, phase: undefined, clipInfo: undefined });
     } else {
@@ -2410,13 +2422,14 @@
     getClipInfo()
       .then(function (clipInfo) {
         return evalJson("pasteMarkersData(" + _jsxJsonArg(_copiedMarkers) + "," + _jsxJsonArg(clipInfo) + ")")
-              .then(function (result) {
+          .then(function (result) {
             log("Pasted " + result.created + " marker(s)" + (result.skipped ? "; skipped " + result.skipped + " outside the target" : "") +
-              (result.kept ? "; kept " + result.kept + " existing marker(s) at the same time" : "") + ".");
-              });
+              (result.kept ? "; " + result.kept + " already there (the same media's own markers, or the same marker at the same time)" : "") + ".");
+            return result;
+          });
       })
-      .then(function () {
-        _flashCopyMarkersStatus(I18n.t("analyze.pasteMarkersDone"));
+      .then(function (result) {
+        _flashCopyMarkersStatus(I18n.t(result && !result.created && result.kept ? "analyze.pasteMarkersAlready" : "analyze.pasteMarkersDone"));
       })
       .catch(function (err) {
         log("Paste markers failed: " + (err && err.message ? err.message : err));

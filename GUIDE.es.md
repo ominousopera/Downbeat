@@ -521,7 +521,10 @@ la versión previa. Si aun así un archivo guardado no se puede leer, Downbeat
 lo conserva al lado como `<nombre>.unreadable-<fecha>-<hora>.json`, lo indica
 en la pestaña Biblioteca y empieza esa parte vacía; nunca guarda encima.
 Premiere Pro y After Effects pueden usar Downbeat a la vez: antes de guardar
-sus cambios, cada panel incorpora lo que guardó el otro.
+sus cambios, cada panel incorpora lo que guardó el otro; tras Eliminar mis datos
+en uno, el panel del otro se vacía en lugar de volver a guardar los datos
+antiguos. Los análisis de canciones en un disco desconectado se conservan hasta
+que vuelve.
 
 **¿Downbeat es gratis? ¿Puedo ver el código fuente?**
 Sí a las dos. Downbeat es software libre bajo la GNU AGPL-3.0 (Ajustes →

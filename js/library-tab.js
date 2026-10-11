@@ -151,10 +151,31 @@
     // Documents/Downbeat): its newer records are taken in before writing.
     function _libAbsorbFromDisk() {
       var fresh = window.BeatMarkerPersistence.readIfChanged(ctx.csInterface(), "sound-library");
+      if (fresh.deleted) {
+        dataDeletedElsewhere();
+        return null;
+      }
       return fresh.changed ? SL.absorb(fresh.value) : false;
     }
+    // Delete my data ran in the other host (Premiere and After Effects share
+    // Documents/Downbeat): this panel drops what it holds instead of writing
+    // it back, and says so.
+    function dataDeletedElsewhere() {
+      clearTimeout(_libPersistTimer);
+      _libPersistTimer = null;
+      SL.loadState(null);
+      window.BeatMarkerLibrary.loadEntries([]);
+      if (_libPlayer) { _libPlayer.stop(); }
+      _libPaneItem = null; _libPaneReady = false; libPane.hidden = true;
+      libSelectedPath = null;
+      renderLibrary();
+      setTranslatedText(libScanStatus, "library.deletedElsewhere");
+      log("Downbeat's data was deleted in another app (Documents/Downbeat); this panel dropped its copy instead of writing it back.");
+    }
     function persistSoundLibrary() {
-      _libAbsorbFromDisk();
+      if (_libAbsorbFromDisk() === null) {
+        return;
+      }
       var result = window.BeatMarkerPersistence.saveSoundLibrary(ctx.csInterface(), SL.getState());
       if (!result.ok) {
         log("WARNING: could not save the folder library to disk: " + result.error);
@@ -176,7 +197,7 @@
     function _libTimelineItems(section) {
       var folderFiles = SL.getState().files;
       var out = [];
-      var all = window.BeatMarkerLibrary.getAll();
+      var all = window.BeatMarkerLibrary.getAll(true);
       for (var i = 0; i < all.length; i++) {
         var e = all[i];
         if ((e.material === "sfx" ? "sfx" : "music") !== section || folderFiles[e.mediaPath]) {
@@ -593,9 +614,13 @@
       // Coming back from the other host: show what it saved meanwhile.
       if (!libScan.running && !_libPersistTimer) {
         var timelineFresh = window.BeatMarkerPersistence.readIfChanged(ctx.csInterface(), "library");
-        var timelineChanged = timelineFresh.changed && window.BeatMarkerLibrary.absorb(timelineFresh.value);
-        if (_libAbsorbFromDisk() || timelineChanged) {
-          renderLibrary();
+        if (timelineFresh.deleted) {
+          dataDeletedElsewhere();
+        } else {
+          var timelineChanged = timelineFresh.changed && window.BeatMarkerLibrary.absorb(timelineFresh.value);
+          if (_libAbsorbFromDisk() || timelineChanged) {
+            renderLibrary();
+          }
         }
       }
       if (ctx.activeTabId() === "library" && !_libIsTypingField(document.activeElement)) {
@@ -2310,6 +2335,9 @@
           current.forEach(function (e) { have[e.mediaPath] = true; });
           var newTracks = (Array.isArray(backup.trackLibrary) ? backup.trackLibrary : []).filter(function (e) {
             return e && typeof e.mediaPath === "string" && !have[e.mediaPath];
+          }).map(function (e) {
+            // Loaded now: newer than an earlier Clear, here or in the other host.
+            return Object.assign({}, e, { updatedAt: Date.now() });
           });
           window.BeatMarkerLibrary.loadEntries(current.concat(newTracks));
           persistSoundLibrary();
@@ -2368,6 +2396,7 @@
       focusKeys: _libFocusKeys,
       resetAfterDeleteData: resetAfterDeleteData,
       reportLoadProblem: reportLoadProblem,
+      dataDeletedElsewhere: dataDeletedElsewhere,
       applySettings: applySettings
     };
   }

@@ -128,23 +128,45 @@
     return { clipInfoChanged: clipInfoChanged, previousClipInfo: previousClipInfo };
   }
   // Single-entry lookup by media path (null when absent).
-  function get(mediaPath) {
+  // The entry for a file that is there and unchanged. Only a file that IS
+  // there with another size or modification time drops its entry (it was
+  // replaced). A file that cannot be reached right now - an unplugged
+  // drive, an offline share - keeps its entry, unused until it is back; an
+  // entry saved without an identity takes the file's identity now. Neither
+  // case may delete the entry, its beat grid or a hand-set key.
+  function _check(mediaPath) {
     var entry = entries[mediaPath];
-    if (!entry) { return null; }
+    if (!entry) { return { entry: null, usable: false }; }
     var current = fileIdentity(mediaPath);
-    if ((entry.fileIdentity || current) && !sameIdentity(entry.fileIdentity, current)) {
-      delete entries[mediaPath];
-      return null;
+    if (!current) {
+      // Out of reach now. An entry with a recorded identity waits until the
+      // file is back; one without (nothing to compare) stays usable as before.
+      return { entry: entry, usable: !entry.fileIdentity };
     }
-    return entry;
+    if (!entry.fileIdentity) {
+      entry.fileIdentity = current;
+      return { entry: entry, usable: true };
+    }
+    if (!sameIdentity(entry.fileIdentity, current)) {
+      delete entries[mediaPath];
+      return { entry: null, usable: false };
+    }
+    return { entry: entry, usable: true };
+  }
+  function get(mediaPath) {
+    var c = _check(mediaPath);
+    return c.usable ? c.entry : null;
   }
 
-  function getAll() {
+  // Every entry worth keeping, including those whose file is out of reach
+  // right now (saving must not drop them). `usableOnly` leaves those out,
+  // for lists the user picks from.
+  function getAll(usableOnly) {
     var list = [];
     for (var path in entries) {
       if (entries.hasOwnProperty(path)) {
-        var entry = get(path);
-        if (entry) { list.push(entry); }
+        var c = _check(path);
+        if (c.entry && (c.usable || !usableOnly)) { list.push(c.entry); }
       }
     }
     return list;
@@ -170,9 +192,39 @@
     entries = {};
     if (!Array.isArray(list)) { return; }
     for (var i = 0; i < list.length; i++) {
+      _takeMeta(list[i]);
       var entry = _normalized(list[i]);
       if (entry) { entries[entry.mediaPath] = entry; }
     }
+  }
+
+  // The clear and removal times travel in library.json as one element with
+  // an empty mediaPath (a reader that does not know it skips it), so another
+  // host knows what was cleared or removed here and does not write it back.
+  // Removals older than 90 days, or past the newest 2000, are forgotten.
+  function meta() {
+    var oldest = Date.now() - 90 * 86400000;
+    var keys = Object.keys(_removedAt).filter(function (k) { return _removedAt[k] > oldest; });
+    keys.sort(function (a, b) { return _removedAt[b] - _removedAt[a]; });
+    var removed = {};
+    keys.slice(0, 2000).forEach(function (k) { removed[k] = _removedAt[k]; });
+    return { clearedAt: _clearedAt, removed: removed };
+  }
+  function _takeMeta(raw) {
+    var m = raw && raw.downbeatLibraryMeta;
+    if (!m || typeof m !== "object") { return; }
+    if (typeof m.clearedAt === "number" && isFinite(m.clearedAt) && m.clearedAt > _clearedAt) { _clearedAt = m.clearedAt; }
+    if (m.removed && typeof m.removed === "object") {
+      for (var k in m.removed) {
+        if (k !== "__proto__" && m.removed.hasOwnProperty(k) && typeof m.removed[k] === "number" &&
+            isFinite(m.removed[k]) && !(_removedAt[k] >= m.removed[k])) {
+          _removedAt[k] = m.removed[k];
+        }
+      }
+    }
+  }
+  function _goneHere(path, at) {
+    return at < _clearedAt || _removedAt[path] >= at;
   }
 
   // Another host's saved list (library.json): an entry newer there
@@ -182,6 +234,7 @@
   function absorb(list) {
     if (!Array.isArray(list)) { return false; }
     var changed = false;
+    for (var m = 0; m < list.length; m++) { _takeMeta(list[m]); }
     for (var i = 0; i < list.length; i++) {
       var theirs = _normalized(list[i]);
       if (!theirs) { continue; }
@@ -193,8 +246,15 @@
           entries[theirs.mediaPath] = theirs;
           changed = true;
         }
-      } else if (at >= _clearedAt && !(_removedAt[theirs.mediaPath] >= at)) {
+      } else if (!_goneHere(theirs.mediaPath, at)) {
         entries[theirs.mediaPath] = theirs;
+        changed = true;
+      }
+    }
+    // What the other host cleared or removed after this one last changed it.
+    for (var path in entries) {
+      if (entries.hasOwnProperty(path) && _goneHere(path, entries[path].updatedAt || 0)) {
+        delete entries[path];
         changed = true;
       }
     }
@@ -252,6 +312,7 @@
     remove: remove,
     clear: clear,
     loadEntries: loadEntries,
-    absorb: absorb
+    absorb: absorb,
+    meta: meta
   };
 })(window);

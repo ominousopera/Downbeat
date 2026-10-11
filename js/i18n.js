@@ -7,12 +7,15 @@
 // English.
 (function (global) {
   "use strict";
+
   var LANGUAGES = ["en", "ru", "es"];
+
   var LANGUAGE_NAMES = {
     en: "English",
     ru: "Русский",
     es: "Español"
   };
+
   var STRINGS = {
     en: {
       "selection.sourceChanged": "The selected source changed. Analyze this clip before placing markers.",
@@ -79,10 +82,12 @@
       "settings.externalLinkCancel": "Cancel",
       "settings.externalLinkOpen": "Open",
       "settings.footer": "v{version} · © 2026 Nikita Kolesov · free software, AGPL‑3.0",
+
       "selection.placeholder": "Select an audio clip on the timeline to get started.",
       "selection.notAnalyzed": "not analyzed yet",
       "selection.needAnalyze": "Run Analyze first.",
       "selection.alreadyAnalyzed": "already analyzed",
+
       "analyze.run": "Analyze selected audio",
       "analyze.manualBpmIntro": "Already know the BPM? Skip analysis and place an even beat grid at the tempo you type in.",
       "analyze.manualBpmBtn": "Use",
@@ -159,6 +164,7 @@
       "analyze.toolsShort": "Tools",
       "analyze.audioUnitsTip": "To cut exactly on the beat rather than on the nearest video frame, turn on Show Audio Time Units in the Timeline panel menu (☰ next to the sequence name).",
       "analyze.markerToolsToggle": "Marker tools",
+
       "cut.title": "Cut",
       "cut.run": "Cut selected clip at downbeats",
       "cut.hint": "Uses the last Analyze result on this clip — run Analyze first.",
@@ -169,6 +175,8 @@
       "analyze.copyMarkersDone": "Copied {count} marker(s)",
       "analyze.pasteMarkersNothing": "Nothing copied yet - use \"Copy markers\" first",
       "analyze.pasteMarkersDone": "Pasted",
+      "analyze.pasteMarkersAlready": "These markers are already on this media",
+
       "key.title": "Key & Camelot",
       "key.intro": "Finds the musical key of any clip - song, riser, stinger, or SFX.",
       "key.scope": "Analyze",
@@ -234,6 +242,7 @@
       "key.pitchLandingMixes": " It still mixes with {target}.",
       "key.pitchCompatibleNoShift": "{from} already mixes with {target} without shifting. Shift only if you want them in the same key.",
       "key.manuallySet": "(manually set)",
+
       "library.sectionMusic": "Music",
       "library.sectionSfx": "SFX",
       "library.addFolder": "+ Folder",
@@ -334,6 +343,7 @@
       "library.scanError": "The scan could not finish. Your saved results remain; try again.",
       "library.scanPartial": "Some folders could not be fully read. Their saved results were kept.",
       "library.loadSetAside": "The saved library could not be read, so it starts empty. The old file is kept in Documents/Downbeat as {file}; Load a copy brings back a saved copy.",
+      "library.deletedElsewhere": "Downbeat's data was deleted in another app. This panel is empty now; close and reopen it.",
       "library.loadBlocked": "The saved library could not be read. It is left as it is, and changes are not saved until the host restarts.",
       "library.scanDone": "Done: {done} file(s) analyzed in {seconds} s.",
       "library.scanDoneFailed": "Done: {done} file(s) analyzed in {seconds} s; {failed} could not be read (hover over one to see why).",
@@ -362,6 +372,9 @@
       "library.folderScopeTitle": "Search in this folder (several can be on)",
       "library.folderOnlyTitle": "click: show only this folder",
       "library.clear": "Clear",
+
+
+
       "busy.default": "Working…",
       "busy.stuckHint": "This is taking longer than expected.",
       "busy.dismiss": "Dismiss",
@@ -371,6 +384,7 @@
       "busy.cut": "Cutting clip…",
       "busy.detectKey": "Detecting key…",
       "busy.clearMarkers": "Clearing markers…",
+
       "tour.next": "Next",
       "tour.back": "Back",
       "tour.skip": "Skip tour",
@@ -395,7 +409,7 @@
       "tour.compatibleTitle": "Goes well with",
       "tour.compatibleBody": "The direct answer: these are the keys to look for in a second track or sound effect so it blends with this one.",
       "tour.libraryTitle": "Library: Music and SFX",
-      "tour.libraryBody": "Add Music and SFX folders. Search by name, key or BPM; Match clip uses the selected clip. Preview sounds; Add places them on the timeline. Select an analyzed row to confirm Key/BPM; this does not change its beat grid.",
+      "tour.libraryBody": "Add Music and SFX folders. Search by name, key or BPM; Match clip uses the selected clip. Preview sounds; Add places them on the timeline. Click a sound to preview it; Enter or a double-click inserts it.",
       "tour.settingsTitle": "Settings",
       "tour.settingsBody": "Choose the language and where finished audio is saved. Check now looks for a GitHub release; notifications are optional and analysis stays offline. Copy log copies the current log for support after you reproduce a problem.",
       "tour.metronomeTitle": "Metronome track",
@@ -404,6 +418,7 @@
       "tour.pitchBody": "Choose From and To keys, then review semitones, speed and BPM. Pitch the clip adds the original file with that speed and disables the original clip. Speed changes both pitch and duration; no processed copy is made.",
       "tour.finishTitle": "That's it",
       "tour.finishBody": "You can replay this tour anytime from Settings. Select a clip on your timeline to get started.",
+
       "lang.pickTitle": "Choose your language",
       "updatePick.title": "Tell you about new versions?",
       "updatePick.body": "Downbeat can check GitHub every three days for new releases. Background checks are optional. You can always check manually in Settings and open the release page. Analysis works offline; download and installation are manual.",
@@ -411,6 +426,7 @@
       "updatePick.no": "No, stay offline",
       "lang.pickBody": "You can change this later in Settings.",
     },
+
     ru: {
       "selection.sourceChanged": "Выбран другой источник. Проанализируйте этот клип перед расстановкой маркеров.",
       "selection.clipChanged": "Выбран другой клип. Выберите нужный клип и повторите действие.",
@@ -476,10 +492,12 @@
       "settings.externalLinkCancel": "Отмена",
       "settings.externalLinkOpen": "Открыть",
       "settings.footer": "v{version} · © 2026 Nikita Kolesov · свободная программа, AGPL‑3.0",
+
       "selection.placeholder": "Выберите аудиоклип на таймлайне, чтобы начать.",
       "selection.notAnalyzed": "ещё не анализировался",
       "selection.needAnalyze": "Сначала запустите «Анализ».",
       "selection.alreadyAnalyzed": "уже проанализирован",
+
       "analyze.run": "Анализировать выбранное аудио",
       "analyze.manualBpmIntro": "Уже знаете BPM? Можно пропустить анализ и сразу расставить ровную сетку долей по вписанному темпу.",
       "analyze.manualBpmBtn": "Применить",
@@ -556,6 +574,7 @@
       "analyze.toolsShort": "Ещё",
       "analyze.audioUnitsTip": "Чтобы резать точно в бит, а не по ближайшему кадру видео, включите Show Audio Time Units в меню панели Timeline (☰ рядом с названием секвенции).",
       "analyze.markerToolsToggle": "Инструменты маркеров",
+
       "cut.title": "Нарезка",
       "cut.run": "Разрезать клип по сильным долям",
       "cut.hint": "Использует последний результат анализа этого клипа — сначала запустите анализ.",
@@ -566,6 +585,8 @@
       "analyze.copyMarkersDone": "Скопировано маркеров: {count}",
       "analyze.pasteMarkersNothing": "Пока ничего не скопировано — сначала нажмите «Скопировать маркеры»",
       "analyze.pasteMarkersDone": "Вставлено",
+      "analyze.pasteMarkersAlready": "Эти маркеры уже есть на этом медиафайле",
+
       "key.title": "Тональность и Камелот",
       "key.intro": "Определяет тональность любого клипа — трека, райзера, стингера или SFX.",
       "key.scope": "Анализировать",
@@ -633,6 +654,7 @@
       "key.pitchLandingMixes": " Результат всё равно сочетается с {target}.",
       "key.pitchCompatibleNoShift": "{from} уже сочетается с {target} без сдвига. Сдвигайте, только если нужна одна и та же тональность.",
       "key.manuallySet": "(задано вручную)",
+
       "library.sectionMusic": "Музыка",
       "library.sectionSfx": "SFX",
       "library.addFolder": "+ Папка",
@@ -733,6 +755,7 @@
       "library.scanError": "Сканирование не завершилось. Сохранённые результаты остались; попробуйте снова.",
       "library.scanPartial": "Часть папок не удалось полностью прочитать. Их сохранённые результаты остались.",
       "library.loadSetAside": "Сохранённую библиотеку не удалось прочитать, поэтому она начинается пустой. Старый файл сохранён в Документы/Downbeat как {file}; «Загрузить копию» вернёт сохранённую копию.",
+      "library.deletedElsewhere": "Данные Downbeat удалены в другой программе. Панель теперь пуста; закройте и снова откройте её.",
       "library.loadBlocked": "Сохранённую библиотеку не удалось прочитать. Она оставлена как есть, а изменения не сохраняются до перезапуска программы.",
       "library.scanDone": "Готово. Проанализировано файлов: {done} (за {seconds} с).",
       "library.scanDoneFailed": "Готово. Проанализировано файлов: {done} (за {seconds} с); не удалось прочитать: {failed} — наведите на строку, чтобы узнать почему.",
@@ -761,6 +784,9 @@
       "library.folderScopeTitle": "Искать в этой папке (можно отметить несколько)",
       "library.folderOnlyTitle": "клик — показать только эту папку",
       "library.clear": "Очистить",
+
+
+
       "busy.default": "Идёт обработка…",
       "busy.stuckHint": "Это занимает больше времени, чем обычно.",
       "busy.dismiss": "Закрыть",
@@ -770,6 +796,7 @@
       "busy.cut": "Нарезка клипа…",
       "busy.detectKey": "Определение тональности…",
       "busy.clearMarkers": "Удаление маркеров…",
+
       "tour.next": "Далее",
       "tour.back": "Назад",
       "tour.skip": "Пропустить обучение",
@@ -794,7 +821,7 @@
       "tour.compatibleTitle": "Хорошо сочетается с",
       "tour.compatibleBody": "Прямой ответ: вот какие тональности искать во втором треке или звуковом эффекте, чтобы он сочетался с этим.",
       "tour.libraryTitle": "Библиотека: музыка и SFX",
-      "tour.libraryBody": "Добавьте папки музыки и SFX. Ищите по имени, тональности или BPM; «Как у клипа» использует выбранный клип. Прослушивайте и добавляйте звуки на таймлайн. Выберите проанализированную строку, чтобы подтвердить Key/BPM: сетка долей не изменится.",
+      "tour.libraryBody": "Добавьте папки музыки и SFX. Ищите по имени, тональности или BPM; «Как у клипа» использует выбранный клип. Прослушивайте и добавляйте звуки на таймлайн. Щёлкните звук, чтобы прослушать его; Enter или двойной щелчок добавляет его.",
       "tour.settingsTitle": "Настройки",
       "tour.settingsBody": "Выберите язык и папку готового аудио. «Проверить сейчас» ищет релиз на GitHub; уведомления необязательны, анализ работает офлайн. После воспроизведения проблемы «Скопировать лог» копирует журнал этой сессии для поддержки.",
       "tour.metronomeTitle": "Дорожка метронома",
@@ -803,6 +830,7 @@
       "tour.pitchBody": "Выберите исходную и нужную тональности, затем проверьте полутоны, скорость и BPM. Кнопка добавляет исходный файл с этой скоростью и отключает прежний клип. Скорость меняет питч и длительность; обработанная копия не создаётся.",
       "tour.finishTitle": "Готово",
       "tour.finishBody": "Обучение можно пройти заново в любой момент через настройки. Выберите клип на таймлайне, чтобы начать.",
+
       "lang.pickTitle": "Выберите язык",
       "updatePick.title": "Сообщать о новых версиях?",
       "updatePick.body": "Downbeat может проверять GitHub раз в три дня на новые версии. Фоновые проверки необязательны. В настройках всегда можно проверить версию вручную и открыть страницу релиза. Анализ работает офлайн; скачивание и установка выполняются вручную.",
@@ -810,6 +838,7 @@
       "updatePick.no": "Нет, без интернета",
       "lang.pickBody": "Позже это можно изменить в настройках.",
     },
+
     es: {
       "selection.sourceChanged": "La fuente seleccionada cambió. Analiza este clip antes de colocar marcadores.",
       "selection.clipChanged": "El clip seleccionado cambió. Selecciona el clip deseado e inténtalo de nuevo.",
@@ -875,10 +904,12 @@
       "settings.externalLinkCancel": "Cancelar",
       "settings.externalLinkOpen": "Abrir",
       "settings.footer": "v{version} · © 2026 Nikita Kolesov · software libre, AGPL‑3.0",
+
       "selection.placeholder": "Selecciona un clip de audio en la línea de tiempo para empezar.",
       "selection.notAnalyzed": "aún no analizado",
       "selection.needAnalyze": "Ejecuta Analizar primero.",
       "selection.alreadyAnalyzed": "ya analizado",
+
       "analyze.run": "Analizar audio seleccionado",
       "analyze.manualBpmIntro": "¿Ya sabes el BPM? Omite el análisis y coloca una cuadrícula de tiempos uniforme al tempo que escribas.",
       "analyze.manualBpmBtn": "Usar",
@@ -955,6 +986,7 @@
       "analyze.toolsShort": "Más",
       "analyze.audioUnitsTip": "Para cortar justo en el pulso y no en el fotograma más cercano, activa Show Audio Time Units en el menú del panel Línea de tiempo (☰ junto al nombre de la secuencia).",
       "analyze.markerToolsToggle": "Herramientas de marcadores",
+
       "cut.title": "Cortar",
       "cut.run": "Cortar el clip en los tiempos fuertes",
       "cut.hint": "Usa el último resultado de Analizar en este clip — ejecuta Analizar primero.",
@@ -965,6 +997,8 @@
       "analyze.copyMarkersDone": "{count} marcador(es) copiado(s)",
       "analyze.pasteMarkersNothing": "Aún no se ha copiado nada - usa primero «Copiar marcadores»",
       "analyze.pasteMarkersDone": "Pegado",
+      "analyze.pasteMarkersAlready": "Estos marcadores ya están en este medio",
+
       "key.title": "Tonalidad y Camelot",
       "key.intro": "Detecta la tonalidad de cualquier clip - canción, riser, stinger o SFX.",
       "key.scope": "Analizar",
@@ -1030,6 +1064,7 @@
       "key.pitchLandingMixes": " Aun así combina con {target}.",
       "key.pitchCompatibleNoShift": "{from} ya combina con {target} sin cambiar el tono. Cámbialo solo si quieres que estén en la misma tonalidad.",
       "key.manuallySet": "(ajustado manualmente)",
+
       "library.sectionMusic": "Música",
       "library.sectionSfx": "SFX",
       "library.addFolder": "+ Carpeta",
@@ -1130,6 +1165,7 @@
       "library.scanError": "El análisis no pudo terminar. Los resultados guardados se conservan; inténtalo de nuevo.",
       "library.scanPartial": "No se pudieron leer por completo algunas carpetas. Se conservaron sus resultados guardados.",
       "library.loadSetAside": "No se pudo leer la biblioteca guardada, así que empieza vacía. El archivo anterior se conserva en Documentos/Downbeat como {file}; Cargar copia recupera una copia guardada.",
+      "library.deletedElsewhere": "Los datos de Downbeat se eliminaron en otra aplicación. Este panel está vacío; ciérralo y vuelve a abrirlo.",
       "library.loadBlocked": "No se pudo leer la biblioteca guardada. Se deja como está y los cambios no se guardan hasta reiniciar el programa.",
       "library.scanDone": "Listo. Archivos analizados: {done} (en {seconds} s).",
       "library.scanDoneFailed": "Listo. Archivos analizados: {done} (en {seconds} s); no se pudieron leer: {failed} (pasa el cursor por encima para ver por qué).",
@@ -1158,6 +1194,9 @@
       "library.folderScopeTitle": "Buscar en esta carpeta (se pueden marcar varias)",
       "library.folderOnlyTitle": "clic: mostrar solo esta carpeta",
       "library.clear": "Borrar",
+
+
+
       "busy.default": "Procesando…",
       "busy.stuckHint": "Esto está tardando más de lo esperado.",
       "busy.dismiss": "Descartar",
@@ -1167,6 +1206,7 @@
       "busy.cut": "Cortando el clip…",
       "busy.detectKey": "Detectando tonalidad…",
       "busy.clearMarkers": "Borrando marcadores…",
+
       "tour.next": "Siguiente",
       "tour.back": "Atrás",
       "tour.skip": "Omitir recorrido",
@@ -1191,7 +1231,7 @@
       "tour.compatibleTitle": "Combina bien con",
       "tour.compatibleBody": "La respuesta directa: estas son las tonalidades a buscar en una segunda pista o efecto de sonido para que combine con esta.",
       "tour.libraryTitle": "Biblioteca: música y SFX",
-      "tour.libraryBody": "Añade carpetas de música y SFX. Busca por nombre, tonalidad o BPM; Como el clip usa el clip seleccionado. Escucha y añade sonidos a la línea de tiempo. Selecciona una fila analizada para confirmar tonalidad/BPM; la rejilla de pulsos no cambia.",
+      "tour.libraryBody": "Añade carpetas de música y SFX. Busca por nombre, tonalidad o BPM; Como el clip usa el clip seleccionado. Escucha y añade sonidos a la línea de tiempo. Haz clic en un sonido para escucharlo; Intro o un doble clic lo añade.",
       "tour.settingsTitle": "Ajustes",
       "tour.settingsBody": "Elige el idioma y la carpeta del audio terminado. Comprobar ahora busca una versión en GitHub; los avisos son opcionales y el análisis sigue sin conexión. Tras reproducir un problema, Copiar registro copia esta sesión para soporte.",
       "tour.metronomeTitle": "Pista de metrónomo",
@@ -1200,6 +1240,7 @@
       "tour.pitchBody": "Elige las tonalidades de origen y destino, y revisa semitonos, velocidad y BPM. La acción añade el archivo original a esa velocidad y desactiva el clip anterior. La velocidad cambia tono y duración; no se crea una copia procesada.",
       "tour.finishTitle": "Eso es todo",
       "tour.finishBody": "Puedes repetir este recorrido en cualquier momento desde Ajustes. Selecciona un clip en tu línea de tiempo para empezar.",
+
       "lang.pickTitle": "Elige tu idioma",
       "updatePick.title": "¿Avisarte de versiones nuevas?",
       "updatePick.body": "Downbeat puede consultar GitHub cada tres días para buscar nuevas versiones. Las comprobaciones en segundo plano son opcionales. Siempre puedes comprobar manualmente en Ajustes y abrir la página de la versión. El análisis funciona sin internet; la descarga y la instalación son manuales.",
@@ -1208,18 +1249,23 @@
       "lang.pickBody": "Puedes cambiarlo más tarde en Ajustes.",
     }
   };
+
   var currentLanguage = "en";
+
   function getLanguage() {
     return currentLanguage;
   }
+
   function setLanguage(lang) {
     if (LANGUAGES.indexOf(lang) === -1) {
       return;
     }
     currentLanguage = lang;
   }
+
   // Falls back to English, then to the raw key itself, so a missing
-  // translation shows up as a visible key rather than blank text.
+  // translation is visible (a stray key on screen) rather than a blank -
+  // easier to notice and fix than silent empty text.
   function t(key, vars) {
     var dict = STRINGS[currentLanguage] || STRINGS.en;
     var text = dict[key];
@@ -1238,8 +1284,11 @@
     }
     return text;
   }
-  // Applies every data-i18n* attribute currently in the DOM: data-i18n
-  // (textContent), data-i18n-placeholder and data-i18n-title.
+
+  // Applies every data-i18n* attribute currently in the DOM. Three flavors:
+  // data-i18n (textContent), data-i18n-placeholder, data-i18n-title -
+  // covers every static string in index.html without needing a template
+  // engine.
   function applyStaticTranslations(root) {
     var scope = root || document;
     var textNodes = scope.querySelectorAll("[data-i18n]");
@@ -1255,6 +1304,7 @@
       titleNodes[k].title = t(titleNodes[k].getAttribute("data-i18n-title"));
     }
   }
+
   global.BeatMarkerI18n = {
     LANGUAGES: LANGUAGES,
     LANGUAGE_NAMES: LANGUAGE_NAMES,

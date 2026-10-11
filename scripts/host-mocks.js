@@ -257,6 +257,11 @@ function makePremiereHost(opts) {
           const importedMarkers = new MarkerCollection();
           const it = { type: 1, name: path.basename(p), getMediaPath: function () { return p; },
             getMarkers: function () { return importedMarkers; } };
+          // opts.mediaLength: the item reports where its media ends, as
+          // Premiere's ProjectItem.getOutPoint() does with no out mark set.
+          if (typeof opts.mediaLength === "number") {
+            it.getOutPoint = function () { return T(typeof it._out === "number" ? it._out : opts.mediaLength); };
+          }
           if (!opts.noInOut) {
             it.setInPoint = function (s) { it._in = Number(s); };
             it.setOutPoint = function (s) { it._out = Number(s); };

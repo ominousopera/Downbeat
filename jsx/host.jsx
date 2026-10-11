@@ -345,6 +345,27 @@ function _applyMarkerLabel(marker, label) {
 // replaceOwn: true first removes Downbeat's own markers around the selected
 // clip, so placing again replaces instead of stacking. Paste markers does not
 // pass it.
+// Where Place last put timeline (sequence / composition) markers, per
+// sequence and media, for this host session. Timeline markers stay where
+// they were when the clip moves, so re-placing also removes Downbeat's own
+// markers at exactly those times; only markers with Downbeat's own names at
+// those exact times go.
+var _dbPlacedTimeline = {};
+function _dbRemoveOwnAtTimes(markers, times) {
+    var doomed = [];
+    var m = markers.getFirstMarker();
+    while (m) {
+        if (LABEL_COLOR_INDEX.hasOwnProperty(m.name)) {
+            for (var i = 0; i < times.length; i++) {
+                if (Math.abs(m.start.seconds - times[i]) < 0.0005) { doomed.push(m); break; }
+            }
+        }
+        m = markers.getNextMarker(m);
+    }
+    for (var d = 0; d < doomed.length; d++) { markers.deleteMarker(doomed[d]); }
+    return doomed.length;
+}
+
 function createMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJson) {
     if (_dbIsAe()) {
         return dbAeCreateMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJson);
@@ -366,20 +387,31 @@ function createMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJ
             }
         }
         var replacedCount = 0;
+        var placedKey = null;
         if (replaceOwn === true) {
-            replacedCount = _removeOwnMarkersAroundClip(sequence, _findSelectedAudioClipOrThrow(sequence).clip);
+            var ownClip = _findSelectedAudioClipOrThrow(sequence).clip;
+            placedKey = String(sequence.sequenceID || sequence.name) + "|" + ownClip.projectItem.getMediaPath();
+            replacedCount = _removeOwnMarkersAroundClip(sequence, ownClip);
+            if (_dbPlacedTimeline[placedKey]) {
+                replacedCount += _dbRemoveOwnAtTimes(sequence.markers, _dbPlacedTimeline[placedKey]);
+            }
         }
         var createdCount = 0;
         var stored = [];
+        var placedTimes = [];
         for (var i = 0; i < times.length; i++) {
             var marker = sequence.markers.createMarker(times[i]);
             if (marker) {
                 createdCount++;
+                try { placedTimes.push(marker.start.seconds); } catch (readErr) { placedTimes.push(times[i]); }
                 _noteStored(stored, marker, times[i]);
                 if (labels) {
                     _applyMarkerLabel(marker, labels[i]);
                 }
             }
+        }
+        if (placedKey) {
+            _dbPlacedTimeline[placedKey] = placedTimes;
         }
         result.ok = true;
         result.data = {
@@ -774,13 +806,16 @@ function getMarkersDataForSelectedClip() {
                 var dur = Math.max(0, marker.end.seconds - t);
                 var offset = info.reversed ? (info.outPointSeconds - t - dur) / info.speed : (t - info.inPointSeconds) / info.speed;
                 if (offset >= -0.0005) {
-                    clipData.push(_dbPremiereMarkerData(marker, Math.max(0, offset), dur / info.speed));
+                    var entry = _dbPremiereMarkerData(marker, Math.max(0, offset), dur / info.speed);
+                    entry.sourceSeconds = t;      // where it sits in the media itself,
+                    entry.sourceDuration = dur;   // for a paste back onto the same file
+                    clipData.push(entry);
                 }
             }
             marker = media.getNextMarker(marker);
         }
         result.ok = true;
-        result.data = { version: 2, host: "premiere", clipName: clip.name, sequenceMarkers: seqData, clipMarkers: clipData };
+        result.data = { version: 2, host: "premiere", clipName: clip.name, mediaPath: info.mediaPath, sequenceMarkers: seqData, clipMarkers: clipData };
     } catch (e) { result.error = e.message || String(e); }
     return JSON.stringify(result);
 }
@@ -818,6 +853,19 @@ function _dbRestorePremiereMarker(marker, transfer) {
     else if (m.type === "WebLink") { marker.setTypeAsWebLink(m.url || "", m.frameTarget || ""); }
     else if (m.type !== "Comment") { throw new Error("Unsupported marker type."); }
 }
+// Whether `markers` already holds a marker at `time` with this name and comments.
+function _dbHasSameMarker(markers, time, data) {
+    var m = markers.getFirstMarker();
+    while (m) {
+        if (Math.abs(m.start.seconds - time) < 0.0005 && String(m.name || "") === String(data.label || "") &&
+                String(m.comments || "") === String(data.comments || "")) {
+            return true;
+        }
+        m = markers.getNextMarker(m);
+    }
+    return false;
+}
+
 function pasteMarkersData(dataJson, referenceJson) {
     if (_dbIsAe()) { return dbAePasteMarkersData(dataJson, referenceJson); }
     var result = { ok: false, error: null, data: null }, created = [];
@@ -828,17 +876,41 @@ function pasteMarkersData(dataJson, referenceJson) {
         var sequence = _getActiveSequenceOrThrow();
         var clip = _findSelectedAudioClipOrThrow(sequence).clip;
         var collections = [sequence.markers, clip.projectItem.getMarkers()];
+        // Clip markers belong to the media, shared by every instance of it in
+        // every sequence. Pasted onto the same file they go back to their own
+        // source times - mapping them through another instance's trim would
+        // add an off-beat second set to the shared media, and pasting where
+        // they still are would double them everywhere. A marker already at
+        // the same time with the same name and comments is never created
+        // twice.
+        var kept = 0;
+        var source = JSON.parse(dataJson);
+        if (source.mediaPath && _dbSamePath(source.mediaPath, info.mediaPath)) {
+            var own = [];
+            for (var s = 0; s < source.clipMarkers.length; s++) {
+                var cm = source.clipMarkers[s];
+                if (typeof cm.sourceSeconds === "number" && isFinite(cm.sourceSeconds)) {
+                    own.push({ time: cm.sourceSeconds, duration: typeof cm.sourceDuration === "number" ? cm.sourceDuration : 0, data: cm });
+                }
+            }
+            plan.skipped -= source.clipMarkers.length - plan.clipMarkers.length;
+            plan.clipMarkers = own;
+        }
         var groups = [plan.sequenceMarkers, plan.clipMarkers];
         for (var g = 0; g < groups.length; g++) {
             for (var i = 0; i < groups[g].length; i++) {
                 var transfer = groups[g][i];
+                if (_dbHasSameMarker(collections[g], transfer.time, transfer.data)) {
+                    kept++;
+                    continue;
+                }
                 var marker = collections[g].createMarker(transfer.time);
                 if (!marker) { throw new Error("Could not create a pasted marker."); }
                 created.push({ collection: collections[g], marker: marker });
                 _dbRestorePremiereMarker(marker, transfer);
             }
         }
-        result.ok = true; result.data = { created: created.length, skipped: plan.skipped };
+        result.ok = true; result.data = { created: created.length, skipped: plan.skipped, kept: kept };
     } catch (e) {
         for (var j = created.length - 1; j >= 0; j--) { try { created[j].collection.deleteMarker(created[j].marker); } catch (cleanupError) {} }
         result.error = e.message || String(e);
@@ -1417,6 +1489,52 @@ function _dbPreparePitchMarkers(item, original) {
     }
 }
 
+// The first unlocked audio track from `firstTrack` on with nothing between
+// startSeconds and startSeconds + span, or -1.
+function _dbFreeAudioTrack(sequence, firstTrack, startSeconds, span) {
+    for (var t = firstTrack; t < sequence.audioTracks.numTracks; t++) {
+        var track = sequence.audioTracks[t];
+        var locked = false;
+        try {
+            locked = typeof track.isLocked === "function" && track.isLocked();
+        } catch (lockErr) {
+            locked = false;
+        }
+        if (locked) {
+            continue;
+        }
+        var free = true;
+        for (var c = 0; c < track.clips.numItems; c++) {
+            var clip = track.clips[c];
+            if (clip.start.seconds < startSeconds + span - 0.001 && clip.end.seconds > startSeconds + 0.001) {
+                free = false;
+                break;
+            }
+        }
+        if (free) {
+            return t;
+        }
+    }
+    return -1;
+}
+
+// Where the project item's media ends, in seconds (its out point with no
+// out mark set), or null when this Premiere cannot say.
+function _dbItemMediaEnd(item) {
+    try {
+        if (item && typeof item.getOutPoint === "function") {
+            var out = item.getOutPoint();
+            var seconds = out && typeof out.seconds === "number" ? out.seconds : Number(out);
+            if (isFinite(seconds) && seconds > 0) {
+                return seconds;
+            }
+        }
+    } catch (outErr) {
+        // unknown below
+    }
+    return null;
+}
+
 function insertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
     if (_dbIsAe()) {
         return dbAeInsertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson);
@@ -1465,35 +1583,11 @@ function insertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
         var sourceLength = length;
         length = length / speed;
         // on the timeline
-        var target = -1;
+        // The clip is first laid down at the file's own length and only then
+        // re-sped (shorter when pitched up), so the track must be free for
+        // the longer of the two or the insert would overwrite what follows.
         var firstTrack = opts && typeof opts.underTrack === "number" ? Math.max(0, Math.floor(opts.underTrack)) : 0;
-        for (var t = firstTrack; t < sequence.audioTracks.numTracks && target === -1; t++) {
-            var track = sequence.audioTracks[t];
-            var locked = false;
-            try {
-                locked = typeof track.isLocked === "function" && track.isLocked();
-            } catch (lockErr) {
-                locked = false;
-            }
-            if (locked) {
-                continue;
-            }
-            var free = true;
-            for (var c = 0; c < track.clips.numItems; c++) {
-                var clip = track.clips[c];
-                // The clip is first laid down at the file's own length and
-                // only then re-sped (shorter when pitched up), so the track
-                // must be free for the longer of the two or the insert would
-                // overwrite what follows.
-                if (clip.start.seconds < startSeconds + Math.max(length, sourceLength) - 0.001 && clip.end.seconds > startSeconds + 0.001) {
-                    free = false;
-                    break;
-                }
-            }
-            if (free) {
-                target = t;
-            }
-        }
+        var target = _dbFreeAudioTrack(sequence, firstTrack, startSeconds, Math.max(length, sourceLength));
         if (target === -1) {
             throw new Error("No free audio track at the playhead for this " + length.toFixed(1) + " s sound. Add an audio track or move the playhead.");
         }
@@ -1511,6 +1605,26 @@ function insertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
             imported = true;
         }
         if (cleanPitch) { _dbPreparePitchMarkers(item, toMute); }
+
+        // An untrimmed insert lays down the whole file, whatever length the
+        // panel sent - and a sound whose key and tempo came from its name was
+        // never decoded, so the panel may not know it at all. The imported
+        // item says how long the file is; the track must be free for that
+        // before anything is placed, so the overwrite edit never covers an
+        // editor's clip, and without any length nothing is placed.
+        if (outSec === null) {
+            var mediaEnd = _dbItemMediaEnd(item);
+            if (mediaEnd !== null && mediaEnd - inSec > sourceLength + 0.0005) {
+                sourceLength = mediaEnd - inSec;
+                length = sourceLength / speed;
+                target = _dbFreeAudioTrack(sequence, firstTrack, startSeconds, Math.max(length, sourceLength));
+                if (target === -1) {
+                    throw new Error("No free audio track at the playhead for this " + length.toFixed(1) + " s sound. Add an audio track or move the playhead.");
+                }
+            } else if (mediaEnd === null && !(Number(durationSeconds) > 0)) {
+                throw new Error("Downbeat could not read how long this sound is, so it did not insert it. Nothing on the timeline was changed.");
+            }
+        }
 
         if (trim) {
             try {

@@ -665,6 +665,14 @@ spaces), and `scripts/check-code.js` checks it before every build.
   beat falls on the same moment. Premiere: placing again on a re-sped clip
   replaces the whole earlier set.
 - Enter in the Library inserts a sound once, however long it is held.
+- A Library insert in Premiere checks the free space for the file's real
+  length, also for a sound whose key and tempo come from its name; when the
+  length is unknown nothing is placed.
+- Analyzed songs on a disconnected drive are kept until it is back, and
+  analyses saved by earlier versions survive the update.
+- Pasting markers onto the same song in another sequence adds no second set;
+  After Effects inserts a video file's sound without its picture; Russian and
+  Spanish words to leave out work in the Library search.
 
 ### Metronome audio and destination
 

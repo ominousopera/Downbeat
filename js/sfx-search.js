@@ -328,6 +328,18 @@
           }
         });
       }
+      if (neg && _synonyms) {
+        // A Russian or Spanish word to leave out also leaves out its English
+        // category name (the Russian word for rain, or "-lluvia", hides
+        // "Rain loop.wav"), as the same word without "-" finds it.
+        // Only the single most common name: excluding too much would hide
+        // sounds the user wants.
+        var foreign = Object.keys(cats.how || {}).some(function (id) { return cats.how[id] === "xxCat" || cats.how[id] === "xxSub"; });
+        if (foreign) {
+          var names = _expansions(w, cats);
+          if (names.length) { expand.push(names[0]); }
+        }
+      }
       var term = { word: w, cats: cats, expand: expand };
       (neg ? q.exclude : q.include).push(term);
     });
@@ -342,6 +354,11 @@
       var x = q.exclude[e];
       if (info.text.indexOf(" " + x.word) !== -1 || (catId && x.cats.strong[catId])) {
         return -1;
+      }
+      for (var xe = 0; xe < x.expand.length; xe++) {
+        if (info.text.indexOf(" " + x.expand[xe]) !== -1) {
+          return -1;
+        }
       }
     }
     for (var i = 0; i < q.include.length; i++) {

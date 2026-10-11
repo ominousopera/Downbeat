@@ -317,6 +317,13 @@
       var fs = window.cep_node.require("fs");
       var filePath = _getDataDir(csInterface) + "/" + name;
       var stamp = _stamp(fs, filePath);
+      if (!stamp && _synced[filePath]) {
+        // This panel read or wrote the file and now it is gone: Delete my
+        // data ran in the other host (or the user removed it). The caller
+        // drops what it holds instead of writing it back.
+        delete _synced[filePath];
+        return { changed: false, deleted: true };
+      }
       if (!stamp || stamp === _synced[filePath]) {
         return { changed: false };
       }
@@ -333,7 +340,9 @@
   // timeline position, which can go stale between sessions. Everything else
   // (bpm, key, camelot, beatsArray, confidence, phase) is a property of the
   // audio file itself and safe to persist.
-  function save(csInterface, entries) {
+  // `meta` (optional): the track library's clear and removal times, saved
+  // as one extra element with an empty mediaPath - older versions skip it.
+  function save(csInterface, entries, meta) {
     try {
       if (!window.cep_node) {
         throw new Error("window.cep_node not available.");
@@ -364,8 +373,10 @@
           intervalKeys: e.intervalKeys || [],
           material: e.material || null,
           updatedAt: e.updatedAt || null
-
         });
+      }
+      if (meta) {
+        stripped.push({ mediaPath: "", downbeatLibraryMeta: meta });
       }
       _writeAtomic(fs, filePath, JSON.stringify(stripped, null, 2));
       return { ok: true, path: filePath, count: stripped.length };

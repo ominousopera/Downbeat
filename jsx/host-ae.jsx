@@ -164,6 +164,7 @@ function _dbAeAddMarkers(markerProp, compTimes, labels, minTime, maxTime) {
     var skipped = 0;
     var kept = 0;
     var stored = [];
+    var placed = [];
     for (var i = 0; i < compTimes.length; i++) {
         var t = compTimes[i];
         if (typeof t !== "number" || isNaN(t) || t < minTime - 0.0005 || t > maxTime + 0.0005) {
@@ -177,6 +178,7 @@ function _dbAeAddMarkers(markerProp, compTimes, labels, minTime, maxTime) {
         try {
             markerProp.setValueAtTime(t, _dbAeMarkerValue(labels ? labels[i] : null));
             created++;
+            placed.push(t);
         } catch (mkErr) {
             skipped++;
             continue;
@@ -189,7 +191,7 @@ function _dbAeAddMarkers(markerProp, compTimes, labels, minTime, maxTime) {
             }
         }
     }
-    return { created: created, skipped: skipped, kept: kept, stored: stored };
+    return { created: created, skipped: skipped, kept: kept, stored: stored, placed: placed };
 }
 function _dbAeWithUndo(name, fn) {
     app.beginUndoGroup(name);
@@ -273,13 +275,32 @@ function dbAeCreateMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, refere
             throw new Error("This After Effects version does not expose composition markers to scripts.");
         }
         var layer = replaceOwn === true ? _dbAeSelectedAudioLayerOrThrow(comp) : null;
+        // See _dbPlacedTimeline in host.jsx: composition markers stay put
+        // when the layer moves, so re-placing also clears Downbeat's own
+        // ones at the times it used last time.
+        var placedKey = layer ? String(comp.id) + "|" + layer.source.file.fsName : null;
         var replaced = 0;
         var r = _dbAeWithUndo("Downbeat: place markers", function () {
             if (layer) {
                 replaced = _dbAeRemoveOwnAroundLayer(comp, layer);
+                var before = _dbPlacedTimeline[placedKey] || [];
+                for (var k = comp.markerProperty.numKeys; k >= 1; k--) {
+                    var kt = comp.markerProperty.keyTime(k);
+                    var kv = comp.markerProperty.keyValue(k);
+                    for (var b = 0; b < before.length; b++) {
+                        if (Math.abs(kt - before[b]) < 0.0005 && kv && AE_LABEL_COLOR_INDEX.hasOwnProperty(kv.comment)) {
+                            comp.markerProperty.removeKey(k);
+                            replaced++;
+                            break;
+                        }
+                    }
+                }
             }
             return _dbAeAddMarkers(comp.markerProperty, times, labels, 0, comp.duration);
         });
+        if (placedKey) {
+            _dbPlacedTimeline[placedKey] = r.placed;
+        }
         return { requested: times.length, created: r.created, skipped: r.skipped, kept: r.kept, replaced: replaced, stored: r.stored };
     });
 }
@@ -621,6 +642,14 @@ function dbAeInsertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
                 item.parentFolder = folder;
             }
             var added = comp.layers.add(item);
+            // Downbeat inserts sound. A file with picture (a music video's
+            // .mp4) keeps its picture switched off, so the comp looks as
+            // before.
+            try {
+                if (added.hasVideo) { added.enabled = false; }
+            } catch (videoErr) {
+                // the sound is still inserted
+            }
             if (opts && opts.pitchReference) {
                 try {
                     _dbAeRemoveOwnMarkers(added.property("Marker"), -1e20, 1e20);

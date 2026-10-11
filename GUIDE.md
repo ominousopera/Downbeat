@@ -471,7 +471,10 @@ full disk mid-save leaves the previous version whole. If a saved file still
 cannot be read, Downbeat keeps it as `<name>.unreadable-<date>-<time>.json`
 next to it, says so on the Library tab and starts that part empty — it never
 saves over it. Premiere Pro and After Effects can run Downbeat at the same
-time: each panel takes in what the other saved before saving its own changes.
+time: each panel takes in what the other saved before saving its own changes;
+after Delete my data in one, the other panel empties itself instead of saving
+the old data again. Analyses of songs on a disconnected drive are kept until
+the drive is back.
 
 **Is Downbeat free? Can I see the source?**
 Yes to both. Downbeat is free software under the GNU AGPL-3.0 (Settings →
