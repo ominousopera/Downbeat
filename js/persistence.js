@@ -539,21 +539,61 @@
     return kept;
   }
 
+  // Settings from two hosts or from kept copies, taken together key by key:
+  // the panel stamps every key it changes in settingsChangedAt (ms), and
+  // each key comes from the object that changed it last. Without times
+  // `newer` wins.
+  function mergeSettings(older, newer) {
+    var a = older && typeof older === "object" && !Array.isArray(older) ? older : {};
+    var b = newer && typeof newer === "object" && !Array.isArray(newer) ? newer : {};
+    var atA = _changeTimes(a), atB = _changeTimes(b);
+    var out = {}, at = {}, k;
+    for (k in a) {
+      if (a.hasOwnProperty(k) && k !== "settingsChangedAt" && k !== "__proto__") {
+        out[k] = a[k];
+        if (atA[k]) { at[k] = atA[k]; }
+      }
+    }
+    for (k in b) {
+      if (b.hasOwnProperty(k) && k !== "settingsChangedAt" && k !== "__proto__" &&
+          (!a.hasOwnProperty(k) || (atB[k] || 0) >= (atA[k] || 0))) {
+        out[k] = b[k];
+        if (atB[k]) { at[k] = atB[k]; }
+      }
+    }
+    out.settingsChangedAt = at;
+    return out;
+  }
+  function _changeTimes(settings) {
+    var at = settings.settingsChangedAt, out = {};
+    if (at && typeof at === "object" && !Array.isArray(at)) {
+      for (var k in at) {
+        if (k !== "__proto__" && at.hasOwnProperty(k) && typeof at[k] === "number" && isFinite(at[k])) { out[k] = at[k]; }
+      }
+    }
+    return out;
+  }
+
   // The data file's value (`base`: { path, value, mtime }, or null) with its
-  // kept copies: the newest is the data, and the others are for the
-  // libraries to take in as well (`takeIn`); settings (`newestOnly`) use the
-  // newest alone. Every copy read is noted as taken. `keptCopies` lists the
-  // copies whose data was used, `recoveredFrom` the first of them.
-  function _combine(fs, filePath, base, copies, newestOnly, renamedFrom) {
+  // kept copies. With `merge` (settings) all of them are merged, oldest
+  // first; otherwise the newest is the data and the others are for the
+  // libraries to take in as well (`takeIn`). Every copy read is noted as
+  // taken. `keptCopies` lists the copies whose data was used,
+  // `recoveredFrom` the first of them.
+  function _combine(fs, filePath, base, copies, merge, renamedFrom) {
     var all = (base ? [base] : []).concat(copies);
     all.sort(function (a, b) { return b.mtime - a.mtime || (a === base ? -1 : b === base ? 1 : 0); });
     for (var i = 0; i < copies.length; i++) { _noteTaken(filePath, copies[i].path, copies[i].stamp, false); }
-    var used = (newestOnly ? all.slice(0, 1) : all).filter(function (c) { return c !== base; });
-    var from = used.map(function (c) { return c.path; });
+    var value = all[0].value;
+    if (merge) {
+      value = all[all.length - 1].value;
+      for (var j = all.length - 2; j >= 0; j--) { value = merge(value, all[j].value); }
+    }
+    var from = all.filter(function (c) { return c !== base; }).map(function (c) { return c.path; });
     if (renamedFrom) { from.unshift(renamedFrom); }
     _noteSynced(fs, filePath);
     _gen[filePath] = _generationOf((base || all[0]).value);
-    return { existed: true, value: all[0].value, takeIn: newestOnly ? [] : all.slice(1).map(function (c) { return c.value; }),
+    return { existed: true, value: value, takeIn: merge ? [] : all.slice(1).map(function (c) { return c.value; }),
       recoveredFrom: from.length ? from[0] : null, keptCopies: from.length ? from : null };
   }
 
@@ -561,7 +601,7 @@
   // its bytes could not be kept (nothing may be saved over it then),
   // { setAside } when no complete copy exists (this panel's next save
   // replaces it), or what _combine returns, with setAside.
-  function _recoverUnreadable(fs, filePath, stamp, raw, validate, newestOnly) {
+  function _recoverUnreadable(fs, filePath, stamp, raw, validate, merge) {
     var aside = _keepUnreadable(fs, filePath, raw);
     if (!aside) { return null; }
     _cutByMe[filePath] = stamp;
@@ -581,7 +621,7 @@
       }
       break;
     }
-    var result = _combine(fs, filePath, base, copies, newestOnly, renamedFrom);
+    var result = _combine(fs, filePath, base, copies, merge, renamedFrom);
     result.setAside = aside;
     return result;
   }
@@ -590,7 +630,7 @@
   // { existed: true, value, takeIn, recoveredFrom, setAside } (see
   // _combine). Throws otherwise, with err.setAside (where the unreadable
   // file's bytes are kept) or err.blocked.
-  function _readJsonFile(fs, filePath, validate, newestOnly) {
+  function _readJsonFile(fs, filePath, validate, merge) {
     var stat = _statState(fs, filePath);
     if (stat.error) {
       _saveBlocked[filePath] = true;
@@ -605,7 +645,7 @@
         return { existed: false };
       }
       _keepGeneration[filePath] = true;
-      return _combine(fs, filePath, null, orphans, newestOnly, null);
+      return _combine(fs, filePath, null, orphans, merge, null);
     }
     var raw;
     try {
@@ -620,7 +660,7 @@
       value = JSON.parse(raw);
       if (validate) { validate(value); }
     } catch (parseErr) {
-      var recovered = _recoverUnreadable(fs, filePath, stat.stamp, raw, validate, newestOnly);
+      var recovered = _recoverUnreadable(fs, filePath, stat.stamp, raw, validate, merge);
       if (!recovered) {
         _saveBlocked[filePath] = true;
         parseErr.blocked = true;
@@ -634,7 +674,7 @@
     }
     var copies = _validCopies(fs, filePath, validate);
     if (copies.length) {
-      return _combine(fs, filePath, { path: filePath, value: value, mtime: parseFloat(stat.stamp) }, copies, newestOnly, null);
+      return _combine(fs, filePath, { path: filePath, value: value, mtime: parseFloat(stat.stamp) }, copies, merge, null);
     }
     _noteSynced(fs, filePath);
     _gen[filePath] = _generationOf(value);
@@ -686,7 +726,7 @@
     if (!(Date.now() - parseFloat(stamp) >= SETTLE_MS)) {
       return { changed: false, unavailable: true };
     }
-    var r = _recoverUnreadable(fs, filePath, stamp, raw, VALIDATE[kind], kind === "settings");
+    var r = _recoverUnreadable(fs, filePath, stamp, raw, VALIDATE[kind], kind === "settings" ? mergeSettings : null);
     if (!r) {
       return { changed: false, unavailable: true };
     }
@@ -716,7 +756,10 @@
         return { changed: false, unavailable: true };
       }
       if (stat.missing) {
-        if (_synced[filePath]) {
+        // Delete my data ran in the other host: the file this panel had
+        // seen is gone - or, when this panel started from kept copies alone
+        // (no data file), those are gone too.
+        if (_synced[filePath] || (_keepGeneration[filePath] && !_validCopies(fs, filePath, null).length)) {
           _resyncAll();
           delete _synced[filePath];
           return { changed: false, deleted: true };
@@ -885,7 +928,7 @@
       }
       var fs = window.cep_node.require("fs");
       var filePath = _getDataDir(csInterface) + "/" + SETTINGS_FILE_NAME;
-      var read = _readJsonFile(fs, filePath, VALIDATE.settings, true); // the newest of the file and its kept copies
+      var read = _readJsonFile(fs, filePath, VALIDATE.settings, mergeSettings); // the file and its kept copies, key by key
       return { ok: true, settings: (read.existed && read.value) || {}, path: filePath, existed: read.existed,
         recoveredFrom: read.recoveredFrom || null, keptCopies: read.keptCopies || null,
         setAside: read.setAside || null };
@@ -941,6 +984,7 @@
     getTempDir: getTempDir,
     clearLeftoverTempFiles: clearLeftoverTempFiles,
     readIfChanged: readIfChanged,
+    mergeSettings: mergeSettings,
     recoveryNote: recoveryNote,
     listUserData: listUserData,
     deleteUserData: deleteUserData

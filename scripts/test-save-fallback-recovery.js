@@ -24,8 +24,11 @@
 //     minute recovers it from the copy, or replaces it when there is none;
 //     the cut bytes are kept aside once, not at every start;
 //   - a copy that changed after it was read is left alone; no data file but
-//     a copy: the copy is the data and its generation goes on; Delete my
-//     data removes a kept copy.
+//     a copy: the copy is the data and its generation goes on, and Delete
+//     my data in the other host is still noticed; Delete my data removes a
+//     kept copy;
+//   - settings are taken together key by key (settingsChangedAt), so a
+//     refused change in one host and a later save in the other both stay.
 // Run: node scripts/test-save-fallback-recovery.js
 const fs = require("fs");
 const os = require("os");
@@ -185,8 +188,8 @@ try {
     check(L + "a second panel's refused save keeps its own copy beside the first", copiesIn(env.dir).length === 2);
     ld = loadNow(env);
     const takeIn = (ld.r.takeIn || []).map(c.of).sort();
-    check(L + "the next load takes in both: the newest is the data" + (c.libraryLike ? ", the others go to takeIn" : ""),
-      c.got(ld.r) === 173 && ld.r.keptCopies && ld.r.keptCopies.length === (c.libraryLike ? 2 : 1) &&
+    check(L + "the next load takes in both: the newest is the data" + (c.libraryLike ? ", the others go to takeIn" : " (merged key by key)"),
+      c.got(ld.r) === 173 && ld.r.keptCopies && ld.r.keptCopies.length === 2 &&
       (c.libraryLike ? takeIn.join() === "171,172" : takeIn.length === 0), JSON.stringify({ takeIn, from: ld.r.keptCopies }));
     r = c.save(ld.m.P, ld.m.cs, 174);
     check(L + "and its next save that works removes both", r.ok && copiesIn(env.dir).length === 0);
@@ -261,6 +264,19 @@ try {
     check(L + "no data file but a copy: the copy is the data, and its generation goes on", c.got(ld.r) === 211 && ld.r.existed &&
       r.ok && gen(JSON.parse(fs.readFileSync(env.file, "utf8"))) === firstGen && copiesIn(env.dir).length === 0);
 
+    // No data file, only copies, and the other host's Delete my data.
+    env = setup(215);
+    m = session(env, failingFs(env.file, { inPlace: "refuse" }));
+    c.save(m.P, m.cs, 216);
+    fs.unlinkSync(env.file);
+    ld = loadNow(env);
+    const deleter = freshModule(env.docs, fs);
+    let fresh2 = ld.m.P.readIfChanged(ld.m.cs, c.kind);
+    check(L + "started from copies alone: not taken for Delete my data while they are there", !fresh2.deleted, JSON.stringify(fresh2));
+    deleter.P.deleteUserData(deleter.cs);
+    fresh2 = ld.m.P.readIfChanged(ld.m.cs, c.kind);
+    check(L + "started from copies alone: Delete my data in the other host is noticed", fresh2.deleted === true, JSON.stringify(fresh2));
+
     // Delete my data.
     env = setup(220); m = session(env, failingFs(env.file, { inPlace: "refuse" }));
     c.save(m.P, m.cs, 221);
@@ -272,5 +288,33 @@ try {
 } finally {
   fs.rmSync(SP, { recursive: true, force: true });
 }
+// Settings: two objects taken together key by key (settingsChangedAt).
+(function () {
+  const P = freshModule(path.join(SP, "merge"), fs).P;
+  const plain = P.mergeSettings({ a: 1, b: 1 }, { a: 2 });
+  check("settings without times: the newer object wins, keys only in the older stay", plain.a === 2 && plain.b === 1);
+  const timed = P.mergeSettings({ a: "off", b: 1, settingsChangedAt: { a: 2000, b: 1000 } }, { a: "on", b: 2, settingsChangedAt: { a: 1000, b: 3000 } });
+  check("settings with times: each key from the side that changed it last", timed.a === "off" && timed.b === 2 &&
+    timed.settingsChangedAt.a === 2000 && timed.settingsChangedAt.b === 3000, JSON.stringify(timed));
+  const odd = P.mergeSettings(JSON.parse('{"__proto__": {"x": 1}, "a": 1}'), JSON.parse('{"settingsChangedAt": {"__proto__": 5}, "b": 2}'));
+  check("settings: a __proto__ key is never taken", odd.x === undefined && Object.getPrototypeOf(Object.getPrototypeOf(odd)) === null &&
+    !Object.prototype.hasOwnProperty.call(odd, "__proto__") && !Object.prototype.hasOwnProperty.call(odd.settingsChangedAt, "__proto__") && odd.a === 1 && odd.b === 2);
+  const docs = path.join(SP, "settings-keys");
+  fs.mkdirSync(docs, { recursive: true });
+  const file = path.join(docs, "Downbeat", "settings.json");
+  const s0 = freshModule(docs, fs);
+  s0.P.saveSettings(s0.cs, { language: "en", updateCheck: true, markerTarget: "clip", settingsChangedAt: { language: 1000, updateCheck: 1000, markerTarget: 1000 } });
+  const pr = freshModule(docs, failingFs(file, { inPlace: "refuse" })); pr.P.loadSettings(pr.cs);
+  const ae = freshModule(docs, fs); ae.P.loadSettings(ae.cs);
+  pr.P.saveSettings(pr.cs, { language: "en", updateCheck: false, markerTarget: "clip", settingsChangedAt: { language: 1000, updateCheck: 2000, markerTarget: 1000 } });
+  ae.P.saveSettings(ae.cs, { language: "en", updateCheck: true, markerTarget: "sequence", settingsChangedAt: { language: 1000, updateCheck: 1000, markerTarget: 3000 } });
+  const next = freshModule(docs, fs);
+  const r = next.P.loadSettings(next.cs);
+  check("settings: a refused change in one host and a later save in the other both come back", r.settings.updateCheck === false &&
+    r.settings.markerTarget === "sequence" && !!r.keptCopies, JSON.stringify(r.settings));
+  const dir = path.join(docs, "Downbeat");
+  check("settings: the next save, with both in it, removes the copy", next.P.saveSettings(next.cs, r.settings).ok && copiesIn(dir).length === 0 &&
+    JSON.parse(fs.readFileSync(file, "utf8")).updateCheck === false);
+})();
 if (failures) { console.error("\n" + failures + " check(s) failed"); process.exit(1); }
 console.log("\nA save Windows refuses keeps the data, and only the panel holding it removes the copy");

@@ -234,14 +234,15 @@
   _settingsPanel.applySettings(initialSettings); // the update notice
   var isFirstRun = loadedSettings.ok ? !loadedSettings.existed : !!loadedSettings.setAside;
   function persistSettings(overrides) {
-    // Starts from the file when another host saved it since: its choices
-    // stay, only `overrides` change.
+    // Takes in what another host saved since, key by key: every key this
+    // panel changes is stamped, and each key comes from whichever side
+    // changed it last, so a change this panel could not save yet is not
+    // lost either (see mergeSettings in js/persistence.js).
     var fresh = window.BeatMarkerPersistence.readIfChanged(csInterface, "settings");
+    var changedAt = Date.now();
     if (fresh.unavailable) {
       log("WARNING: settings.json could not be checked just now; this change is kept in the panel and saved next time.");
-      for (var pendingKey in overrides) {
-        if (overrides.hasOwnProperty(pendingKey)) { initialSettings[pendingKey] = overrides[pendingKey]; }
-      }
+      _applySettingsChanges(initialSettings, overrides, changedAt);
       return;
     }
     if (fresh.deleted) {
@@ -253,27 +254,42 @@
       _library.dataDeletedElsewhere();
     }
     _takeInKeptCopies("settings.json", fresh, function () {});
-    var base = fresh.changed && fresh.value && typeof fresh.value === "object" && !Array.isArray(fresh.value) ? fresh.value : initialSettings;
+    var otherSaved = fresh.changed && fresh.value && typeof fresh.value === "object" && !Array.isArray(fresh.value);
+    var base = otherSaved ? window.BeatMarkerPersistence.mergeSettings(initialSettings, fresh.value) : initialSettings;
     var merged = {};
     for (var existingKey in base) {
       if (base.hasOwnProperty(existingKey)) {
         merged[existingKey] = base[existingKey];
       }
     }
-    merged.language = base === initialSettings || !merged.language ? I18n.getLanguage() : merged.language;
+    merged.language = !otherSaved || !merged.language ? I18n.getLanguage() : merged.language;
     if (merged.onboardingCompleted === undefined) {
       merged.onboardingCompleted = false;
     }
-    for (var k in overrides) {
-      if (overrides.hasOwnProperty(k)) {
-        merged[k] = overrides[k];
-      }
-    }
+    _applySettingsChanges(merged, overrides, changedAt);
     initialSettings = merged;
     var result = window.BeatMarkerPersistence.saveSettings(csInterface, merged);
     if (!result.ok) {
       log("WARNING: could not save settings to disk: " + result.error);
     }
+  }
+  // Sets `overrides` on a settings object and stamps each of those keys
+  // in its settingsChangedAt (see persistSettings).
+  function _applySettingsChanges(target, overrides, at) {
+    var times = {};
+    var old = target.settingsChangedAt;
+    if (old && typeof old === "object" && !Array.isArray(old)) {
+      for (var o in old) {
+        if (o !== "__proto__" && old.hasOwnProperty(o)) { times[o] = old[o]; }
+      }
+    }
+    for (var k in overrides) {
+      if (overrides.hasOwnProperty(k)) {
+        target[k] = overrides[k];
+        times[k] = at;
+      }
+    }
+    target.settingsChangedAt = times;
   }
   var isPanelReady = false;
   function refreshDynamicTranslations() {
