@@ -263,6 +263,14 @@ function dbAeCreateClipMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, re
         return { requested: times.length, created: r.created, skipped: r.skipped, kept: r.kept, replaced: replaced, stored: r.stored };
     });
 }
+// The layer's identity for _dbPlacedTimeline. Layer.id exists from After
+// Effects 22.0; older versions use the layer's source item and its place in
+// the composition, which sliding the layer in time keeps.
+function _dbAeLayerKey(layer) {
+    if (layer.id !== undefined && layer.id !== null) { return layer.id; }
+    var sourceId = layer.source && layer.source.id !== undefined ? layer.source.id : "";
+    return "source" + sourceId + "@" + layer.index;
+}
 // Comp times, like Premiere's sequence markers.
 function dbAeCreateMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJson) {
     return _dbAeResult(function () {
@@ -277,7 +285,7 @@ function dbAeCreateMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, refere
         // See _dbPlacedTimeline in host.jsx: composition markers stay put
         // when the layer moves, so re-placing also clears Downbeat's own
         // ones at the times it used last time.
-        var placedKey = layer ? _dbPlacedKey(comp.id, layer.id) : null;
+        var placedKey = layer ? _dbPlacedKey(comp.id, _dbAeLayerKey(layer)) : null;
         var replaced = 0;
         var r = _dbAeWithUndo("Downbeat: place markers", function () {
             if (layer) {

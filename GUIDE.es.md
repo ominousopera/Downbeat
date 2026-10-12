@@ -532,9 +532,11 @@ anterior, así que un fallo o un disco lleno a mitad del guardado deja entera
 la versión previa. Si aun así un archivo guardado no se puede leer, Downbeat
 lo conserva al lado como `<nombre>.unreadable-<fecha>-<hora>.json`, lo indica
 en la pestaña Biblioteca y empieza esa parte vacía; nunca guarda encima. Si
-Windows no deja sustituir el archivo por la copia nueva y escribir encima
-también falla, la copia nueva queda como `<nombre>.unsaved-<fecha>-<hora>.json`
-y el siguiente inicio lee los datos de ella.
+Windows rechaza el guardado (otro programa, como OneDrive o un antivirus,
+tiene el archivo abierto), los datos nuevos quedan al lado como
+`<nombre>.unsaved-<fecha>-<hora>.json`; el siguiente inicio los pone en su
+sitio, y el siguiente guardado correcto borra las copias antiguas del propio
+Downbeat.
 Premiere Pro y After Effects pueden usar Downbeat a la vez: antes de guardar
 sus cambios, cada panel incorpora lo que guardó el otro; tras Eliminar mis datos
 en uno, el panel del otro se vacía en lugar de volver a guardar los datos

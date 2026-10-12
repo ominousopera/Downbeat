@@ -48,9 +48,10 @@
   // be read (_setAside). Both are this plugin's own.
   var OWN_DATA_TEMP_PATTERN = /^(library|settings|sound-library)\.json\.tmp-[0-9]+-[0-9]+$/;
   var OWN_SET_ASIDE_PATTERN = /^(library|settings|sound-library)\.unreadable-[0-9]{8}-[0-9]{6}(-[0-9]+)?\.json$/;
-  // The complete new copy of a data file whose save failed half-way
-  // (_writeAtomic): kept, never swept, read back by the next load when the
-  // data file itself is unreadable.
+  // The complete new copy of a data file whose save Windows refused
+  // (_writeAtomic): kept, never swept, put back by the next load when it is
+  // newer than the data file or the data file is cut, and removed by a
+  // later successful save it is older than (see "A save Windows refused").
   var OWN_UNSAVED_PATTERN = /^(library|settings|sound-library)\.unsaved-[0-9]{8}-[0-9]{6}(-[0-9]+)?\.json$/;
   // The start-up sweep leaves younger temp files alone: Premiere and After
   // Effects can both run Downbeat on one Documents/Downbeat, and a panel
@@ -163,13 +164,26 @@
   // Every temp file is deleted as soon as its worker exits, but a Premiere
   // crash mid-analysis would leave one behind. Raw samples are large (a
   // 3-minute track is about 30 MB), so leftovers are swept at startup.
+  // A <name>.json.tmp-* file whose <name>.json does not parse may be the
+  // only complete copy of a refused save (see "A save Windows refused"): kept.
+  function _holdsDataOfCutFile(fs, f) {
+    var name = f.slice(f.lastIndexOf("/") + 1);
+    if (!OWN_DATA_TEMP_PATTERN.test(name)) { return false; }
+    var dataFile = f.slice(0, f.lastIndexOf(".tmp-"));
+    try {
+      JSON.parse(fs.readFileSync(dataFile, "utf8"));
+      return false;
+    } catch (e) {
+      return !(e && e.code === "ENOENT");
+    }
+  }
   function clearLeftoverTempFiles(csInterface) {
     try {
       var fs = window.cep_node.require("fs");
       // Only files older than STALE_TEMP_MS: the other host may be working.
       var now = Date.now();
       var stale = _listOwnFiles(csInterface, false).files.filter(function (f) {
-        try { return now - fs.lstatSync(f).mtimeMs > STALE_TEMP_MS; } catch (e) { return false; }
+        try { return now - fs.lstatSync(f).mtimeMs > STALE_TEMP_MS && !_holdsDataOfCutFile(fs, f); } catch (e) { return false; }
       });
       var result = _deleteListedFiles(fs, stale);
       return { ok: result.failed.length === 0, removed: result.deleted.length, error: result.failed.join(", ") };
@@ -304,46 +318,148 @@
   }
 
   function _two(n) { return (n < 10 ? "0" : "") + n; }
-  // Moves `from` to <data file>.<tag>-<date>-<time>.json next to the data
-  // file, never over an existing file; returns the new path, or null.
-  function _moveToDatedName(fs, from, filePath, tag) {
+  // A free <data file>.<tag>-<date>-<time>[-n].json next to the data file,
+  // or null.
+  function _freeDatedName(fs, filePath, tag) {
     var d = new Date();
     var stamp = d.getFullYear() + _two(d.getMonth() + 1) + _two(d.getDate()) + "-" + _two(d.getHours()) + _two(d.getMinutes()) + _two(d.getSeconds());
     var base = filePath.replace(/\.json$/, "") + "." + tag + "-" + stamp;
     for (var i = 0; i < 100; i++) {
       var target = base + (i ? "-" + i : "") + ".json";
-      if (fs.existsSync(target)) {
-        continue;
-      }
-      try {
-        fs.renameSync(from, target);
+      if (!fs.existsSync(target)) {
         return target;
-      } catch (e) {
-        return null;
       }
     }
     return null;
+  }
+  // Moves `from` to such a name, never over an existing file; returns the
+  // new path, or null.
+  function _moveToDatedName(fs, from, filePath, tag) {
+    var target = _freeDatedName(fs, filePath, tag);
+    if (!target) { return null; }
+    try {
+      fs.renameSync(from, target);
+      return target;
+    } catch (e) {
+      return null;
+    }
   }
   function _setAside(fs, filePath) {
     return _moveToDatedName(fs, filePath, filePath, "unreadable");
   }
 
-  // The newest <data file>.unsaved-*.json that parses and passes
-  // `validate`: { path, value }, or null.
-  function _newestUnsavedCopy(fs, filePath, validate) {
+  // ---- A save Windows refused. Windows can refuse to replace a data file
+  // another program holds open (OneDrive, an antivirus); the text is then
+  // written in place, and that write can fail too - before anything is
+  // written (the file stays whole but old) or half-way (the file is cut
+  // short). In both cases:
+  //   - the complete new text stays next to it as
+  //     <name>.unsaved-<date>-<time>.json (written afresh when the temp file
+  //     cannot be renamed), which the start-up sweep never removes;
+  //   - when the file was cut, this panel remembers it, so its next save may
+  //     replace it: its memory holds everything the copy holds;
+  //   - the next load puts the newest such copy back as the data file when
+  //     it is newer than the data file, or when the data file is cut (then
+  //     a copy made up to a minute before the cut counts, and the cut file
+  //     is set aside);
+  //   - a later successful save removes the copies of that file older than
+  //     itself: their data is in the file now (only those exact names, only
+  //     plain files - see _listOwnFiles for the plugin's own files);
+  //   - a newer copy made by this panel replaces its own earlier copies of
+  //     that file made while it is open: it holds everything they hold.
+  var CUT_COPY_WINDOW_MS = 60 * 1000;
+  var _cutByMe = {}; // file path -> stamp of the file this panel cut
+  var _myCopies = {}; // file path -> the copy this panel kept last since it opened
+
+  // This data file's own complete copies, newest first: its .unsaved-
+  // copies, and with `withTemp` also its .tmp- files (left when even the
+  // copy could not be written).
+  function _ownCopies(fs, filePath, withTemp) {
     var slash = filePath.lastIndexOf("/");
-    var dir = filePath.slice(0, slash), prefix = filePath.slice(slash + 1).replace(/\.json$/, "") + ".unsaved-";
+    var dir = filePath.slice(0, slash), name = filePath.slice(slash + 1);
+    var unsavedPrefix = name.replace(/\.json$/, "") + ".unsaved-", tempPrefix = name + ".tmp-";
     var names;
-    try { names = fs.readdirSync(dir); } catch (e) { return null; }
-    names = names.filter(function (n) { return n.indexOf(prefix) === 0 && OWN_UNSAVED_PATTERN.test(n); }).sort().reverse();
+    try { names = fs.readdirSync(dir); } catch (e) { return []; }
+    var found = [];
     for (var i = 0; i < names.length; i++) {
+      var n = names[i];
+      var mine = (n.indexOf(unsavedPrefix) === 0 && OWN_UNSAVED_PATTERN.test(n)) ||
+        (withTemp && n.indexOf(tempPrefix) === 0 && OWN_DATA_TEMP_PATTERN.test(n));
+      if (!mine || _pathKind(fs, dir + "/" + n) !== "file") { continue; }
+      try { found.push({ path: dir + "/" + n, mtime: fs.statSync(dir + "/" + n).mtimeMs }); } catch (e2) { /* gone */ }
+    }
+    return found.sort(function (a, b) { return b.mtime - a.mtime; });
+  }
+  // The newest of them made after `afterMs` that parses and passes
+  // `validate`: { path, value }, or null.
+  function _newestCopyAfter(fs, filePath, afterMs, withTemp, validate) {
+    var found = _ownCopies(fs, filePath, withTemp);
+    for (var j = 0; j < found.length; j++) {
+      if (found[j].mtime <= afterMs) { break; }
       try {
-        var value = JSON.parse(fs.readFileSync(dir + "/" + names[i], "utf8"));
+        var value = JSON.parse(fs.readFileSync(found[j].path, "utf8"));
         if (validate) { validate(value); }
-        return { path: dir + "/" + names[i], value: value };
+        return { path: found[j].path, value: value };
       } catch (e) { /* the next older one */ }
     }
     return null;
+  }
+
+  // Puts a complete copy back as the data file: renamed into place, or
+  // written there and then removed when the rename is refused. If both
+  // fail, the copy stays and its data is still used until the panel closes.
+  function _putCopyBack(fs, filePath, copy) {
+    try {
+      fs.renameSync(copy.path, filePath);
+      return true;
+    } catch (renameErr) {
+      try {
+        var text = fs.readFileSync(copy.path, "utf8");
+        fs.writeFileSync(filePath, text, "utf8");
+        if (fs.readFileSync(filePath, "utf8") === text) {
+          try { fs.unlinkSync(copy.path); } catch (e) { /* removed by the next successful save */ }
+        }
+        return true;
+      } catch (writeErr) {
+        return false;
+      }
+    }
+  }
+
+  // After a successful save: this file's own copies older than it.
+  function _removeOlderCopies(fs, filePath) {
+    var savedAt;
+    try { savedAt = fs.statSync(filePath).mtimeMs; } catch (e) { return; }
+    var found = _ownCopies(fs, filePath, false);
+    for (var i = 0; i < found.length; i++) {
+      if (found[i].mtime < savedAt) {
+        try { fs.unlinkSync(found[i].path); } catch (e2) { /* tried again after the next save */ }
+      }
+    }
+    delete _myCopies[filePath];
+  }
+
+  // Keeps the complete new text of a refused save; returns where, or null.
+  function _keepCompleteCopy(fs, temp, filePath, text) {
+    var kept = _moveToDatedName(fs, temp, filePath, "unsaved");
+    if (!kept) {
+      var target = _freeDatedName(fs, filePath, "unsaved");
+      if (!target) { return null; }
+      try {
+        fs.writeFileSync(target, text, "utf8");
+      } catch (e) {
+        return null; // the .tmp- file still holds it; the sweep keeps it while the data file is cut
+      }
+      try { fs.unlinkSync(temp); } catch (e2) { /* the same text is in the copy */ }
+      kept = target;
+    }
+    var earlier = _myCopies[filePath];
+    if (earlier && earlier !== kept && OWN_UNSAVED_PATTERN.test(earlier.slice(earlier.lastIndexOf("/") + 1)) &&
+        _pathKind(fs, earlier) === "file") {
+      try { fs.unlinkSync(earlier); } catch (e3) { /* removed by the next successful save */ }
+    }
+    _myCopies[filePath] = kept;
+    return kept;
   }
 
   // { existed: false } when there is no file; { existed: true, value }
@@ -372,12 +488,15 @@
       value = JSON.parse(raw);
       if (validate) { validate(value); }
     } catch (parseErr) {
+      var cutMtime = null;
+      try { cutMtime = fs.statSync(filePath).mtimeMs; } catch (e) { /* set aside below or blocked */ }
       var aside = _setAside(fs, filePath);
-      // A save that failed half-way leaves the file cut short and its
-      // complete new copy next to it (see _writeAtomic): that copy is the
-      // data, and the broken file stays set aside.
-      var copy = aside ? _newestUnsavedCopy(fs, filePath, validate) : null;
+      // A save cut short leaves its complete copy next to it (see "A save
+      // Windows refused" above): that copy is the data, and it goes back in
+      // place.
+      var copy = aside && cutMtime !== null ? _newestCopyAfter(fs, filePath, cutMtime - CUT_COPY_WINDOW_MS, true, validate) : null;
       if (copy) {
+        if (_putCopyBack(fs, filePath, copy)) { _removeOlderCopies(fs, filePath); }
         _noteSynced(fs, filePath);
         _gen[filePath] = _generationOf(copy.value);
         return { existed: true, value: copy.value, setAside: aside, recoveredFrom: copy.path };
@@ -389,6 +508,15 @@
         parseErr.blocked = true;
       }
       throw parseErr;
+    }
+    // A refused save may have left a newer complete copy (see "A save
+    // Windows refused"): it is the data, and it goes back in place.
+    var newer = _newestCopyAfter(fs, filePath, fs.statSync(filePath).mtimeMs, false, validate);
+    if (newer) {
+      if (_putCopyBack(fs, filePath, newer)) { _removeOlderCopies(fs, filePath); }
+      _noteSynced(fs, filePath);
+      _gen[filePath] = _generationOf(newer.value);
+      return { existed: true, value: newer.value, recoveredFrom: newer.path };
     }
     _noteSynced(fs, filePath);
     _gen[filePath] = _generationOf(value);
@@ -409,20 +537,26 @@
     } catch (renameErr) {
       // Windows can refuse to replace a file another program holds open;
       // the complete text is then written in place. If that write fails
-      // too, the file may be cut short: the complete copy is then kept as
-      // <name>.unsaved-<date>-<time>.json, which the start-up sweep never
-      // removes and the next load reads when the data file is unreadable.
+      // too, see "A save Windows refused" above.
+      var before = _stamp(fs, filePath);
       try {
         fs.writeFileSync(filePath, text, "utf8");
       } catch (writeErr) {
-        var kept = _moveToDatedName(fs, temp, filePath, "unsaved") || temp;
-        writeErr.message = (writeErr.message || String(writeErr)) + " - the new data is kept in " + kept;
+        var message = writeErr.message || String(writeErr);
+        var after = _statState(fs, filePath);
+        var kept = _keepCompleteCopy(fs, temp, filePath, text);
+        if (after.stamp && after.stamp !== before) { _cutByMe[filePath] = after.stamp; }
+        writeErr.message = message + (kept
+          ? " - the new data is kept in " + kept + "; the next save or start puts it back"
+          : " - the new data is still in " + temp + " and is read back at the next start");
         throw writeErr;
       }
       try { fs.unlinkSync(temp); } catch (e) { /* swept as a stale temp file */ }
     }
+    delete _cutByMe[filePath];
     _noteSynced(fs, filePath);
     _gen[filePath] = generation;
+    _removeOlderCopies(fs, filePath);
   }
 
   // The file's content when another host saved it since this panel last
@@ -453,6 +587,9 @@
       }
       if (stat.stamp === _synced[filePath]) {
         return { changed: false };
+      }
+      if (stat.stamp === _cutByMe[filePath]) {
+        return { changed: false }; // the file this panel cut itself: its next save replaces it
       }
       var value = JSON.parse(fs.readFileSync(filePath, "utf8"));
       var generation = _generationOf(value);
