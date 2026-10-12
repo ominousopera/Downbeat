@@ -26,8 +26,8 @@ Release notes and packages for every version are on the
 
 ### Key
 
-- **Use detected key** shows only when the selected clip's key was set by
-  hand, also right after the panel opens.
+- **Use detected key** sits next to **Detect key** and shows only when the
+  selected clip's key was set by hand, also right after the panel opens.
 
 ### Requirements
 

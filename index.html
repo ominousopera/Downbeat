@@ -470,6 +470,7 @@
     <div class="row"><span class="hint" data-i18n="key.scopeHint">Selected clip uses its source in/out points. Beat analysis and preview still use the whole file.</span></div>
     <div class="row">
       <button id="detectKeyBtn" type="button" class="primary" data-i18n="key.run">Detect key</button>
+      <button id="clearKeyOverrideBtn" type="button" class="ghost" data-i18n="key.overrideReset" hidden>Use detected key</button>
     </div>
 
     <div class="wheel-wrap">
@@ -505,7 +506,6 @@
       <span class="hint" data-i18n="key.overrideLabel">Override</span>
       <input id="keyOverrideInput" type="text" placeholder="8A" style="width:3.5em">
       <button id="applyKeyOverrideBtn" type="button" class="ghost" data-i18n="key.overrideApply">Apply</button>
-      <button id="clearKeyOverrideBtn" type="button" class="ghost" data-i18n="key.overrideReset" hidden>Use detected key</button>
       <span class="hint" data-i18n="key.overrideHint">if you already know the key</span>
     </div>
   </div>
