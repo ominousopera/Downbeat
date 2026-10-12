@@ -24,6 +24,11 @@ Release notes and packages for every version are on the
 - Paste in Premiere Pro adds a copied marker that differs from one already
   on the target only in color; the target's own marker stays.
 
+### Key
+
+- **Use detected key** shows only when the selected clip's key was set by
+  hand, also right after the panel opens.
+
 ### Requirements
 
 - Premiere Pro 2025 (25.0) or After Effects 2025 (25.0) or newer. Earlier

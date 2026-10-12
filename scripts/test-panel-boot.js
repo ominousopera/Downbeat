@@ -64,6 +64,9 @@ const footer = registry.settingsFooterText.textContent;
 check("init() reached its last line", /^v/.test(footer), "footer reads '" + footer.slice(0, 40) + "'");
 check("init() rendered the Camelot wheel", registry.camelotWheel.children.length > 0,
       registry.camelotWheel.children.length + " svg nodes");
+// Before any clip is read there is no key, so no key set by hand to take
+// back.
+check("Use detected key is hidden after the start", registry.clearKeyOverrideBtn.hidden === true);
 // LANGUAGE SWITCHING. The panel boots in Russian. Click the real language
 // buttons in Settings, then read every element the panel shows - markup text,
 // titles, placeholders, and anything the script built at runtime - and look
