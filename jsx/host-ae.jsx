@@ -263,10 +263,11 @@ function dbAeCreateClipMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, re
         return { requested: times.length, created: r.created, skipped: r.skipped, kept: r.kept, replaced: replaced, stored: r.stored };
     });
 }
-// The layer's identity for _dbPlacedTimeline: Layer.id, which exists from
-// After Effects 22.0. Older versions get null and keep composition markers
-// from an earlier Place that are outside the layer: a duplicated layer takes
-// the original's place in the stack, so no other key is safe there.
+// The layer's identity for _dbPlacedTimeline: Layer.id (After Effects 22.0
+// and later; the panel needs 25.0). Without it the answer is null, and
+// composition markers from an earlier Place outside the layer stay: the
+// layer's index is not safe, because a duplicated layer takes the
+// original's index.
 function _dbAeLayerKey(layer) {
     return layer.id !== undefined && layer.id !== null ? layer.id : null;
 }

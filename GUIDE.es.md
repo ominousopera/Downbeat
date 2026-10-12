@@ -7,7 +7,7 @@ de audio en After Effects (música o efectos de sonido). Encuentra el tempo
 y los tiempos, coloca marcadores donde cortar y detecta la tonalidad.
 Todo se ejecuta en tu equipo: nunca se sube nada.
 
-Necesita Premiere Pro 2021 (15.4) o After Effects 2021 (18.4) o posterior
+Necesita Premiere Pro 2025 (25.0) o After Effects 2025 (25.0) o posterior
 (probado en 2026), en macOS 13.5 o posterior (Apple Silicon o Intel) o
 Windows 10 u 11 (x64). Windows en ARM aún no es compatible.
 
@@ -434,7 +434,7 @@ El icono del engranaje, arriba a la derecha:
 
 ## En After Effects
 
-Downbeat también funciona en After Effects 2021 (18.4) o posterior: **Window →
+Downbeat también funciona en After Effects 2025 (25.0) o posterior: **Window →
 Extensions → Downbeat**. Algunas cosas están más limitadas ahí —lo dice
 una nota bajo el encabezado hasta que pulsas **Entendido**— y el trabajo
 con sonido es más cómodo en Premiere Pro. Por lo demás funciona igual,
@@ -448,9 +448,6 @@ con una capa en lugar de un clip:
   composición. Para cortar ahí, **J** y **K** llevan el cursor al
   marcador anterior o siguiente, y **Edit → Split Layer** (⌘⇧D en Mac,
   Ctrl+Mayús+D en Windows) divide la capa en el cursor.
-- Volver a colocar con **Dónde: Línea de tiempo** sustituye los marcadores de
-  composición anteriores de Downbeat para esa capa. En After Effects 2021, los
-  que quedan fuera de la capa después de moverla se mantienen; bórralos a mano.
 - Los marcadores siempre van al inicio del fotograma en el que empieza el
   tiempo: After Effects no tiene Show Audio Time Units, y su cursor y
   Split Layer funcionan en fotogramas enteros, así que aquí no hay ajuste

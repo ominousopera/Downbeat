@@ -7,7 +7,7 @@ layer in After Effects (music or sound effects). It finds the tempo and
 the beats, places markers where to cut, and detects the musical key.
 Everything runs locally on your machine — nothing is ever uploaded.
 
-It needs Premiere Pro 2021 (15.4) or After Effects 2021 (18.4) or newer
+It needs Premiere Pro 2025 (25.0) or After Effects 2025 (25.0) or newer
 (tested on 2026), on macOS 13.5 or newer (Apple Silicon or Intel) or
 Windows 10 or 11 (x64). Windows on Arm is not supported yet.
 
@@ -392,7 +392,7 @@ The gear icon, top right:
 
 ## In After Effects
 
-Downbeat also runs in After Effects 2021 (18.4) or newer: **Window → Extensions →
+Downbeat also runs in After Effects 2025 (25.0) or newer: **Window → Extensions →
 Downbeat**. Some things are more limited there — a note under the header
 says so until you click **Got it** — and sound work is easier in Premiere
 Pro. Otherwise it works the same way, with a layer in place of a clip:
@@ -404,9 +404,6 @@ Pro. Otherwise it works the same way, with a layer in place of a clip:
   To cut there, **J** and **K** jump the playhead to the previous or next
   marker, and **Edit → Split Layer** (⌘⇧D on Mac, Ctrl+Shift+D on Windows)
   splits the layer at the playhead.
-- Placing again with **Place on: Timeline** replaces Downbeat's earlier
-  composition markers for that layer. In After Effects 2021, the ones left
-  outside the layer after you move it stay; delete those by hand.
 - Markers always go on the start of the frame the beat begins in: After
   Effects has no Show Audio Time Units, and its playhead and Split Layer
   work in whole frames, so there is no Timing setting (or Shift) here.

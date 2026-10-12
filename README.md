@@ -10,8 +10,8 @@
 <p align="center">
   <a href="https://github.com/ominousopera/Downbeat/releases/latest"><img alt="release v1.0.4" src="docs/images/badges/release.svg"></a>
   <img alt="license AGPL-3.0" src="docs/images/badges/license.svg">
-  <img alt="Premiere Pro 15.4+" src="docs/images/badges/premiere-pro.svg">
-  <img alt="After Effects 18.4+" src="docs/images/badges/after-effects.svg">
+  <img alt="Premiere Pro 25.0+" src="docs/images/badges/premiere-pro.svg">
+  <img alt="After Effects 25.0+" src="docs/images/badges/after-effects.svg">
   <img alt="macOS 13.5+, Apple Silicon and Intel" src="docs/images/badges/macos.svg">
   <img alt="Windows 10 / 11 x64" src="docs/images/badges/windows.svg">
   <img alt="works offline" src="docs/images/badges/offline.svg">
@@ -183,7 +183,7 @@ shrinks to the sounds that fit it.
 
 ## Install
 
-Needs Premiere Pro 2021 (15.4) or After Effects 2021 (18.4) or newer, tested
+Needs Premiere Pro 2025 (25.0) or After Effects 2025 (25.0) or newer, tested
 on 2026, on macOS 13.5 or newer (Apple Silicon or Intel) or Windows 10 or 11
 (x64). Windows on Arm is not supported yet.
 
@@ -245,8 +245,6 @@ shortlist to audition, not a promise that two sounds will blend.
   - You cut at the markers by hand with **J / K** and **Split Layer**; there is
     no Razor tool snapping to them.
   - A marker keeps only its short label.
-  - In After Effects 2021, placing composition markers again after moving the
-    layer leaves the earlier ones outside it; delete those by hand.
   - Library sounds are added as a new layer; fades become volume keyframes,
     and pitch and reverse are set through Time Stretch.
 
@@ -451,7 +449,7 @@ on, the Razor tool snaps to the markers, so it takes a few clicks per cut.
 <details>
 <summary><b>Which versions are supported?</b></summary>
 
-Premiere Pro 2021 (15.4) and newer and After Effects 2021 (18.4) and newer;
+Premiere Pro 2025 (25.0) and newer and After Effects 2025 (25.0) and newer;
 older versions cannot open the panel. Tested on Premiere Pro and After Effects
 2026. macOS 13.5 or newer (Apple Silicon and Intel), because the analysis runs
 on a bundled Node.js that needs it, and Windows 10 or 11 (x64); Windows on Arm
