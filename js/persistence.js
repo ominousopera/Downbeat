@@ -349,21 +349,6 @@
     var stamp = d.getFullYear() + _two(d.getMonth() + 1) + _two(d.getDate()) + "-" + _two(d.getHours()) + _two(d.getMinutes()) + _two(d.getSeconds());
     return filePath.replace(/\.json$/, "") + "." + tag + "-" + stamp + (n ? "-" + n : "") + ".json";
   }
-  // Moves `from` to a free such name; returns the new path, or null. Only
-  // for when a new file cannot be written (see _keepCompleteCopy).
-  function _moveToDatedName(fs, from, filePath, tag) {
-    for (var i = 0; i < 100; i++) {
-      var target = _datedName(filePath, tag, i);
-      if (fs.existsSync(target)) { continue; }
-      try {
-        fs.renameSync(from, target);
-        return target;
-      } catch (e) {
-        return null;
-      }
-    }
-    return null;
-  }
   // Copies the file `fromFile` (when given and it can be copied) or writes
   // `text` to a new such name. The name is created exclusively, so two
   // hosts doing this in the same second never write over each other's file.
@@ -514,15 +499,14 @@
   }
 
   // Keeps the complete new text of a refused save; returns where, or null
-  // when only its .tmp- file holds it.
+  // when only its .tmp- file holds it. When no new copy can be made, the
+  // temp file stays as it is: its name is its own, while renaming it to a
+  // dated name could go over a copy the other host made in the same second.
   function _keepCompleteCopy(fs, temp, filePath, text) {
     var kept = _writeDatedFile(fs, filePath, "unsaved", text, null);
     var tempLeft = !kept;
     if (kept) {
       try { fs.unlinkSync(temp); } catch (e) { tempLeft = true; }
-    } else {
-      kept = _moveToDatedName(fs, temp, filePath, "unsaved"); // no room for another file: the temp file becomes the copy
-      tempLeft = !kept;
     }
     var where = kept || temp, st, whole = false;
     try {

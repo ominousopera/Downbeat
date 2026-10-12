@@ -854,9 +854,10 @@ function _dbRestorePremiereMarker(marker, transfer) {
     else if (m.type !== "Comment") { throw new Error("Unsupported marker type."); }
 }
 // Whether `markers` already held, before this paste, a marker equal to
-// `transfer`: same start, end, name, comments and type. Markers this paste
-// created are passed in `fresh` and never count, so two source markers that
-// differ only in length both arrive.
+// `transfer`: same start, end, name, comments, type and color. Markers this
+// paste created are passed in `fresh` and never count, so two source markers
+// that differ only in length both arrive, and so does one that differs from
+// a target marker only in color.
 function _dbHasSameMarker(markers, transfer, fresh) {
     var data = transfer.data;
     var m = markers.getFirstMarker();
@@ -868,7 +869,8 @@ function _dbHasSameMarker(markers, transfer, fresh) {
                 Math.abs(end - (transfer.time + transfer.duration)) < 0.0005 &&
                 String(m.name || "") === String(data.label || "") &&
                 String(m.comments || "") === String(data.comments || "") &&
-                (m.type === undefined || data.type === undefined || String(m.type) === String(data.type))) {
+                (m.type === undefined || data.type === undefined || String(m.type) === String(data.type)) &&
+                (data.color === undefined || !m.getColorByIndex || Number(m.getColorByIndex()) === Number(data.color))) {
             return true;
         }
         m = markers.getNextMarker(m);

@@ -19,6 +19,11 @@ Release notes and packages for every version are on the
   **Basic**. The warning comes back when the track's analysis is opened
   again.
 
+### Markers
+
+- Paste in Premiere Pro adds a copied marker that differs from one already
+  on the target only in color; the target's own marker stays.
+
 ### Requirements
 
 - Premiere Pro 2025 (25.0) or After Effects 2025 (25.0) or newer. Earlier

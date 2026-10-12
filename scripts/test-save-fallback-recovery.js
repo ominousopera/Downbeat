@@ -13,9 +13,9 @@
 //   - refused with the file whole: one copy, the newest; a start while the
 //     file is held again writes nothing and still shows the data, and so
 //     does the start after it; that panel's next save removes the copy;
-//   - the copy cannot be written: the temp file becomes the copy; cannot be
-//     renamed either: the temp file stays, the sweep keeps it (file cut or
-//     whole), and the next load takes it in;
+//   - the copy cannot be written: the temp file stays as the copy (never
+//     renamed: the other host may take the same name in the same second),
+//     the sweep keeps it (file cut or whole), and the next load takes it in;
 //   - two panels: a successful save never removes a copy that panel did not
 //     take in; a load takes in every copy (the newest is the data, the
 //     libraries get the others in takeIn); two copies in the same second
@@ -28,7 +28,9 @@
 //     my data in the other host is still noticed; Delete my data removes a
 //     kept copy;
 //   - settings are taken together key by key (settingsChangedAt), so a
-//     refused change in one host and a later save in the other both stay.
+//     refused change in one host and a later save in the other both stay,
+//     also when neither host can make a new copy and both save in the same
+//     second.
 // Run: node scripts/test-save-fallback-recovery.js
 const fs = require("fs");
 const os = require("os");
@@ -43,9 +45,10 @@ function check(label, cond, detail) {
   if (cond) { console.log("ok   " + label); } else { failures++; console.error("FAIL " + label + (detail ? " - " + detail : "")); }
 }
 // One panel: its own copy of persistence.js with its own fs, as each host
-// loads it.
-function freshModule(docs, fsImpl) {
+// loads it; `now` stops its clock (two saves in the same second).
+function freshModule(docs, fsImpl, now) {
   const ctx = { SystemPath: { EXTENSION: "extension", MY_DOCUMENTS: "myDocuments" }, console };
+  if (now) { ctx.Date = class extends Date { constructor(...a) { super(...(a.length ? a : [now])); } static now() { return now; } }; }
   ctx.window = ctx;
   ctx.cep_node = { require: (m) => (m === "fs" ? fsImpl : require(m)) };
   vm.createContext(ctx);
@@ -158,8 +161,9 @@ try {
     // The copy cannot be written; then neither written nor renamed.
     env = setup(150); m = session(env, failingFs(env.file, { inPlace: "cut", copyWrite: true }));
     r = c.save(m.P, m.cs, 151);
-    check(L + "a copy that cannot be written: the temp file becomes the copy", !r.ok && copiesIn(env.dir).length === 1 && tempsIn(env.dir).length === 0 &&
-      c.of(JSON.parse(fs.readFileSync(path.join(env.dir, copiesIn(env.dir)[0]), "utf8"))) === 151, r.error);
+    let temps = tempsIn(env.dir);
+    check(L + "a copy that cannot be written: the temp file stays as the copy", !r.ok && copiesIn(env.dir).length === 0 && temps.length === 1 &&
+      r.error.indexOf(temps[0]) !== -1 && c.of(JSON.parse(fs.readFileSync(path.join(env.dir, temps[0]), "utf8"))) === 151, r.error);
     for (const inPlace of ["cut", "refuse"]) {
       env = setup(160); m = session(env, failingFs(env.file, { inPlace, copyWrite: true, copyRename: true }));
       r = c.save(m.P, m.cs, 161);
@@ -315,6 +319,29 @@ try {
   const dir = path.join(docs, "Downbeat");
   check("settings: the next save, with both in it, removes the copy", next.P.saveSettings(next.cs, r.settings).ok && copiesIn(dir).length === 0 &&
     JSON.parse(fs.readFileSync(file, "utf8")).updateCheck === false);
+
+  // Neither host can make a new copy and both save in the same second, the
+  // other host's copy appearing just after a name was checked: each temp
+  // file stays, none is written over.
+  const docsN = path.join(SP, "settings-no-room");
+  fs.mkdirSync(docsN, { recursive: true });
+  const fileN = path.join(docsN, "Downbeat", "settings.json"), dirN = path.dirname(fileN);
+  const sN = freshModule(docsN, fs);
+  sN.P.saveSettings(sN.cs, { markerTarget: "clip", librarySynonyms: true, settingsChangedAt: { markerTarget: 1000, librarySynonyms: 1000 } });
+  const noRoom = failingFs(fileN, { inPlace: "refuse", copyWrite: true });
+  noRoom.existsSync = (p) => (/\.unsaved-/.test(p) ? false : fs.existsSync(p));
+  const second = Date.now();
+  const hA = freshModule(docsN, noRoom, second), hB = freshModule(docsN, noRoom, second);
+  hA.P.loadSettings(hA.cs); hB.P.loadSettings(hB.cs);
+  const savedB = hB.P.saveSettings(hB.cs, { markerTarget: "clip", librarySynonyms: false, settingsChangedAt: { markerTarget: 1000, librarySynonyms: 2000 } });
+  const savedA = hA.P.saveSettings(hA.cs, { markerTarget: "sequence", librarySynonyms: true, settingsChangedAt: { markerTarget: 3000, librarySynonyms: 1000 } });
+  const left = tempsIn(dirN).concat(copiesIn(dirN));
+  check("settings, no room for a copy in either host: both complete temp files stay", !savedA.ok && !savedB.ok && tempsIn(dirN).length === 2, JSON.stringify(left));
+  for (const n of left) { age(path.join(dirN, n), 120e3); }
+  const nextN = freshModule(docsN, fs);
+  const rN = nextN.P.loadSettings(nextN.cs);
+  check("settings, no room for a copy in either host: the next start has both changes", rN.ok && rN.settings.markerTarget === "sequence" &&
+    rN.settings.librarySynonyms === false, JSON.stringify(rN.settings));
 })();
 if (failures) { console.error("\n" + failures + " check(s) failed"); process.exit(1); }
 console.log("\nA save Windows refuses keeps the data, and only the panel holding it removes the copy");

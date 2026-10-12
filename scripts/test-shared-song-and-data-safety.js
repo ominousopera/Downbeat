@@ -3,7 +3,8 @@
 // (Premiere and After Effects, also After Effects before 22 with a
 // duplicated layer); a data file that briefly cannot be checked is not
 // taken as deleted, and adding a folder afterwards keeps the Library and
-// favorites; Paste keeps two markers that differ only in length; Delete my
+// favorites; Paste keeps two markers that differ only in length, and adds
+// one that differs from a target marker only in color; Delete my
 // data stays done when the deleting host saves new data before the other
 // open host looks.
 // Run: node scripts/test-shared-song-and-data-safety.js
@@ -99,6 +100,27 @@ reusedSong("After Effects");
   check("Paste keeps markers that differ only in length", pasted.ok && JSON.stringify(lengths) === "[1,5]", JSON.stringify(lengths));
   const again = JSON.parse(host.run("pasteMarkersData(" + arg(copied) + "," + arg(info) + ")"));
   check("... and pasting again adds none", again.ok && target.list.length === 2 && again.data.kept === 2, JSON.stringify(again.data));
+})();
+
+// ---- Two markers at one time, different colors, one already on the target ----
+(function () {
+  const fake = mocks.makePremiereHost({ mediaPath: "/synthetic/Source.wav", durationSec: 10 });
+  const host = mocks.loadHost(fake.context);
+  function marker(collection, color) {
+    const m = collection.createMarker(2); m.name = "Section"; m.end = 3; m.type = "Comment";
+    m.setColorByIndex(color); m.getColorByIndex = function () { return this.colorIndex; };
+    return m;
+  }
+  marker(fake.clipMarkers, 0); marker(fake.clipMarkers, 1);
+  const copied = JSON.parse(host.run("getMarkersDataForSelectedClip()")).data;
+  const target = new mocks.MarkerCollection();
+  marker(target, 0);
+  fake.audioTrack.clips[0].projectItem = { name: "Target.wav", getMediaPath: function () { return "/synthetic/Target.wav"; }, getMarkers: function () { return target; } };
+  const info = JSON.parse(host.run("getSelectedAudioInfo()")).data;
+  const pasted = JSON.parse(host.run("pasteMarkersData(" + arg(copied) + "," + arg(info) + ")"));
+  const colors = target.list.map(function (m) { return m.colorIndex; }).sort();
+  check("Paste adds a marker that differs from the target's only in color, and keeps the target's",
+    pasted.ok && JSON.stringify(colors) === "[0,1]" && pasted.data.kept === 1, JSON.stringify(pasted.data) + " " + JSON.stringify(colors));
 })();
 
 (async function () {
