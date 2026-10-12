@@ -142,10 +142,16 @@ Re-verify (diff and rehash) before any change.
   `scripts/fetch-beatthis-runtime.sh` verifies both against these hashes.
 - Size: about 22.9 MB (`beat_this_own_export.onnx`) and 264 KB
   (`mel_spectrogram.onnx`), one copy for all platforms.
+- Code from the same project, same MIT license: `worker/beatthis-pipeline.js`
+  ports upstream's `inference.py` chunking and the "minimal" peak picking of
+  `model/postprocessor.py`; `worker/beatthis-bars.js` converts the two model
+  outputs for its bar decoder the way `postprocessor.py` does (the decoder
+  itself is written from Krebs, Böck & Widmer, ISMIR 2015, and Böck, Krebs
+  & Widmer, ISMIR 2016).
 - Why bundled: the model files that `worker/beatthis-worker.js` runs
   through the onnxruntime-web runtime above. They give the beat and
-  downbeat positions; the tempo (BPM) comes from essentia, which also
-  helps pick the beat that counts as the "1".
+  downbeat positions (the "1"s counted over the whole song by
+  `worker/beatthis-bars.js`); the tempo (BPM) comes from essentia.
 
 ## js/ucs-data.js (Universal Category System list, for the Library search)
 

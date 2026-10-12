@@ -118,6 +118,8 @@ node "$HERE/scripts/test-even-out.js" > /dev/null 2>&1 \
   || { echo "  even-out test FAILED - run: node scripts/test-even-out.js"; exit 1; }
 node "$HERE/scripts/test-thin-downbeats.js" > /dev/null 2>&1 \
   || { echo "  close-downbeats test FAILED - run: node scripts/test-thin-downbeats.js"; exit 1; }
+node "$HERE/scripts/test-beatthis-bars.js" > /dev/null 2>&1 \
+  || { echo "  bar decoder test FAILED - run: node scripts/test-beatthis-bars.js"; exit 1; }
 node "$HERE/scripts/test-lib-preview.js" > /dev/null 2>&1 \
   || { echo "  Library preview pane test FAILED - run: node scripts/test-lib-preview.js"; exit 1; }
 echo "  host and marker tests passed"
@@ -154,7 +156,7 @@ node "$HERE/scripts/test-library-tab.js" > /dev/null 2>&1 \
   || { echo "  Library tab test FAILED - run: node scripts/test-library-tab.js"; exit 1; }
 node "$HERE/scripts/test-update-check.js" > /dev/null 2>&1 \
   || { echo "  Update notice test FAILED - run: node scripts/test-update-check.js"; exit 1; }
-for CHECK in test-update-state test-library-input test-analysis-stale test-file-identity test-analysis-cache test-analysis-cache-real test-key-confirmation test-key-scope test-playback-pitch test-key-adaptive test-beat-source-identity test-beat-preview test-library-backup-safety test-downbeat-input test-metronome test-native-phase test-audio-output-ui test-worker-errors test-marker-selection-race test-marker-transfer test-marker-transfer-hosts test-library-sync-safety test-library-scan-write-failure test-library-cancel-decode test-preview-file-replacement test-marker-editor-safety test-library-user-data test-saved-data-safety test-phase-shift-undo test-insert-length-safety test-editing-scenarios test-shared-song-and-data-safety; do
+for CHECK in test-update-state test-library-input test-analysis-stale test-file-identity test-analysis-cache test-analysis-cache-real test-key-confirmation test-key-scope test-playback-pitch test-key-adaptive test-beat-source-identity test-beat-preview test-library-backup-safety test-downbeat-input test-metronome test-native-phase test-audio-output-ui test-worker-errors test-marker-selection-race test-marker-transfer test-marker-transfer-hosts test-library-sync-safety test-library-scan-write-failure test-library-cancel-decode test-preview-file-replacement test-marker-editor-safety test-library-user-data test-saved-data-safety test-phase-shift-undo test-insert-length-safety test-editing-scenarios test-shared-song-and-data-safety test-save-fallback-recovery; do
   node "$HERE/scripts/$CHECK.js" > /dev/null 2>&1 \
     || { echo "  $CHECK FAILED"; exit 1; }
 done
@@ -279,7 +281,7 @@ find "$STAGE" -name '__MACOSX' -prune -exec rm -rf {} +
 if [ "${STRIP_COMMENTS:-0}" = "1" ]; then
   node "$HERE/scripts/strip-comments.js" "$STAGE" \
     || { echo "  comment stripping FAILED - not building"; exit 1; }
-  for t in test-panel-boot test-host-ae test-host-insert test-self-test test-worker-smoke test-lib-preview test-library-tab test-update-check test-analysis-stale test-file-identity test-analysis-cache test-analysis-cache-real test-key-confirmation test-key-scope test-playback-pitch test-key-adaptive test-beat-source-identity test-analyze-pipeline test-marker-selection-race test-marker-transfer test-marker-transfer-hosts test-library-sync-safety test-library-scan-write-failure test-library-cancel-decode test-preview-file-replacement test-marker-editor-safety test-library-user-data test-saved-data-safety test-phase-shift-undo test-insert-length-safety test-editing-scenarios test-shared-song-and-data-safety; do
+  for t in test-panel-boot test-host-ae test-host-insert test-self-test test-worker-smoke test-lib-preview test-library-tab test-update-check test-analysis-stale test-file-identity test-analysis-cache test-analysis-cache-real test-key-confirmation test-key-scope test-playback-pitch test-key-adaptive test-beat-source-identity test-analyze-pipeline test-marker-selection-race test-marker-transfer test-marker-transfer-hosts test-library-sync-safety test-library-scan-write-failure test-library-cancel-decode test-preview-file-replacement test-marker-editor-safety test-library-user-data test-saved-data-safety test-phase-shift-undo test-insert-length-safety test-editing-scenarios test-shared-song-and-data-safety test-save-fallback-recovery; do
     DOWNBEAT_ROOT="$STAGE" node "$HERE/scripts/$t.js" > /dev/null 2>&1 \
       || { echo "  $t FAILED on the stripped release copy - rerun it with DOWNBEAT_ROOT set to a staged copy"; exit 1; }
   done

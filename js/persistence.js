@@ -48,6 +48,10 @@
   // be read (_setAside). Both are this plugin's own.
   var OWN_DATA_TEMP_PATTERN = /^(library|settings|sound-library)\.json\.tmp-[0-9]+-[0-9]+$/;
   var OWN_SET_ASIDE_PATTERN = /^(library|settings|sound-library)\.unreadable-[0-9]{8}-[0-9]{6}(-[0-9]+)?\.json$/;
+  // The complete new copy of a data file whose save failed half-way
+  // (_writeAtomic): kept, never swept, read back by the next load when the
+  // data file itself is unreadable.
+  var OWN_UNSAVED_PATTERN = /^(library|settings|sound-library)\.unsaved-[0-9]{8}-[0-9]{6}(-[0-9]+)?\.json$/;
   // The start-up sweep leaves younger temp files alone: Premiere and After
   // Effects can both run Downbeat on one Documents/Downbeat, and a panel
   // starting in one must not remove files the other is still using.
@@ -105,7 +109,8 @@
         continue; // looked at on its own below
       }
       var full = dataDir + "/" + names[i];
-      var ownData = ownDataNames.indexOf(names[i]) !== -1 || OWN_SET_ASIDE_PATTERN.test(names[i]);
+      var ownData = ownDataNames.indexOf(names[i]) !== -1 || OWN_SET_ASIDE_PATTERN.test(names[i]) ||
+        OWN_UNSAVED_PATTERN.test(names[i]);
       if (((includeDataFiles && ownData) || OWN_DATA_TEMP_PATTERN.test(names[i])) && _pathKind(fs, full) === "file") {
         listing.files.push(full);
       } else {
@@ -299,21 +304,44 @@
   }
 
   function _two(n) { return (n < 10 ? "0" : "") + n; }
-  function _setAside(fs, filePath) {
+  // Moves `from` to <data file>.<tag>-<date>-<time>.json next to the data
+  // file, never over an existing file; returns the new path, or null.
+  function _moveToDatedName(fs, from, filePath, tag) {
     var d = new Date();
     var stamp = d.getFullYear() + _two(d.getMonth() + 1) + _two(d.getDate()) + "-" + _two(d.getHours()) + _two(d.getMinutes()) + _two(d.getSeconds());
-    var base = filePath.replace(/\.json$/, "") + ".unreadable-" + stamp;
+    var base = filePath.replace(/\.json$/, "") + "." + tag + "-" + stamp;
     for (var i = 0; i < 100; i++) {
       var target = base + (i ? "-" + i : "") + ".json";
       if (fs.existsSync(target)) {
         continue;
       }
       try {
-        fs.renameSync(filePath, target);
+        fs.renameSync(from, target);
         return target;
       } catch (e) {
         return null;
       }
+    }
+    return null;
+  }
+  function _setAside(fs, filePath) {
+    return _moveToDatedName(fs, filePath, filePath, "unreadable");
+  }
+
+  // The newest <data file>.unsaved-*.json that parses and passes
+  // `validate`: { path, value }, or null.
+  function _newestUnsavedCopy(fs, filePath, validate) {
+    var slash = filePath.lastIndexOf("/");
+    var dir = filePath.slice(0, slash), prefix = filePath.slice(slash + 1).replace(/\.json$/, "") + ".unsaved-";
+    var names;
+    try { names = fs.readdirSync(dir); } catch (e) { return null; }
+    names = names.filter(function (n) { return n.indexOf(prefix) === 0 && OWN_UNSAVED_PATTERN.test(n); }).sort().reverse();
+    for (var i = 0; i < names.length; i++) {
+      try {
+        var value = JSON.parse(fs.readFileSync(dir + "/" + names[i], "utf8"));
+        if (validate) { validate(value); }
+        return { path: dir + "/" + names[i], value: value };
+      } catch (e) { /* the next older one */ }
     }
     return null;
   }
@@ -345,6 +373,15 @@
       if (validate) { validate(value); }
     } catch (parseErr) {
       var aside = _setAside(fs, filePath);
+      // A save that failed half-way leaves the file cut short and its
+      // complete new copy next to it (see _writeAtomic): that copy is the
+      // data, and the broken file stays set aside.
+      var copy = aside ? _newestUnsavedCopy(fs, filePath, validate) : null;
+      if (copy) {
+        _noteSynced(fs, filePath);
+        _gen[filePath] = _generationOf(copy.value);
+        return { existed: true, value: copy.value, setAside: aside, recoveredFrom: copy.path };
+      }
       if (aside) {
         parseErr.setAside = aside;
       } else {
@@ -371,12 +408,18 @@
       fs.renameSync(temp, filePath);
     } catch (renameErr) {
       // Windows can refuse to replace a file another program holds open;
-      // the complete text is then written in place.
+      // the complete text is then written in place. If that write fails
+      // too, the file may be cut short: the complete copy is then kept as
+      // <name>.unsaved-<date>-<time>.json, which the start-up sweep never
+      // removes and the next load reads when the data file is unreadable.
       try {
         fs.writeFileSync(filePath, text, "utf8");
-      } finally {
-        try { fs.unlinkSync(temp); } catch (e) { /* swept as a stale temp file */ }
+      } catch (writeErr) {
+        var kept = _moveToDatedName(fs, temp, filePath, "unsaved") || temp;
+        writeErr.message = (writeErr.message || String(writeErr)) + " - the new data is kept in " + kept;
+        throw writeErr;
       }
+      try { fs.unlinkSync(temp); } catch (e) { /* swept as a stale temp file */ }
     }
     _noteSynced(fs, filePath);
     _gen[filePath] = generation;
@@ -462,6 +505,7 @@
           confidence: e.confidence,
           phase: e.phase,
           downbeatTimes: e.downbeatTimes || null,
+          barsUnsure: typeof e.barsUnsure === "boolean" ? e.barsUnsure : null,
           fileIdentity: e.fileIdentity || null,
           detectedKey: e.detectedKey || null,
           confirmedKey: e.confirmedKey || null,
@@ -497,7 +541,8 @@
           throw new Error("library.json did not contain a JSON array.");
         }
       });
-      return { ok: true, entries: read.existed ? read.value : [], path: filePath, existed: read.existed };
+      return { ok: true, entries: read.existed ? read.value : [], path: filePath, existed: read.existed,
+        recoveredFrom: read.recoveredFrom || null, setAside: read.setAside || null };
     } catch (e) {
       return _loadFailure(e);
     }
@@ -544,7 +589,8 @@
           throw new Error("settings.json did not contain a JSON object.");
         }
       });
-      return { ok: true, settings: (read.existed && read.value) || {}, path: filePath, existed: read.existed };
+      return { ok: true, settings: (read.existed && read.value) || {}, path: filePath, existed: read.existed,
+        recoveredFrom: read.recoveredFrom || null, setAside: read.setAside || null };
     } catch (e) {
       return _loadFailure(e);
     }
@@ -582,7 +628,8 @@
           throw new Error("sound-library.json did not contain a JSON object.");
         }
       });
-      return { ok: true, state: read.existed ? read.value : null, path: filePath, existed: read.existed };
+      return { ok: true, state: read.existed ? read.value : null, path: filePath, existed: read.existed,
+        recoveredFrom: read.recoveredFrom || null, setAside: read.setAside || null };
     } catch (e) {
       return _loadFailure(e);
     }

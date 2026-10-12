@@ -127,7 +127,7 @@ should go too.
 
 | Where | What |
 |---|---|
-| `CSXS/manifest.xml` | the CEP manifest (CSXS 11, so Premiere Pro and After Effects 2021+; Node on) |
+| `CSXS/manifest.xml` | the CEP manifest (CSXS 11, so Premiere Pro 15.4+ and After Effects 18.4+; Node on) |
 | `index.html`, `css/style.css` | the panel's markup and its one stylesheet |
 | `js/main.js` | starts the panel; Analyze and Key tabs; selection poll; shared state |
 | `js/bridge.js` | calls into the host scripts and runs the analysis workers |

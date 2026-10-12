@@ -118,6 +118,10 @@
     // Beat This! downbeats when they drive placement (null for an
     // essentia-only grid).
     entry.downbeatTimes = analysisData.downbeatTimes || null;
+    // Whether the bar decoder was unsure where those bars start: kept with
+    // them, so the warning row comes back with the saved grid. null = no
+    // decoded bars (an essentia grid, or an older saved entry).
+    entry.barsUnsure = entry.downbeatTimes && typeof analysisData.barsUnsure === "boolean" ? analysisData.barsUnsure : null;
 
     var clipInfoChanged = false;
     if (previousClipInfo && analysisData.clipInfo &&
@@ -268,6 +272,7 @@
       entry.bpm = typeof entry.bpm === "number" && isFinite(entry.bpm) && entry.bpm > 0 ? entry.bpm : null;
       entry.beatsArray = entry.bpm ? validTimes(entry.beatsArray) : null;
       entry.downbeatTimes = entry.beatsArray ? validTimes(entry.downbeatTimes) : null;
+      entry.barsUnsure = entry.downbeatTimes && typeof entry.barsUnsure === "boolean" ? entry.barsUnsure : null;
       entry.confidence = typeof entry.confidence === "number" && isFinite(entry.confidence) ? entry.confidence : null;
       entry.phase = Number.isInteger(entry.phase) && entry.phase >= 0 && entry.phase <= 3 ? entry.phase : 0;
       var slots = [entry].concat(Array.isArray(entry.intervalKeys) ? entry.intervalKeys.slice(-12) : []);

@@ -235,6 +235,11 @@
     }
     if (fresh.deleted) {
       initialSettings = {}; // Delete my data ran in the other host: start from defaults
+      // Only the first file read after it reports the deletion, and that
+      // can be this one: the libraries in memory must go too, or their next
+      // save would take the other host's new file in and write the deleted
+      // entries back with it.
+      _library.dataDeletedElsewhere();
     }
     var base = fresh.changed && fresh.value && typeof fresh.value === "object" && !Array.isArray(fresh.value) ? fresh.value : initialSettings;
     var merged = {};
@@ -495,6 +500,10 @@
   } else {
     askAboutUpdateNotice(function () {});
   }
+  if (loadedSettings.ok && loadedSettings.recoveredFrom) {
+    log("settings.json was cut short by a save that failed; its last complete copy was used (" +
+        loadedSettings.recoveredFrom + "), the damaged file is kept as " + loadedSettings.setAside + ".");
+  }
   if (_settingsLoadProblem) {
     log("WARNING: could not read settings.json (" + _settingsLoadProblem.error + ")" +
         (_settingsLoadProblem.setAside ? " - kept as " + _settingsLoadProblem.setAside + "; starting with default settings." :
@@ -523,6 +532,10 @@
     }
     window.BeatMarkerLibrary.loadEntries(result.entries);
     log("Loaded " + result.entries.filter(function (e) { return e && e.mediaPath; }).length + " track(s) from a previous session (" + result.path + ").");
+    if (result.recoveredFrom) {
+      log("The track library file was cut short by a save that failed; its last complete copy was used (" +
+          result.recoveredFrom + "), the damaged file is kept as " + result.setAside + ".");
+    }
   })();
   loadSoundLibrary();
   // HOST AND WORKER CALLS: js/bridge.js. _bridge is made right after
@@ -874,19 +887,25 @@
   var retempoHalfBtn = document.getElementById("retempoHalfBtn");
   var retempoDoubleBtn = document.getElementById("retempoDoubleBtn");
   var PHASE_MARGIN_UNCERTAIN_THRESHOLD = 0.18;
-  // The same row also warns when the second detector's "1" markers are
-  // uneven (downbeatsLookUneven in js/cuesheet.js): its grids have no
-  // margin, so the margin line never shows for them. The text points to
-  // the Basic grid and the "1" buttons, the usual way out on such tracks.
+  // The same row also warns when the second detector was unsure where the
+  // bars start: its grids have no margin, so the margin line never shows
+  // for them. barsUnsure is set where Beat This! is applied (see
+  // _runBeatThisOnCurrentAnalysis) and saved with the library entry.
+  // Analyses without it (the bar decoder did not run, or an older saved
+  // entry) fall back to the uneven-"1"s test (downbeatsLookUneven in
+  // js/cuesheet.js) on the placed "1"s. The text asks to listen and points
+  // to the "1" buttons first, then to the Basic grid.
   var phaseUncertainHint = document.getElementById("phaseUncertainHint");
   function _updatePhaseUncertainHint(marginRatio) {
     var uncertain = typeof marginRatio === "number" && marginRatio < PHASE_MARGIN_UNCERTAIN_THRESHOLD;
-    var uneven = !uncertain && !!lastAnalysis && !!lastAnalysis.downbeatTimes &&
-      window.BeatMarkerCuesheet.downbeatsLookUneven(lastAnalysis.downbeatTimes);
-    var key = uneven ? "analyze.downbeatsUneven" : "analyze.phaseUncertain";
+    var barsUnsure = !uncertain && !!lastAnalysis && !!lastAnalysis.downbeatTimes &&
+      (typeof lastAnalysis.barsUnsure === "boolean"
+        ? lastAnalysis.barsUnsure
+        : window.BeatMarkerCuesheet.downbeatsLookUneven(lastAnalysis.downbeatTimes));
+    var key = barsUnsure ? "analyze.barsUnsure" : "analyze.phaseUncertain";
     phaseUncertainHint.setAttribute("data-i18n", key);
     setTranslatedText(phaseUncertainHint, key);
-    phaseUncertainRow.style.display = (uncertain || uneven) ? "" : "none";
+    phaseUncertainRow.style.display = (uncertain || barsUnsure) ? "" : "none";
   }
   var GRID_CONFIDENCE_LOW_THRESHOLD = 1.0;
   function _updateGridConfidenceHint(confidence) {
@@ -1292,7 +1311,8 @@
     if (entry && entry.beatsArray) {
       window.BeatMarkerLibrary.upsertAnalysis(lastAnalysis.audioPath, entry.label, {
         bpm: entry.bpm, beatsArray: lastAnalysis.beatsArray, confidence: lastAnalysis.confidence,
-        phase: phase, downbeatTimes: lastAnalysis.downbeatTimes, clipInfo: lastAnalysis.clipInfo
+        phase: phase, downbeatTimes: lastAnalysis.downbeatTimes, barsUnsure: lastAnalysis.barsUnsure,
+        clipInfo: lastAnalysis.clipInfo
       });
       persistLibrary();
     }
@@ -1533,7 +1553,7 @@
   var BEAT_FIELD_KEYS = [
     "beatsArray", "downbeatTimes", "phase", "phaseMarginRatio", "phaseSource",
     "bassPhase", "bassPhaseMarginRatio", "chordPhase", "chordPhaseMarginRatio",
-    "chordPhaseAvailable", "phaseAgreement", "chordChangeEvents", "tempoChangeRegions"
+    "chordPhaseAvailable", "phaseAgreement", "chordChangeEvents", "tempoChangeRegions", "barsUnsure"
   ];
   function _snapshotBeatFields(analysis) {
     var snapshot = {};
@@ -1562,6 +1582,7 @@
         confidence: lastAnalysis.confidence,
         phase: lastAnalysis.phase,
         downbeatTimes: lastAnalysis.downbeatTimes,
+        barsUnsure: lastAnalysis.barsUnsure,
         clipInfo: clipInfo
       }
     );
@@ -1604,13 +1625,19 @@
             " < " + BEATTHIS_MIN_MEAN_PEAK_LOGIT + ") - keeping the original grid."
           );
         }
-        // downbeatTimes come from the same inference that produced newBeats.
-        var rawDownbeatTimes = btResult.downbeatTimes || [];
-        if (rawDownbeatTimes.length < 2) {
+        // downbeatTimes come from the same inference that produced newBeats:
+        // the "1"s counted over the whole song (worker/beatthis-bars.js), or
+        // the model's own when that did not run. The guard below looks at
+        // the model's own "1"s.
+        var modelDownbeatTimes = btResult.modelDownbeatTimes || btResult.downbeatTimes || [];
+        if (modelDownbeatTimes.length < 2) {
           throw new Error(
-            "found too few native downbeats (" + rawDownbeatTimes.length + ") - keeping the original grid."
+            "found too few native downbeats (" + modelDownbeatTimes.length + ") - keeping the original grid."
           );
         }
+        var rawDownbeatTimes = btResult.downbeatTimes && btResult.downbeatTimes.length >= 2
+          ? btResult.downbeatTimes
+          : modelDownbeatTimes;
         var densityRatio = window.BeatMarkerCuesheet.computeGridDensityRatio(originalBeatsArray, newBeats);
         var halfTimeCorrected = densityRatio !== null &&
           densityRatio >= BEATTHIS_DENSITY_RATIO_HALF_MIN && densityRatio <= BEATTHIS_DENSITY_RATIO_HALF_MAX;
@@ -1622,12 +1649,19 @@
         // beatsArray members and would only add noise to the vote.
         var nativePhase = window.BeatMarkerCuesheet.computeNativeDownbeatPhase(newBeats, rawDownbeatTimes);
         // Regularity of the model's own downbeats (see
-        // computeDownbeatRegularity() in js/cuesheet.js), on the final
-        // (possibly interpolated) downbeatTimes before the thinning below.
-        var regularity = window.BeatMarkerCuesheet.computeDownbeatRegularity(finalDownbeatTimes);
+        // computeDownbeatRegularity() in js/cuesheet.js), logged on the
+        // model's own "1"s: the decoded ones are even by construction.
+        var regularity = window.BeatMarkerCuesheet.computeDownbeatRegularity(modelDownbeatTimes);
         // A "1" less than 1.5 beats after another is dropped
         // (thinCloseDownbeats in js/cuesheet.js).
         var thinned = window.BeatMarkerCuesheet.thinCloseDownbeats(newBeats, finalDownbeatTimes);
+        // The warning row (_updatePhaseUncertainHint): the decoder's own
+        // "unsure" flag, or the model's own "1"s, placed the same way, too
+        // uneven (downbeatsLookUneven).
+        var modelUneven = window.BeatMarkerCuesheet.downbeatsLookUneven(
+          window.BeatMarkerCuesheet.thinCloseDownbeats(newBeats, halfTimeCorrected
+            ? window.BeatMarkerCuesheet.interpolateDownbeatMidpoints(modelDownbeatTimes)
+            : modelDownbeatTimes).times);
         return {
           newBeats: newBeats,
           downbeatTimes: thinned.times,
@@ -1635,6 +1669,10 @@
           nativePhase: nativePhase !== null ? nativePhase : 0,
           halfTimeCorrected: halfTimeCorrected,
           regularity: regularity,
+          barsDecoded: btResult.barsDecoded === true,
+          // null when the decoder did not run: the warning row then tests
+          // the placed "1"s for unevenness.
+          barsUnsure: btResult.barsDecoded === true ? (btResult.barsUnsure === true || modelUneven) : null,
           tempoChangeRegions: []
         };
       })
@@ -1664,18 +1702,23 @@
           chordPhaseAvailable: false,
           phaseAgreement: "native",
           chordChangeEvents: [],
-          tempoChangeRegions: merged.tempoChangeRegions
+          tempoChangeRegions: merged.tempoChangeRegions,
+          barsUnsure: merged.barsUnsure
         }, audioPath, clipInfo);
         log("Alternative analysis applied: " + merged.newBeats.length + " beats, " +
             merged.downbeatTimes.length + " native downbeats" +
             (merged.halfTimeCorrected ? " (half-time grid corrected)" : "") + ".");
+        log(merged.barsDecoded
+          ? "Bars counted over the whole song: " + merged.downbeatTimes.length + " \"1\" markers" +
+            (merged.barsUnsure ? " (the model was unsure where the bars start)." : ".")
+          : "Bars: kept the model's own \"1\" markers (the bars could not be counted over this song).");
         if (merged.thinnedCount) {
           log("Removed " + merged.thinnedCount + " \"1\" markers that came less than 1.5 beats after another.");
         }
         if (merged.regularity) {
-          // Logged for the record; the warning row reads the placed
-          // (thinned) downbeats instead - see _updatePhaseUncertainHint.
-          log("Native downbeat spacing regularity: " +
+          // Logged for the record, on the model's own "1"s; the warning
+          // row reads barsUnsure instead - see _updatePhaseUncertainHint.
+          log("Model's own downbeat spacing regularity: " +
               Math.round((1 - merged.regularity.deviatingFraction) * 100) + "% of " +
               merged.regularity.intervalCount + " intervals within 20% of the median (" +
               merged.regularity.medianIntervalSec.toFixed(3) + "s).");
@@ -1819,6 +1862,7 @@
             confidence: libraryEntryBefore.confidence,
             phase: libraryEntryBefore.phase,
             downbeatTimes: libraryEntryBefore.downbeatTimes,
+            barsUnsure: libraryEntryBefore.barsUnsure,
             clipInfo: libraryEntryBefore.clipInfo
           } : null,
           libraryHadOtherData: !!(libraryEntryBefore && libraryEntryBefore.camelot)
@@ -1944,7 +1988,7 @@
     var upsertResult = window.BeatMarkerLibrary.upsertAnalysis(
       lastAnalysis.audioPath, basename(lastAnalysis.audioPath),
       { bpm: newBpm, beatsArray: analysis.beatsArray, confidence: analysis.confidence, phase: analysis.phase,
-        downbeatTimes: lastAnalysis.downbeatTimes, clipInfo: lastAnalysis.clipInfo }
+        downbeatTimes: lastAnalysis.downbeatTimes, barsUnsure: lastAnalysis.barsUnsure, clipInfo: lastAnalysis.clipInfo }
     );
     if (upsertResult.clipInfoChanged) {
       log("Note: " + basename(lastAnalysis.audioPath) + " was previously analyzed on a different track/position " +
@@ -2017,7 +2061,8 @@
     window.BeatMarkerLibrary.upsertAnalysis(
       lastAnalysis.audioPath, basename(lastAnalysis.audioPath),
       { bpm: parseFloat(bpmText), beatsArray: lastAnalysis.beatsArray, confidence: lastAnalysis.confidence,
-        phase: lastAnalysis.phase, downbeatTimes: lastAnalysis.downbeatTimes, clipInfo: lastAnalysis.clipInfo }
+        phase: lastAnalysis.phase, downbeatTimes: lastAnalysis.downbeatTimes, barsUnsure: lastAnalysis.barsUnsure,
+        clipInfo: lastAnalysis.clipInfo }
     );
     renderLibrary();
     persistLibrary();
@@ -3069,7 +3114,10 @@
         // as a fresh analysis (thinning thinned times changes nothing).
         downbeatTimes: entry.downbeatTimes && entry.downbeatTimes.length
           ? window.BeatMarkerCuesheet.thinCloseDownbeats(entry.beatsArray, entry.downbeatTimes).times
-          : null
+          : null,
+        // The saved warning flag of decoded bars; null for older entries,
+        // which then get the uneven test (see _updatePhaseUncertainHint).
+        barsUnsure: typeof entry.barsUnsure === "boolean" ? entry.barsUnsure : null
       };
       _updatePhaseShiftUi();
       _setBpmText(entry.bpm.toFixed(2));

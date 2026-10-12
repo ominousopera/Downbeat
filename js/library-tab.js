@@ -79,6 +79,10 @@
       var loaded = window.BeatMarkerPersistence.loadSoundLibrary(ctx.csInterface());
       if (loaded.ok) {
         SL.loadState(loaded.state);
+        if (loaded.recoveredFrom) {
+          log("The folder library file was cut short by a save that failed; its last complete copy was used (" +
+              loaded.recoveredFrom + "), the damaged file is kept as " + loaded.setAside + ".");
+        }
       } else {
         log("WARNING: could not read the folder library (" + loaded.error + ")" +
             (loaded.setAside ? " - kept as " + loaded.setAside + "; starting empty." : " - it is left as it is and not saved over until the host restarts."));

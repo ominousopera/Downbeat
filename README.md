@@ -10,10 +10,10 @@
 <p align="center">
   <a href="https://github.com/ominousopera/Downbeat/releases/latest"><img alt="release v1.0.4" src="docs/images/badges/release.svg"></a>
   <img alt="license AGPL-3.0" src="docs/images/badges/license.svg">
-  <img alt="Premiere Pro 2021+" src="docs/images/badges/premiere-pro.svg">
-  <img alt="After Effects 2021+" src="docs/images/badges/after-effects.svg">
-  <img alt="macOS Apple Silicon and Intel" src="docs/images/badges/macos.svg">
-  <img alt="Windows x64" src="docs/images/badges/windows.svg">
+  <img alt="Premiere Pro 15.4+" src="docs/images/badges/premiere-pro.svg">
+  <img alt="After Effects 18.4+" src="docs/images/badges/after-effects.svg">
+  <img alt="macOS 13.5+, Apple Silicon and Intel" src="docs/images/badges/macos.svg">
+  <img alt="Windows 10 / 11 x64" src="docs/images/badges/windows.svg">
   <img alt="works offline" src="docs/images/badges/offline.svg">
 </p>
 
@@ -183,6 +183,10 @@ shrinks to the sounds that fit it.
 
 ## Install
 
+Needs Premiere Pro 2021 (15.4) or After Effects 2021 (18.4) or newer, tested
+on 2026, on macOS 13.5 or newer (Apple Silicon or Intel) or Windows 10 or 11
+(x64). Windows on Arm is not supported yet.
+
 1. Download the `.zxp` for your system (`-mac` or `-win`) from the
    [latest release](https://github.com/ominousopera/Downbeat/releases/latest).
 2. Drag it onto [ZXP Installer](https://aescripts.com/zxpinstaller/) (free),
@@ -233,7 +237,7 @@ shortlist to audition, not a promise that two sounds will blend.
   (for example FLAC and OGG in Premiere Pro) can be scanned and previewed in the
   Library, but not inserted.
 - **After Effects.** Downbeat is built around Premiere Pro, where every feature
-  is available. After Effects 2021 and up has a smaller set:
+  is available. After Effects has a smaller set:
   - Markers go on whole video frames only: no sample-accurate **Exact** timing
     and no **Shift**.
   - Constant positive Time Stretch is supported for analysis and markers.
@@ -334,8 +338,10 @@ downbeats (the first beat of each bar). Downbeat uses the network's result only
 if it passes checks against the first one (for example, it must not hear the
 track at half or double speed); otherwise the classic result stays. With the
 classic detector the first beat of a bar is chosen by weighing the low-end
-energy and the chord changes at each beat; with the network it comes from the
-network itself. The beat times are then evened out along the local tempo line,
+energy and the chord changes at each beat; with the network, the bars are
+counted over the whole song from the network's own scores for every moment
+(the bar-tracking method of Krebs, Böck and Widmer), so the "1" comes every four
+beats instead of jumping to a loud beat. The beat times are then evened out along the local tempo line,
 corrected for the detectors' delay, and every marker is placed at the start of
 the video frame its beat falls in (or at the exact time, in Premiere Pro with
 **Timing → Exact**).
@@ -443,9 +449,11 @@ on, the Razor tool snaps to the markers, so it takes a few clicks per cut.
 <details>
 <summary><b>Which versions are supported?</b></summary>
 
-Premiere Pro 2021 and newer and After Effects 2021 and newer, on macOS (Apple
-Silicon and Intel) and Windows x64, with an interface in English, Russian and
-Spanish. Analyze reads what the host can put on a
+Premiere Pro 2021 (15.4) and newer and After Effects 2021 (18.4) and newer;
+older versions cannot open the panel. Tested on Premiere Pro and After Effects
+2026. macOS 13.5 or newer (Apple Silicon and Intel), because the analysis runs
+on a bundled Node.js that needs it, and Windows 10 or 11 (x64); Windows on Arm
+is not supported yet. The interface is in English, Russian and Spanish. Analyze reads what the host can put on a
 timeline and the panel can decode: WAV, AIFF, MP3, M4A / AAC, and the audio of
 MP4 / MOV.
 </details>

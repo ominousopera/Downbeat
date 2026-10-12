@@ -8,7 +8,10 @@
 // cannot touch the essentia path.
 // Usage: beatthis-worker.js <rawSamplesFile22050Hz> (raw Float32 mono samples
 // at 22050 Hz). Prints {ok, error, data} with beat and downbeat times in
-// seconds and the mean model logit at the beat peaks.
+// seconds and the mean model logit at the beat peaks. downbeatTimes are the
+// "1"s counted over the whole song by worker/beatthis-bars.js, and
+// modelDownbeatTimes the model's own peak-picked ones; when the bars could
+// not be counted, downbeatTimes are the model's own and barsDecoded is false.
 "use strict";
 
 const pathMod = require("path");
@@ -73,10 +76,26 @@ async function runBeatThis(baseDir, samples) {
   const { beatFull, downbeatFull } = await runChunked(ort, beatSession, melTensor.data, nFrames, nMels, 1500, 6);
   const { beatTimes, downbeatTimes } = postprocessMinimal(beatFull, downbeatFull);
   const meanPeakLogit = computeMeanPeakLogit(beatFull, beatTimes);
+  // The "1"s counted over the whole song; a failure here only costs that
+  // improvement, never the analysis.
+  let bars = null;
+  try {
+    const { decodeBarsOnBeats } = require("./beatthis-bars.js");
+    bars = decodeBarsOnBeats(beatFull, downbeatFull, beatTimes, downbeatTimes);
+  } catch (e) {
+    console.error("bar decoding failed: " + (e && e.message ? e.message : e));
+  }
   // Must equal BEAT_LATENCY_SEC.beatThis in js/analyze.js.
   const LATENCY_SEC = 0.013;
   const early = function (t) { return Math.max(0, t - LATENCY_SEC); };
-  return { beatTimes: beatTimes.map(early), downbeatTimes: downbeatTimes.map(early), meanPeakLogit };
+  return {
+    beatTimes: beatTimes.map(early),
+    downbeatTimes: (bars ? bars.downbeatTimes : downbeatTimes).map(early),
+    modelDownbeatTimes: downbeatTimes.map(early),
+    barsDecoded: !!bars,
+    barsUnsure: bars ? bars.unsure : null,
+    meanPeakLogit
+  };
 }
 
 async function main() {

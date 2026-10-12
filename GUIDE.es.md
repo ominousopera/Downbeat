@@ -7,6 +7,10 @@ de audio en After Effects (música o efectos de sonido). Encuentra el tempo
 y los tiempos, coloca marcadores donde cortar y detecta la tonalidad.
 Todo se ejecuta en tu equipo: nunca se sube nada.
 
+Necesita Premiere Pro 2021 (15.4) o After Effects 2021 (18.4) o posterior
+(probado en 2026), en macOS 13.5 o posterior (Apple Silicon o Intel) o
+Windows 10 u 11 (x64). Windows en ARM aún no es compatible.
+
 ## Flujo de trabajo habitual
 
 1. Selecciona un clip de audio en la línea de tiempo de Premiere.
@@ -102,12 +106,13 @@ En una pista difícil de leer, la línea bajo **Cuadrícula** lo indica y
 sugiere **Afinada**, que ahí suele ser más precisa.
 
 Con **Afinada**, el segundo detector también coloca el «uno» de cada
-compás. Un «uno» que caería a menos de un tiempo y medio de otro se omite,
-así que dos tiempos vecinos nunca quedan marcados ambos como «uno». Si aun
-así sus marcadores del «uno» quedan a distancias irregulares, un aviso bajo
+compás. Cuenta los compases en toda la canción a la vez, así que el «uno»
+llega cada cuatro tiempos y no salta a un tercer tiempo fuerte. Las
+canciones en 6/8 o 12/8 también se cuentan de cuatro en cuatro. Si el
+detector no está seguro de dónde empiezan los compases, un aviso bajo
 **El «uno» es el tiempo** lo indica: escucha el clic y, si el «uno» no cae
-bien, cambia la **Cuadrícula** a **Básica** y elige el «uno» real con
-**1 2 3 4**.
+bien, pulsa en **1 2 3 4** el tiempo que de verdad es el «uno», o cambia la
+**Cuadrícula** a **Básica**.
 
 ## Tipos de marcador
 
@@ -429,7 +434,7 @@ El icono del engranaje, arriba a la derecha:
 
 ## En After Effects
 
-Downbeat también funciona en After Effects 2021 o posterior: **Window →
+Downbeat también funciona en After Effects 2021 (18.4) o posterior: **Window →
 Extensions → Downbeat**. Algunas cosas están más limitadas ahí —lo dice
 una nota bajo el encabezado hasta que pulsas **Entendido**— y el trabajo
 con sonido es más cómodo en Premiere Pro. Por lo demás funciona igual,
@@ -526,7 +531,10 @@ Cada archivo se guarda escribiendo una copia nueva y sustituyendo la
 anterior, así que un fallo o un disco lleno a mitad del guardado deja entera
 la versión previa. Si aun así un archivo guardado no se puede leer, Downbeat
 lo conserva al lado como `<nombre>.unreadable-<fecha>-<hora>.json`, lo indica
-en la pestaña Biblioteca y empieza esa parte vacía; nunca guarda encima.
+en la pestaña Biblioteca y empieza esa parte vacía; nunca guarda encima. Si
+Windows no deja sustituir el archivo por la copia nueva y escribir encima
+también falla, la copia nueva queda como `<nombre>.unsaved-<fecha>-<hora>.json`
+y el siguiente inicio lee los datos de ella.
 Premiere Pro y After Effects pueden usar Downbeat a la vez: antes de guardar
 sus cambios, cada panel incorpora lo que guardó el otro; tras Eliminar mis datos
 en uno, el panel del otro se vacía en lugar de volver a guardar los datos

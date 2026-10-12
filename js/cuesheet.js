@@ -414,9 +414,11 @@
     return { times: kept, dropped: n - kept.length };
   }
   // True when the "1" markers are too uneven to trust: at least a quarter
-  // of the gaps differ from the median gap by more than 20%. Drives the
-  // "uneven" warning for the second detector's grid. Needs at least 8 gaps,
-  // since a short clip's few bars say too little.
+  // of the gaps differ from the median gap by more than 20%. Part of the
+  // "unsure where the bars start" warning for the second detector's grid,
+  // tested on the model's own "1"s (the decoded ones are even by
+  // construction). Needs at least 8 gaps, since a short clip's few bars say
+  // too little.
   var UNEVEN_DEVIATING_FRACTION = 0.25;
   var UNEVEN_MIN_INTERVALS = 8;
   function downbeatsLookUneven(downbeatTimes) {

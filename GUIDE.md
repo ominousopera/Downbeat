@@ -7,6 +7,10 @@ layer in After Effects (music or sound effects). It finds the tempo and
 the beats, places markers where to cut, and detects the musical key.
 Everything runs locally on your machine — nothing is ever uploaded.
 
+It needs Premiere Pro 2021 (15.4) or After Effects 2021 (18.4) or newer
+(tested on 2026), on macOS 13.5 or newer (Apple Silicon or Intel) or
+Windows 10 or 11 (x64). Windows on Arm is not supported yet.
+
 ## Typical workflow
 
 1. Select one audio clip on the timeline in Premiere.
@@ -92,12 +96,13 @@ back at once; Refined runs the second detector again (a few seconds).
 On a track that is hard to read, the line under **Beat grid** says so and
 suggests **Refined**, which is often more accurate there.
 
-With **Refined**, the second detector also places the "1" of each bar. A
-"1" that would come less than a beat and a half after another is left out,
-so two neighbouring beats are never both marked as a "1". If its "1"
-markers still come at uneven distances, a warning under **The "1" is beat**
-says so: listen to the click, and if the "1" is off, switch **Beat grid** to
-**Basic** and pick the real "1" with **1 2 3 4**.
+With **Refined**, the second detector also places the "1" of each bar. It
+counts the bars over the whole song at once, so the "1" comes every four
+beats and does not jump to a loud beat 3. Songs in 6/8 or 12/8 are counted
+in fours too. When the detector is unsure where the bars start, a warning
+under **The "1" is beat** says so: listen to the click, and if the "1" is
+off, click the beat that really is the "1" in **1 2 3 4**, or switch
+**Beat grid** to **Basic**.
 
 ## Marker types
 
@@ -387,7 +392,7 @@ The gear icon, top right:
 
 ## In After Effects
 
-Downbeat also runs in After Effects 2021 or newer: **Window → Extensions →
+Downbeat also runs in After Effects 2021 (18.4) or newer: **Window → Extensions →
 Downbeat**. Some things are more limited there — a note under the header
 says so until you click **Got it** — and sound work is easier in Premiere
 Pro. Otherwise it works the same way, with a layer in place of a clip:
@@ -475,7 +480,9 @@ Each file is saved by writing a new copy and swapping it in, so a crash or a
 full disk mid-save leaves the previous version whole. If a saved file still
 cannot be read, Downbeat keeps it as `<name>.unreadable-<date>-<time>.json`
 next to it, says so on the Library tab and starts that part empty — it never
-saves over it. Premiere Pro and After Effects can run Downbeat at the same
+saves over it. If Windows refuses to swap the copy in and writing in place
+fails too, the new copy stays as `<name>.unsaved-<date>-<time>.json`, and the
+next start reads the data from it. Premiere Pro and After Effects can run Downbeat at the same
 time: each panel takes in what the other saved before saving its own changes;
 after Delete my data in one, the other panel empties itself instead of saving
 the old data again. Analyses of songs on a disconnected drive are kept until
