@@ -1,9 +1,10 @@
 "use strict";
 // Placing markers on one use of a song keeps the markers of its other uses
-// (Premiere and After Effects); a data file that briefly cannot be checked
-// is not taken as deleted, and adding a folder afterwards keeps the Library
-// and favorites; Paste keeps two markers that differ only in length; Delete
-// my data stays done when the deleting host saves new data before the other
+// (Premiere and After Effects, also After Effects before 22 with a
+// duplicated layer); a data file that briefly cannot be checked is not
+// taken as deleted, and adding a folder afterwards keeps the Library and
+// favorites; Paste keeps two markers that differ only in length; Delete my
+// data stays done when the deleting host saves new data before the other
 // open host looks.
 // Run: node scripts/test-shared-song-and-data-safety.js
 const fs = require("fs");
@@ -56,6 +57,32 @@ function reusedSong(kind) {
 }
 reusedSong("Premiere");
 reusedSong("After Effects");
+
+// After Effects before 22 has no Layer.id, and a duplicated layer takes the
+// original's place in the stack: Place on the copy keeps the original's
+// composition markers.
+(function () {
+  const fake = mocks.makeAeHost({ mediaPath: "/synthetic/Song.wav", durationSec: 10, startTime: 0, compDuration: 80 });
+  fake.comp.id = 101;
+  fake.comp.layers.forEach(function (l) { l.id = undefined; });
+  const first = fake.comp.layers[0];
+  first.source.id = 501;
+  const host = mocks.loadHost(fake.context);
+  function place(times) {
+    const info = JSON.parse(host.run("getSelectedAudioInfo()"));
+    const result = JSON.parse(host.run("createMarkers(" + arg(times) + "," + arg(["D", "b", "b"]) + ",true," + arg(info.data) + ")"));
+    if (!result.ok) { throw new Error(result.error); }
+  }
+  place([1, 2, 3]);
+  const second = first.duplicate();
+  second.id = undefined;
+  second.startTime = 30; second.inPoint = 30; second.outPoint = 40;
+  first.selected = false; second.selected = true;
+  place([31, 32, 33]);
+  const times = fake.comp.markerProperty.keys.map(function (k) { return k.t; });
+  check("After Effects without Layer.id: Place on a duplicated layer keeps the original's markers",
+    [1, 2, 3, 31, 32, 33].every(function (t) { return times.indexOf(t) !== -1; }), JSON.stringify(times));
+})();
 
 // ---- Two markers at one time, different lengths ----
 (function () {

@@ -448,6 +448,9 @@ con una capa en lugar de un clip:
   composición. Para cortar ahí, **J** y **K** llevan el cursor al
   marcador anterior o siguiente, y **Edit → Split Layer** (⌘⇧D en Mac,
   Ctrl+Mayús+D en Windows) divide la capa en el cursor.
+- Volver a colocar con **Dónde: Línea de tiempo** sustituye los marcadores de
+  composición anteriores de Downbeat para esa capa. En After Effects 2021, los
+  que quedan fuera de la capa después de moverla se mantienen; bórralos a mano.
 - Los marcadores siempre van al inicio del fotograma en el que empieza el
   tiempo: After Effects no tiene Show Audio Time Units, y su cursor y
   Split Layer funcionan en fotogramas enteros, así que aquí no hay ajuste
@@ -530,13 +533,13 @@ Eliminar mis datos primero si quieres que no quede nada.
 Cada archivo se guarda escribiendo una copia nueva y sustituyendo la
 anterior, así que un fallo o un disco lleno a mitad del guardado deja entera
 la versión previa. Si aun así un archivo guardado no se puede leer, Downbeat
-lo conserva al lado como `<nombre>.unreadable-<fecha>-<hora>.json`, lo indica
-en la pestaña Biblioteca y empieza esa parte vacía; nunca guarda encima. Si
-Windows rechaza el guardado (otro programa, como OneDrive o un antivirus,
-tiene el archivo abierto), los datos nuevos quedan al lado como
-`<nombre>.unsaved-<fecha>-<hora>.json`; el siguiente inicio los pone en su
-sitio, y el siguiente guardado correcto borra las copias antiguas del propio
-Downbeat.
+conserva su contenido al lado como `<nombre>.unreadable-<fecha>-<hora>.json`
+(nunca guarda encima de esa copia), lo indica en la pestaña Biblioteca y
+empieza esa parte vacía. Si Windows rechaza el guardado (otro programa, como
+OneDrive o un antivirus, tiene el archivo abierto), los datos nuevos quedan al
+lado como `<nombre>.unsaved-<fecha>-<hora>.json`; cada inicio incorpora esas
+copias, y Downbeat solo borra una cuando un guardado posterior ya ha escrito sus
+datos.
 Premiere Pro y After Effects pueden usar Downbeat a la vez: antes de guardar
 sus cambios, cada panel incorpora lo que guardó el otro; tras Eliminar mis datos
 en uno, el panel del otro se vacía en lugar de volver a guardar los datos

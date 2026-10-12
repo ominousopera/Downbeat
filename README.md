@@ -245,6 +245,8 @@ shortlist to audition, not a promise that two sounds will blend.
   - You cut at the markers by hand with **J / K** and **Split Layer**; there is
     no Razor tool snapping to them.
   - A marker keeps only its short label.
+  - In After Effects 2021, placing composition markers again after moving the
+    layer leaves the earlier ones outside it; delete those by hand.
   - Library sounds are added as a new layer; fades become volume keyframes,
     and pitch and reverse are set through Time Stretch.
 

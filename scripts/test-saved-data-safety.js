@@ -1,8 +1,8 @@
 "use strict";
 // The saved data in Documents/Downbeat:
-//   - a data file that is not valid JSON is set aside under
-//     <name>.unreadable-<date>-<time>.json and never overwritten; the
-//     Library says so;
+//   - a data file that is not valid JSON is kept as
+//     <name>.unreadable-<date>-<time>.json, which is never overwritten;
+//     the Library says so;
 //   - a data file that cannot be read at all is left alone and not saved
 //     over for the session;
 //   - a write that fails part-way leaves the previous file intact;
@@ -48,7 +48,12 @@ function sleep(ms) { const end = Date.now() + ms; while (Date.now() < end) { /* 
   check("a cut-off sound-library.json is set aside, not read as empty", !sl.ok && !!sl.setAside && aside.length === 1 &&
     fs.readFileSync(path.join(data, aside[0]), "utf8") === good.slice(0, 30), JSON.stringify(sl));
   const tl = P.load(cs(docs));
-  check("a library.json that is not a list is set aside too", !tl.ok && !!tl.setAside && !fs.existsSync(path.join(data, "library.json")));
+  // The file itself stays until a save replaces it: a moment with no data
+  // file would look like Delete my data to the other host.
+  check("a library.json that is not a list is set aside too", !tl.ok && !!tl.setAside &&
+    fs.readFileSync(tl.setAside, "utf8") === JSON.stringify({ not: "an array" }) && fs.existsSync(path.join(data, "library.json")));
+  check("and the next save replaces it", P.save(cs(docs), [{ mediaPath: "/a.wav", label: "a" }]).ok &&
+    Array.isArray(JSON.parse(fs.readFileSync(path.join(data, "library.json"), "utf8"))));
   check("saving afterwards writes a new file and keeps the set-aside copy",
     P.saveSoundLibrary(cs(docs), { version: 1, folders: { music: [], sfx: [] }, files: {} }).ok &&
     fs.existsSync(path.join(data, "sound-library.json")) && fs.existsSync(path.join(data, aside[0])));

@@ -79,10 +79,7 @@
       var loaded = window.BeatMarkerPersistence.loadSoundLibrary(ctx.csInterface());
       if (loaded.ok) {
         SL.loadState(loaded.state);
-        if (loaded.recoveredFrom) {
-          log("The folder library file was cut short by a save that failed; its last complete copy was used (" +
-              loaded.recoveredFrom + "), the damaged file is kept as " + loaded.setAside + ".");
-        }
+        _takeInKeptCopies(loaded);
       } else {
         log("WARNING: could not read the folder library (" + loaded.error + ")" +
             (loaded.setAside ? " - kept as " + loaded.setAside + "; starting empty." : " - it is left as it is and not saved over until the host restarts."));
@@ -161,7 +158,22 @@
           return null;
         }
       }
-      return fresh.changed ? SL.absorb(fresh.value) : false;
+      var changed = fresh.changed ? SL.absorb(fresh.value) : false;
+      return _takeInKeptCopies(fresh) || changed;
+    }
+    // After a load or a check that recovered the file (see "A save Windows
+    // refused" in js/persistence.js): the older kept copies are taken in
+    // too, and the log says what was used. Returns whether anything changed.
+    function _takeInKeptCopies(result) {
+      var changed = false;
+      (result.takeIn || []).forEach(function (value) {
+        if (SL.absorb(value)) { changed = true; }
+      });
+      var note = window.BeatMarkerPersistence.recoveryNote("The folder library file", result);
+      if (note) {
+        log(note);
+      }
+      return changed;
     }
     // Delete my data ran in the other host (Premiere and After Effects share
     // Documents/Downbeat): this panel drops what it holds instead of writing
@@ -620,6 +632,13 @@
           renderLibrary();
         } else {
           var timelineChanged = timelineFresh.changed && window.BeatMarkerLibrary.absorb(timelineFresh.value);
+          (timelineFresh.takeIn || []).forEach(function (value) {
+            if (window.BeatMarkerLibrary.absorb(value)) { timelineChanged = true; }
+          });
+          var timelineNote = window.BeatMarkerPersistence.recoveryNote("The track library file", timelineFresh);
+          if (timelineNote) {
+            log(timelineNote);
+          }
           if (_libAbsorbFromDisk() || timelineChanged) {
             renderLibrary();
           }

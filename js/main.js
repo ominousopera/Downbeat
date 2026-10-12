@@ -128,9 +128,20 @@
     if (fresh.changed) {
       window.BeatMarkerLibrary.absorb(fresh.value);
     }
+    _takeInKeptCopies("The track library file", fresh, window.BeatMarkerLibrary.absorb);
     var result = window.BeatMarkerPersistence.save(csInterface, window.BeatMarkerLibrary.getAll(), window.BeatMarkerLibrary.meta());
     if (!result.ok) {
       log("WARNING: could not save the track library to disk: " + result.error);
+    }
+  }
+  // After a load or a check that recovered a data file (see "A save Windows
+  // refused" in js/persistence.js): the older kept copies are taken in too,
+  // and the log says what was used.
+  function _takeInKeptCopies(what, result, absorb) {
+    (result.takeIn || []).forEach(function (value) { absorb(value); });
+    var note = window.BeatMarkerPersistence.recoveryNote(what, result);
+    if (note) {
+      log(note);
     }
   }
   var activeTabId = "analyze"; // kept by switchTab(); the Library keys only act on the Library tab
@@ -241,6 +252,7 @@
       // entries back with it.
       _library.dataDeletedElsewhere();
     }
+    _takeInKeptCopies("settings.json", fresh, function () {});
     var base = fresh.changed && fresh.value && typeof fresh.value === "object" && !Array.isArray(fresh.value) ? fresh.value : initialSettings;
     var merged = {};
     for (var existingKey in base) {
@@ -500,10 +512,7 @@
   } else {
     askAboutUpdateNotice(function () {});
   }
-  if (loadedSettings.ok && loadedSettings.recoveredFrom) {
-    log("settings.json was cut short by a save that failed; its last complete copy was used (" +
-        loadedSettings.recoveredFrom + "), the damaged file is kept as " + loadedSettings.setAside + ".");
-  }
+  _takeInKeptCopies("settings.json", loadedSettings, function () {});
   if (_settingsLoadProblem) {
     log("WARNING: could not read settings.json (" + _settingsLoadProblem.error + ")" +
         (_settingsLoadProblem.setAside ? " - kept as " + _settingsLoadProblem.setAside + "; starting with default settings." :
@@ -531,11 +540,8 @@
       return;
     }
     window.BeatMarkerLibrary.loadEntries(result.entries);
-    log("Loaded " + result.entries.filter(function (e) { return e && e.mediaPath; }).length + " track(s) from a previous session (" + result.path + ").");
-    if (result.recoveredFrom) {
-      log("The track library file was cut short by a save that failed; its last complete copy was used (" +
-          result.recoveredFrom + "), the damaged file is kept as " + result.setAside + ".");
-    }
+    _takeInKeptCopies("The track library file", result, window.BeatMarkerLibrary.absorb);
+    log("Loaded " + window.BeatMarkerLibrary.getAll().length + " track(s) from a previous session (" + result.path + ").");
   })();
   loadSoundLibrary();
   // HOST AND WORKER CALLS: js/bridge.js. _bridge is made right after

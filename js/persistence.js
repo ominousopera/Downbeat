@@ -28,11 +28,12 @@
     fs.mkdirSync(dir, { recursive: true });
     return dir;
   }
-  // ---- Deleting: the only two places this plugin removes anything it did
-  // not just create itself are the startup temp sweep and the Settings
-  // "Delete my data" button. Both use _listOwnFiles(), which returns an
-  // explicit list of files that are provably this plugin's, and nothing
-  // more:
+
+  // ---- Deleting: the places this plugin removes anything it did not just
+  // create itself are the startup temp sweep and the Settings "Delete my
+  // data" button, plus one more below. Both use _listOwnFiles(), which
+  // returns an explicit list of files that are provably this plugin's, and
+  // nothing more:
   //  - only directly inside Documents/Downbeat/ and Documents/Downbeat/tmp/,
   //    never deeper, never outside;
   //  - only exact names this plugin writes: library.json, settings.json,
@@ -40,18 +41,22 @@
   //    OWN_TEMP_FILE_PATTERN (samples-/beatthis-/skey-/library-<n>-<n>.raw,
   //    library-<n>-<n>.json);
   //  - only plain files.
-  // Otherwise it refuses outright. The pattern must match the names
-  // the panel gives its worker handoff files.
+  // Otherwise it refuses outright. The one more is a data file's kept copy
+  // after a save Windows refused: only by the panel that holds its data and
+  // has just saved it, only that exact name next to its data file, only a
+  // plain file, and only while it is the file the panel read (see "A save
+  // Windows refused"). The pattern must match the names the panel gives its
+  // worker handoff files.
   var OWN_TEMP_FILE_PATTERN = /^((samples|beatthis|skey|library)-[0-9]+-[0-9]+\.raw|library-[0-9]+-[0-9]+\.json)$/;
   // In Documents/Downbeat itself: the new copy of a data file while it is
-  // written (_writeAtomic), and a data file set aside because it could not
-  // be read (_setAside). Both are this plugin's own.
+  // written (_writeAtomic), and the bytes of a data file that could not be
+  // read (_keepUnreadable). Both are this plugin's own.
   var OWN_DATA_TEMP_PATTERN = /^(library|settings|sound-library)\.json\.tmp-[0-9]+-[0-9]+$/;
   var OWN_SET_ASIDE_PATTERN = /^(library|settings|sound-library)\.unreadable-[0-9]{8}-[0-9]{6}(-[0-9]+)?\.json$/;
   // The complete new copy of a data file whose save Windows refused
-  // (_writeAtomic): kept, never swept, put back by the next load when it is
-  // newer than the data file or the data file is cut, and removed by a
-  // later successful save it is older than (see "A save Windows refused").
+  // (_writeAtomic): never swept, taken in by every load, and removed by the
+  // next successful save of a panel that took it in (see "A save Windows
+  // refused").
   var OWN_UNSAVED_PATTERN = /^(library|settings|sound-library)\.unsaved-[0-9]{8}-[0-9]{6}(-[0-9]+)?\.json$/;
   // The start-up sweep leaves younger temp files alone: Premiere and After
   // Effects can both run Downbeat on one Documents/Downbeat, and a panel
@@ -164,17 +169,16 @@
   // Every temp file is deleted as soon as its worker exits, but a Premiere
   // crash mid-analysis would leave one behind. Raw samples are large (a
   // 3-minute track is about 30 MB), so leftovers are swept at startup.
-  // A <name>.json.tmp-* file whose <name>.json does not parse may be the
-  // only complete copy of a refused save (see "A save Windows refused"): kept.
-  function _holdsDataOfCutFile(fs, f) {
-    var name = f.slice(f.lastIndexOf("/") + 1);
-    if (!OWN_DATA_TEMP_PATTERN.test(name)) { return false; }
-    var dataFile = f.slice(0, f.lastIndexOf(".tmp-"));
+  // A <name>.json.tmp-* file that parses may be the only complete copy of a
+  // save Windows refused (see "A save Windows refused"): kept until a load
+  // takes it in and the save after that removes it.
+  function _holdsData(fs, f) {
+    if (!OWN_DATA_TEMP_PATTERN.test(f.slice(f.lastIndexOf("/") + 1))) { return false; }
     try {
-      JSON.parse(fs.readFileSync(dataFile, "utf8"));
-      return false;
+      JSON.parse(fs.readFileSync(f, "utf8"));
+      return true;
     } catch (e) {
-      return !(e && e.code === "ENOENT");
+      return false;
     }
   }
   function clearLeftoverTempFiles(csInterface) {
@@ -183,7 +187,7 @@
       // Only files older than STALE_TEMP_MS: the other host may be working.
       var now = Date.now();
       var stale = _listOwnFiles(csInterface, false).files.filter(function (f) {
-        try { return now - fs.lstatSync(f).mtimeMs > STALE_TEMP_MS && !_holdsDataOfCutFile(fs, f); } catch (e) { return false; }
+        try { return now - fs.lstatSync(f).mtimeMs > STALE_TEMP_MS && !_holdsData(fs, f); } catch (e) { return false; }
       });
       var result = _deleteListedFiles(fs, stale);
       return { ok: result.failed.length === 0, removed: result.deleted.length, error: result.failed.join(", ") };
@@ -222,15 +226,29 @@
       return { ok: false, error: e.message ? e.message : String(e) };
     }
   }
+
   // ---- Reading and writing the three data files. A save writes the new
   // text to a temp copy beside the file and renames it over the file, so
   // the file is always either the old or the new version, never a cut-off
-  // one. A file that is there but is not valid JSON is renamed to
-  // <name>.unreadable-<date>-<time>.json before anything can save, and the
-  // caller tells the user. A file that cannot be read at all (locked, no
+  // one. A file that is there but is not valid JSON is copied to
+  // <name>.unreadable-<date>-<time>.json before anything can save over it,
+  // and the caller tells the user (see "A save Windows refused" for what
+  // replaces it). A file that cannot be read at all (locked, no
   // permission) is left alone, and saving over it is refused for the rest
   // of the session.
   var _saveBlocked = {}; // file path -> true
+  // What each data file must hold to be read at all (a load, a kept copy).
+  var VALIDATE = {
+    library: function (value) {
+      if (!Array.isArray(value)) { throw new Error("library.json did not contain a JSON array."); }
+    },
+    settings: function (value) {
+      if (value !== null && (typeof value !== "object" || Array.isArray(value))) { throw new Error("settings.json did not contain a JSON object."); }
+    },
+    "sound-library": function (value) {
+      if (!value || typeof value !== "object" || Array.isArray(value)) { throw new Error("sound-library.json did not contain a JSON object."); }
+    }
+  };
   // What this panel last read or wrote, to notice another host's save
   // (Premiere and After Effects can share Documents/Downbeat).
   var _synced = {}; // file path -> "mtimeMs:size"
@@ -245,15 +263,21 @@
   function _forgetSync() {
     _synced = {};
     _gen = {};
+    _cutByMe = {};
+    _taken = {};
+    _keepGeneration = {};
   }
   // After another host's Delete my data: every file this panel had synced
   // must be read again before it is saved over (it may hold the other
   // host's new data), and still counts as deleted while it is missing.
+  // The panel drops what it holds, so no copy counts as taken any more.
   function _resyncAll() {
     for (var p in _synced) {
       if (_synced.hasOwnProperty(p)) { _synced[p] = "?"; }
     }
     _gen = {};
+    _taken = {};
+    _keepGeneration = {};
   }
   function _newGeneration() {
     return Date.now().toString(36) + "-" + Math.floor(Math.random() * 1e9).toString(36);
@@ -269,14 +293,15 @@
     return value && typeof value === "object" && typeof value.dataGeneration === "string" ? value.dataGeneration : "";
   }
   // The generation a save writes: the file's own while it exists, a new one
-  // when it does not.
+  // when it does not - unless the load found only kept copies of it (see
+  // "A save Windows refused"): their generation goes on.
   function _generationForSave(fs, filePath) {
     var stat = _statState(fs, filePath);
     if (stat.error) {
       throw stat.error; // not saved over a file that could not be checked
     }
     if (stat.missing) {
-      return _newGeneration();
+      return _keepGeneration[filePath] && _gen[filePath] !== undefined ? _gen[filePath] : _newGeneration();
     }
     if (_gen[filePath] === undefined) {
       try { _gen[filePath] = _generationOf(JSON.parse(fs.readFileSync(filePath, "utf8"))); } catch (e) { _gen[filePath] = ""; }
@@ -318,162 +343,269 @@
   }
 
   function _two(n) { return (n < 10 ? "0" : "") + n; }
-  // A free <data file>.<tag>-<date>-<time>[-n].json next to the data file,
-  // or null.
-  function _freeDatedName(fs, filePath, tag) {
+  // <data file>.<tag>-<date>-<time>[-n].json next to the data file.
+  function _datedName(filePath, tag, n) {
     var d = new Date();
     var stamp = d.getFullYear() + _two(d.getMonth() + 1) + _two(d.getDate()) + "-" + _two(d.getHours()) + _two(d.getMinutes()) + _two(d.getSeconds());
-    var base = filePath.replace(/\.json$/, "") + "." + tag + "-" + stamp;
+    return filePath.replace(/\.json$/, "") + "." + tag + "-" + stamp + (n ? "-" + n : "") + ".json";
+  }
+  // Moves `from` to a free such name; returns the new path, or null. Only
+  // for when a new file cannot be written (see _keepCompleteCopy).
+  function _moveToDatedName(fs, from, filePath, tag) {
     for (var i = 0; i < 100; i++) {
-      var target = base + (i ? "-" + i : "") + ".json";
-      if (!fs.existsSync(target)) {
+      var target = _datedName(filePath, tag, i);
+      if (fs.existsSync(target)) { continue; }
+      try {
+        fs.renameSync(from, target);
         return target;
+      } catch (e) {
+        return null;
       }
     }
     return null;
   }
-  // Moves `from` to such a name, never over an existing file; returns the
-  // new path, or null.
-  function _moveToDatedName(fs, from, filePath, tag) {
-    var target = _freeDatedName(fs, filePath, tag);
-    if (!target) { return null; }
-    try {
-      fs.renameSync(from, target);
-      return target;
-    } catch (e) {
-      return null;
+  // Copies the file `fromFile` (when given and it can be copied) or writes
+  // `text` to a new such name. The name is created exclusively, so two
+  // hosts doing this in the same second never write over each other's file.
+  // Returns the path, or null.
+  function _writeDatedFile(fs, filePath, tag, text, fromFile) {
+    for (var i = 0; i < 100; i++) {
+      var target = _datedName(filePath, tag, i);
+      if (fromFile) {
+        try {
+          fs.copyFileSync(fromFile, target, COPYFILE_EXCL);
+          return target;
+        } catch (copyErr) {
+          if (copyErr && copyErr.code === "EEXIST") { continue; }
+          // Not copied (held open, say): its text is written instead.
+        }
+      }
+      var fd;
+      try {
+        fd = fs.openSync(target, "wx");
+      } catch (openErr) {
+        if (openErr && openErr.code === "EEXIST") { continue; }
+        return null;
+      }
+      try {
+        fs.writeFileSync(fd, text, "utf8");
+        fs.closeSync(fd);
+        return target;
+      } catch (writeErr) {
+        try { fs.closeSync(fd); } catch (e) { /* already closed */ }
+        try { fs.unlinkSync(target); } catch (e2) { /* the open above created it: this plugin's own */ }
+        return null;
+      }
     }
+    return null;
   }
-  function _setAside(fs, filePath) {
-    return _moveToDatedName(fs, filePath, filePath, "unreadable");
+
+  // Keeps the bytes of a data file that does not parse as
+  // <name>.unreadable-<date>-<time>.json. The file itself stays where it
+  // is: a moment with no data file would look like Delete my data to the
+  // other host. Bytes already kept (the same file found at another start)
+  // are not kept twice. Returns the kept file's path, or null.
+  function _keepUnreadable(fs, filePath, raw) {
+    var slash = filePath.lastIndexOf("/");
+    var dir = filePath.slice(0, slash), prefix = filePath.slice(slash + 1).replace(/\.json$/, "") + ".unreadable-";
+    var names = [];
+    try { names = fs.readdirSync(dir); } catch (e) { /* nothing to compare with */ }
+    for (var i = 0; i < names.length; i++) {
+      var p = dir + "/" + names[i];
+      try {
+        if (names[i].indexOf(prefix) === 0 && OWN_SET_ASIDE_PATTERN.test(names[i]) && _pathKind(fs, p) === "file" &&
+            fs.readFileSync(p, "utf8") === raw) {
+          return p;
+        }
+      } catch (e2) { /* compared with the next one */ }
+    }
+    return _writeDatedFile(fs, filePath, "unreadable", raw, filePath);
   }
 
   // ---- A save Windows refused. Windows can refuse to replace a data file
   // another program holds open (OneDrive, an antivirus); the text is then
   // written in place, and that write can fail too - before anything is
   // written (the file stays whole but old) or half-way (the file is cut
-  // short). In both cases:
-  //   - the complete new text stays next to it as
-  //     <name>.unsaved-<date>-<time>.json (written afresh when the temp file
-  //     cannot be renamed), which the start-up sweep never removes;
+  // short). Then:
+  //   - the complete new text is kept next to it as
+  //     <name>.unsaved-<date>-<time>.json, under a name no file had (if
+  //     even that fails, its .tmp- file stays and counts the same way);
   //   - when the file was cut, this panel remembers it, so its next save may
   //     replace it: its memory holds everything the copy holds;
-  //   - the next load puts the newest such copy back as the data file when
-  //     it is newer than the data file, or when the data file is cut (then
-  //     a copy made up to a minute before the cut counts, and the cut file
-  //     is set aside);
-  //   - a later successful save removes the copies of that file older than
-  //     itself: their data is in the file now (only those exact names, only
-  //     plain files - see _listOwnFiles for the plugin's own files);
-  //   - a newer copy made by this panel replaces its own earlier copies of
-  //     that file made while it is open: it holds everything they hold.
-  var CUT_COPY_WINDOW_MS = 60 * 1000;
-  var _cutByMe = {}; // file path -> stamp of the file this panel cut
-  var _myCopies = {}; // file path -> the copy this panel kept last since it opened
+  //   - every load takes in all of a data file's kept copies: the newest of
+  //     them and the data file is the data, and the two libraries take in
+  //     the others as well (absorb), so when each host kept one, nothing is
+  //     lost;
+  //   - a load never writes over a data file that is whole. One that does
+  //     not parse is kept aside (_keepUnreadable) and the newest kept copy
+  //     is renamed over it: a rename happens or not, it cannot cut a file;
+  //   - an open panel that finds a data file it cannot parse for over a
+  //     minute (another host cut it and may be closed by now) does the same;
+  //   - a copy is removed only after this panel saved successfully with its
+  //     data in memory - a copy it kept, or one a load or check took in -
+  //     by its exact name, as a plain file, and only while it is the file
+  //     that was read (same time and size). Another host's temp file younger
+  //     than a minute may be a save in progress and stays;
+  //   - a new complete copy kept by this panel replaces those copies the
+  //     same way: it holds everything they hold.
+  var SETTLE_MS = 60 * 1000;
+  var COPYFILE_EXCL = 1; // fs.constants.COPYFILE_EXCL: never over an existing file
+  var _cutByMe = {}; // file path -> stamp of an unreadable data file this panel's next save replaces
+  var _taken = {}; // file path -> [{ path, stamp, own }]: copies whose data this panel holds
+  var _keepGeneration = {}; // file path -> true: no data file, so the next save keeps its copies' generation
 
-  // This data file's own complete copies, newest first: its .unsaved-
-  // copies, and with `withTemp` also its .tmp- files (left when even the
-  // copy could not be written).
-  function _ownCopies(fs, filePath, withTemp) {
-    var slash = filePath.lastIndexOf("/");
-    var dir = filePath.slice(0, slash), name = filePath.slice(slash + 1);
-    var unsavedPrefix = name.replace(/\.json$/, "") + ".unsaved-", tempPrefix = name + ".tmp-";
+  // Whether `path` is one of the kept copies or temp files of `filePath`.
+  function _isCopyOf(filePath, path) {
+    var slash = filePath.lastIndexOf("/"), pathSlash = path.lastIndexOf("/");
+    if (path.slice(0, pathSlash) !== filePath.slice(0, slash)) { return false; }
+    var n = path.slice(pathSlash + 1), name = filePath.slice(slash + 1);
+    return (n.indexOf(name.replace(/\.json$/, "") + ".unsaved-") === 0 && OWN_UNSAVED_PATTERN.test(n)) ||
+      (n.indexOf(name + ".tmp-") === 0 && OWN_DATA_TEMP_PATTERN.test(n));
+  }
+  function _isTempName(path) {
+    return path.slice(path.lastIndexOf("/") + 1).indexOf(".tmp-") !== -1;
+  }
+
+  // This data file's kept copies and temp files that parse and pass
+  // `validate`, newest first: { path, stamp, mtime, value }.
+  function _validCopies(fs, filePath, validate) {
+    var dir = filePath.slice(0, filePath.lastIndexOf("/"));
     var names;
     try { names = fs.readdirSync(dir); } catch (e) { return []; }
     var found = [];
     for (var i = 0; i < names.length; i++) {
-      var n = names[i];
-      var mine = (n.indexOf(unsavedPrefix) === 0 && OWN_UNSAVED_PATTERN.test(n)) ||
-        (withTemp && n.indexOf(tempPrefix) === 0 && OWN_DATA_TEMP_PATTERN.test(n));
-      if (!mine || _pathKind(fs, dir + "/" + n) !== "file") { continue; }
-      try { found.push({ path: dir + "/" + n, mtime: fs.statSync(dir + "/" + n).mtimeMs }); } catch (e2) { /* gone */ }
+      var p = dir + "/" + names[i];
+      try {
+        if (!_isCopyOf(filePath, p) || _pathKind(fs, p) !== "file") { continue; }
+        var st = fs.statSync(p);
+        var value = JSON.parse(fs.readFileSync(p, "utf8"));
+        if (validate) { validate(value); }
+        found.push({ path: p, stamp: st.mtimeMs + ":" + st.size, mtime: st.mtimeMs, value: value });
+      } catch (e2) { /* gone, or not a complete copy */ }
     }
     return found.sort(function (a, b) { return b.mtime - a.mtime; });
   }
-  // The newest of them made after `afterMs` that parses and passes
-  // `validate`: { path, value }, or null.
-  function _newestCopyAfter(fs, filePath, afterMs, withTemp, validate) {
-    var found = _ownCopies(fs, filePath, withTemp);
-    for (var j = 0; j < found.length; j++) {
-      if (found[j].mtime <= afterMs) { break; }
-      try {
-        var value = JSON.parse(fs.readFileSync(found[j].path, "utf8"));
-        if (validate) { validate(value); }
-        return { path: found[j].path, value: value };
-      } catch (e) { /* the next older one */ }
-    }
-    return null;
-  }
 
-  // Puts a complete copy back as the data file: renamed into place, or
-  // written there and then removed when the rename is refused. If both
-  // fail, the copy stays and its data is still used until the panel closes.
-  function _putCopyBack(fs, filePath, copy) {
-    try {
-      fs.renameSync(copy.path, filePath);
-      return true;
-    } catch (renameErr) {
-      try {
-        var text = fs.readFileSync(copy.path, "utf8");
-        fs.writeFileSync(filePath, text, "utf8");
-        if (fs.readFileSync(filePath, "utf8") === text) {
-          try { fs.unlinkSync(copy.path); } catch (e) { /* removed by the next successful save */ }
-        }
-        return true;
-      } catch (writeErr) {
-        return false;
-      }
-    }
+  function _noteTaken(filePath, path, stamp, own) {
+    var list = (_taken[filePath] || []).filter(function (c) { return c.path !== path; });
+    list.push({ path: path, stamp: stamp, own: own });
+    _taken[filePath] = list;
   }
-
-  // After a successful save: this file's own copies older than it.
-  function _removeOlderCopies(fs, filePath) {
-    var savedAt;
-    try { savedAt = fs.statSync(filePath).mtimeMs; } catch (e) { return; }
-    var found = _ownCopies(fs, filePath, false);
-    for (var i = 0; i < found.length; i++) {
-      if (found[i].mtime < savedAt) {
-        try { fs.unlinkSync(found[i].path); } catch (e2) { /* tried again after the next save */ }
-      }
-    }
-    delete _myCopies[filePath];
-  }
-
-  // Keeps the complete new text of a refused save; returns where, or null.
-  function _keepCompleteCopy(fs, temp, filePath, text) {
-    var kept = _moveToDatedName(fs, temp, filePath, "unsaved");
-    if (!kept) {
-      var target = _freeDatedName(fs, filePath, "unsaved");
-      if (!target) { return null; }
+  // Removes the copies whose data this panel holds, once that data is saved
+  // (see the rules above).
+  function _removeTakenCopies(fs, filePath) {
+    var list = _taken[filePath] || [], left = [];
+    for (var i = 0; i < list.length; i++) {
+      var c = list[i], st;
       try {
-        fs.writeFileSync(target, text, "utf8");
+        if (!_isCopyOf(filePath, c.path) || _pathKind(fs, c.path) !== "file") { continue; } // gone, or not a plain file: left alone
+        st = fs.statSync(c.path);
       } catch (e) {
-        return null; // the .tmp- file still holds it; the sweep keeps it while the data file is cut
+        continue;
       }
-      try { fs.unlinkSync(temp); } catch (e2) { /* the same text is in the copy */ }
-      kept = target;
+      if (st.mtimeMs + ":" + st.size !== c.stamp) { continue; } // changed since it was read: not this data
+      if (!c.own && _isTempName(c.path) && Date.now() - st.mtimeMs < SETTLE_MS) {
+        left.push(c); // maybe another host's save in progress
+        continue;
+      }
+      try { fs.unlinkSync(c.path); } catch (e2) { left.push(c); }
     }
-    var earlier = _myCopies[filePath];
-    if (earlier && earlier !== kept && OWN_UNSAVED_PATTERN.test(earlier.slice(earlier.lastIndexOf("/") + 1)) &&
-        _pathKind(fs, earlier) === "file") {
-      try { fs.unlinkSync(earlier); } catch (e3) { /* removed by the next successful save */ }
+    _taken[filePath] = left;
+  }
+
+  // Keeps the complete new text of a refused save; returns where, or null
+  // when only its .tmp- file holds it.
+  function _keepCompleteCopy(fs, temp, filePath, text) {
+    var kept = _writeDatedFile(fs, filePath, "unsaved", text, null);
+    var tempLeft = !kept;
+    if (kept) {
+      try { fs.unlinkSync(temp); } catch (e) { tempLeft = true; }
+    } else {
+      kept = _moveToDatedName(fs, temp, filePath, "unsaved"); // no room for another file: the temp file becomes the copy
+      tempLeft = !kept;
     }
-    _myCopies[filePath] = kept;
+    var where = kept || temp, st, whole = false;
+    try {
+      st = fs.statSync(where);
+      whole = fs.readFileSync(where, "utf8") === text;
+    } catch (e2) {
+      return kept; // not read back: the copies taken before stay
+    }
+    if (whole) { _removeTakenCopies(fs, filePath); }
+    _noteTaken(filePath, where, st.mtimeMs + ":" + st.size, true);
+    if (tempLeft && kept) {
+      try { var tst = fs.statSync(temp); _noteTaken(filePath, temp, tst.mtimeMs + ":" + tst.size, true); } catch (e3) { /* gone */ }
+    }
     return kept;
   }
 
-  // { existed: false } when there is no file; { existed: true, value }
-  // when it parsed and passed `validate`. Throws otherwise, with
-  // err.setAside (where the bad file went) or err.blocked.
-  function _readJsonFile(fs, filePath, validate) {
-    var stat = _statState(fs, filePath);
-    if (stat.missing) {
-      return { existed: false };
+  // The data file's value (`base`: { path, value, mtime }, or null) with its
+  // kept copies: the newest is the data, and the others are for the
+  // libraries to take in as well (`takeIn`); settings (`newestOnly`) use the
+  // newest alone. Every copy read is noted as taken. `keptCopies` lists the
+  // copies whose data was used, `recoveredFrom` the first of them.
+  function _combine(fs, filePath, base, copies, newestOnly, renamedFrom) {
+    var all = (base ? [base] : []).concat(copies);
+    all.sort(function (a, b) { return b.mtime - a.mtime || (a === base ? -1 : b === base ? 1 : 0); });
+    for (var i = 0; i < copies.length; i++) { _noteTaken(filePath, copies[i].path, copies[i].stamp, false); }
+    var used = (newestOnly ? all.slice(0, 1) : all).filter(function (c) { return c !== base; });
+    var from = used.map(function (c) { return c.path; });
+    if (renamedFrom) { from.unshift(renamedFrom); }
+    _noteSynced(fs, filePath);
+    _gen[filePath] = _generationOf((base || all[0]).value);
+    return { existed: true, value: all[0].value, takeIn: newestOnly ? [] : all.slice(1).map(function (c) { return c.value; }),
+      recoveredFrom: from.length ? from[0] : null, keptCopies: from.length ? from : null };
+  }
+
+  // A data file that does not parse (see the rules above). Returns null when
+  // its bytes could not be kept (nothing may be saved over it then),
+  // { setAside } when no complete copy exists (this panel's next save
+  // replaces it), or what _combine returns, with setAside.
+  function _recoverUnreadable(fs, filePath, stamp, raw, validate, newestOnly) {
+    var aside = _keepUnreadable(fs, filePath, raw);
+    if (!aside) { return null; }
+    _cutByMe[filePath] = stamp;
+    var copies = _validCopies(fs, filePath, validate);
+    if (!copies.length) { return { setAside: aside }; }
+    var base = null, renamedFrom = null, now = Date.now();
+    for (var i = 0; i < copies.length; i++) {
+      if (_isTempName(copies[i].path) && now - copies[i].mtime < SETTLE_MS) { continue; } // maybe a save in progress
+      try {
+        fs.renameSync(copies[i].path, filePath);
+        delete _cutByMe[filePath];
+        base = { path: filePath, value: copies[i].value, mtime: copies[i].mtime };
+        renamedFrom = copies[i].path;
+        copies.splice(i, 1);
+      } catch (e) {
+        // Refused: the unreadable file stays, and this panel's next save replaces it.
+      }
+      break;
     }
+    var result = _combine(fs, filePath, base, copies, newestOnly, renamedFrom);
+    result.setAside = aside;
+    return result;
+  }
+
+  // { existed: false } when there is no file and no kept copy; else
+  // { existed: true, value, takeIn, recoveredFrom, setAside } (see
+  // _combine). Throws otherwise, with err.setAside (where the unreadable
+  // file's bytes are kept) or err.blocked.
+  function _readJsonFile(fs, filePath, validate, newestOnly) {
+    var stat = _statState(fs, filePath);
     if (stat.error) {
       _saveBlocked[filePath] = true;
       stat.error.blocked = true;
       throw stat.error;
+    }
+    if (stat.missing) {
+      // No data file, but complete copies kept by a save that failed: they
+      // are the data, and the next save keeps their generation.
+      var orphans = _validCopies(fs, filePath, validate);
+      if (!orphans.length) {
+        return { existed: false };
+      }
+      _keepGeneration[filePath] = true;
+      return _combine(fs, filePath, null, orphans, newestOnly, null);
     }
     var raw;
     try {
@@ -488,35 +620,21 @@
       value = JSON.parse(raw);
       if (validate) { validate(value); }
     } catch (parseErr) {
-      var cutMtime = null;
-      try { cutMtime = fs.statSync(filePath).mtimeMs; } catch (e) { /* set aside below or blocked */ }
-      var aside = _setAside(fs, filePath);
-      // A save cut short leaves its complete copy next to it (see "A save
-      // Windows refused" above): that copy is the data, and it goes back in
-      // place.
-      var copy = aside && cutMtime !== null ? _newestCopyAfter(fs, filePath, cutMtime - CUT_COPY_WINDOW_MS, true, validate) : null;
-      if (copy) {
-        if (_putCopyBack(fs, filePath, copy)) { _removeOlderCopies(fs, filePath); }
-        _noteSynced(fs, filePath);
-        _gen[filePath] = _generationOf(copy.value);
-        return { existed: true, value: copy.value, setAside: aside, recoveredFrom: copy.path };
-      }
-      if (aside) {
-        parseErr.setAside = aside;
-      } else {
+      var recovered = _recoverUnreadable(fs, filePath, stat.stamp, raw, validate, newestOnly);
+      if (!recovered) {
         _saveBlocked[filePath] = true;
         parseErr.blocked = true;
+        throw parseErr;
       }
-      throw parseErr;
+      if (!recovered.existed) {
+        parseErr.setAside = recovered.setAside;
+        throw parseErr;
+      }
+      return recovered;
     }
-    // A refused save may have left a newer complete copy (see "A save
-    // Windows refused"): it is the data, and it goes back in place.
-    var newer = _newestCopyAfter(fs, filePath, fs.statSync(filePath).mtimeMs, false, validate);
-    if (newer) {
-      if (_putCopyBack(fs, filePath, newer)) { _removeOlderCopies(fs, filePath); }
-      _noteSynced(fs, filePath);
-      _gen[filePath] = _generationOf(newer.value);
-      return { existed: true, value: newer.value, recoveredFrom: newer.path };
+    var copies = _validCopies(fs, filePath, validate);
+    if (copies.length) {
+      return _combine(fs, filePath, { path: filePath, value: value, mtime: parseFloat(stat.stamp) }, copies, newestOnly, null);
     }
     _noteSynced(fs, filePath);
     _gen[filePath] = _generationOf(value);
@@ -546,17 +664,36 @@
         var after = _statState(fs, filePath);
         var kept = _keepCompleteCopy(fs, temp, filePath, text);
         if (after.stamp && after.stamp !== before) { _cutByMe[filePath] = after.stamp; }
-        writeErr.message = message + (kept
-          ? " - the new data is kept in " + kept + "; the next save or start puts it back"
-          : " - the new data is still in " + temp + " and is read back at the next start");
+        writeErr.message = message + " - the new data is kept in " + (kept || temp) +
+          "; the next start takes it in, and it is removed once a save works again";
         throw writeErr;
       }
-      try { fs.unlinkSync(temp); } catch (e) { /* swept as a stale temp file */ }
+      try { fs.unlinkSync(temp); } catch (e) { /* the sweep keeps it while it parses; the next load takes it in */ }
     }
     delete _cutByMe[filePath];
+    delete _keepGeneration[filePath];
     _noteSynced(fs, filePath);
     _gen[filePath] = generation;
-    _removeOlderCopies(fs, filePath);
+    _removeTakenCopies(fs, filePath);
+  }
+
+  // A data file this open panel cannot parse. For a minute it may be
+  // another host's save in progress, so it only counts as not checked.
+  // After that, a save that failed in another host (which may be closed by
+  // now) cut it: it is recovered as a load would (_recoverUnreadable), and
+  // the caller takes in `value` and `takeIn` and saves, which replaces it.
+  function _takeOverUnreadable(fs, filePath, stamp, raw, kind) {
+    if (!(Date.now() - parseFloat(stamp) >= SETTLE_MS)) {
+      return { changed: false, unavailable: true };
+    }
+    var r = _recoverUnreadable(fs, filePath, stamp, raw, VALIDATE[kind], kind === "settings");
+    if (!r) {
+      return { changed: false, unavailable: true };
+    }
+    if (!r.existed) {
+      return { changed: false, setAside: r.setAside };
+    }
+    return { changed: true, value: r.value, takeIn: r.takeIn, recoveredFrom: r.recoveredFrom, keptCopies: r.keptCopies, setAside: r.setAside };
   }
 
   // The file's content when another host saved it since this panel last
@@ -567,7 +704,8 @@
   // again before the caller's emptied state could be saved over it.
   // { unavailable: true } means the file could not be checked (a drive or
   // cloud folder failing for a moment): the caller does not save this time,
-  // and nothing counts as deleted.
+  // and nothing counts as deleted. After a recovery (_takeOverUnreadable)
+  // the libraries take in `takeIn` too.
   function readIfChanged(csInterface, kind) {
     var name = kind === "settings" ? SETTINGS_FILE_NAME : kind === "sound-library" ? SOUND_LIBRARY_FILE_NAME : FILE_NAME;
     try {
@@ -589,9 +727,15 @@
         return { changed: false };
       }
       if (stat.stamp === _cutByMe[filePath]) {
-        return { changed: false }; // the file this panel cut itself: its next save replaces it
+        return { changed: false }; // an unreadable file this panel may replace: its next save does
       }
-      var value = JSON.parse(fs.readFileSync(filePath, "utf8"));
+      var raw = fs.readFileSync(filePath, "utf8");
+      var value;
+      try {
+        value = JSON.parse(raw);
+      } catch (parseErr) {
+        return _takeOverUnreadable(fs, filePath, stat.stamp, raw, kind === "settings" || kind === "sound-library" ? kind : "library");
+      }
       var generation = _generationOf(value);
       var known = _gen[filePath];
       if (known !== undefined && generation !== "" && generation !== known) {
@@ -604,10 +748,31 @@
       _gen[filePath] = generation;
       return { changed: true, value: value };
     } catch (e) {
-      // Read or parse errors (another host mid-write on Windows, a damaged
-      // file): not checked, so nothing is saved over it this time.
+      // Read errors (a drive or cloud folder failing for a moment): not
+      // checked, so nothing is saved over it this time.
       return { changed: false, unavailable: true };
     }
+  }
+
+  // The log line for a load or a check that took in kept copies or kept an
+  // unreadable data file aside; null when it did neither. `what` names the
+  // file for the log ("settings.json", "The track library file").
+  function recoveryNote(what, result) {
+    if (!result || result.ok === false) {
+      return null; // a load that failed is logged with its error
+    }
+    var copies = result.keptCopies ? result.keptCopies.join(", ") : result.recoveredFrom || "";
+    if (result.setAside && copies) {
+      return what + " could not be read (cut short by a save that failed); its bytes are kept as " + result.setAside +
+        ", and the data was taken from the complete copies that save kept (" + copies + ").";
+    }
+    if (copies) {
+      return what + ": took in the complete copies kept by a save that failed (" + copies + "); they are removed once a save works again.";
+    }
+    if (result.setAside) {
+      return what + " could not be read; its bytes are kept as " + result.setAside + ", and this panel's next save replaces it.";
+    }
+    return null;
   }
 
   // entries: the array from BeatMarkerLibrary.getAll(). `clipInfo` is
@@ -673,13 +838,12 @@
       }
       var fs = window.cep_node.require("fs");
       var filePath = _getDataDir(csInterface) + "/" + FILE_NAME;
-      var read = _readJsonFile(fs, filePath, function (value) {
-        if (!Array.isArray(value)) {
-          throw new Error("library.json did not contain a JSON array.");
-        }
-      });
-      return { ok: true, entries: read.existed ? read.value : [], path: filePath, existed: read.existed,
-        recoveredFrom: read.recoveredFrom || null, setAside: read.setAside || null };
+      var read = _readJsonFile(fs, filePath, VALIDATE.library, false);
+      // takeIn: older kept copies, for BeatMarkerLibrary.absorb() after
+      // loadEntries(entries) (see "A save Windows refused").
+      return { ok: true, entries: read.existed ? read.value : [], takeIn: read.takeIn || [], path: filePath, existed: read.existed,
+        recoveredFrom: read.recoveredFrom || null, keptCopies: read.keptCopies || null,
+        setAside: read.setAside || null };
     } catch (e) {
       return _loadFailure(e);
     }
@@ -721,13 +885,10 @@
       }
       var fs = window.cep_node.require("fs");
       var filePath = _getDataDir(csInterface) + "/" + SETTINGS_FILE_NAME;
-      var read = _readJsonFile(fs, filePath, function (value) {
-        if (value !== null && (typeof value !== "object" || Array.isArray(value))) {
-          throw new Error("settings.json did not contain a JSON object.");
-        }
-      });
+      var read = _readJsonFile(fs, filePath, VALIDATE.settings, true); // the newest of the file and its kept copies
       return { ok: true, settings: (read.existed && read.value) || {}, path: filePath, existed: read.existed,
-        recoveredFrom: read.recoveredFrom || null, setAside: read.setAside || null };
+        recoveredFrom: read.recoveredFrom || null, keptCopies: read.keptCopies || null,
+        setAside: read.setAside || null };
     } catch (e) {
       return _loadFailure(e);
     }
@@ -760,13 +921,11 @@
       }
       var fs = window.cep_node.require("fs");
       var filePath = _getDataDir(csInterface) + "/" + SOUND_LIBRARY_FILE_NAME;
-      var read = _readJsonFile(fs, filePath, function (value) {
-        if (!value || typeof value !== "object" || Array.isArray(value)) {
-          throw new Error("sound-library.json did not contain a JSON object.");
-        }
-      });
-      return { ok: true, state: read.existed ? read.value : null, path: filePath, existed: read.existed,
-        recoveredFrom: read.recoveredFrom || null, setAside: read.setAside || null };
+      var read = _readJsonFile(fs, filePath, VALIDATE["sound-library"], false);
+      // takeIn: older kept copies, for absorb() after loadState(state).
+      return { ok: true, state: read.existed ? read.value : null, takeIn: read.takeIn || [], path: filePath, existed: read.existed,
+        recoveredFrom: read.recoveredFrom || null, keptCopies: read.keptCopies || null,
+        setAside: read.setAside || null };
     } catch (e) {
       return _loadFailure(e);
     }
@@ -782,6 +941,7 @@
     getTempDir: getTempDir,
     clearLeftoverTempFiles: clearLeftoverTempFiles,
     readIfChanged: readIfChanged,
+    recoveryNote: recoveryNote,
     listUserData: listUserData,
     deleteUserData: deleteUserData
   };

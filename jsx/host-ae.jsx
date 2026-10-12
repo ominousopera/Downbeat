@@ -263,13 +263,12 @@ function dbAeCreateClipMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, re
         return { requested: times.length, created: r.created, skipped: r.skipped, kept: r.kept, replaced: replaced, stored: r.stored };
     });
 }
-// The layer's identity for _dbPlacedTimeline. Layer.id exists from After
-// Effects 22.0; older versions use the layer's source item and its place in
-// the composition, which sliding the layer in time keeps.
+// The layer's identity for _dbPlacedTimeline: Layer.id, which exists from
+// After Effects 22.0. Older versions get null and keep composition markers
+// from an earlier Place that are outside the layer: a duplicated layer takes
+// the original's place in the stack, so no other key is safe there.
 function _dbAeLayerKey(layer) {
-    if (layer.id !== undefined && layer.id !== null) { return layer.id; }
-    var sourceId = layer.source && layer.source.id !== undefined ? layer.source.id : "";
-    return "source" + sourceId + "@" + layer.index;
+    return layer.id !== undefined && layer.id !== null ? layer.id : null;
 }
 // Comp times, like Premiere's sequence markers.
 function dbAeCreateMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJson) {
@@ -285,12 +284,13 @@ function dbAeCreateMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, refere
         // See _dbPlacedTimeline in host.jsx: composition markers stay put
         // when the layer moves, so re-placing also clears Downbeat's own
         // ones at the times it used last time.
-        var placedKey = layer ? _dbPlacedKey(comp.id, _dbAeLayerKey(layer)) : null;
+        var layerKey = layer ? _dbAeLayerKey(layer) : null;
+        var placedKey = layerKey !== null ? _dbPlacedKey(comp.id, layerKey) : null;
         var replaced = 0;
         var r = _dbAeWithUndo("Downbeat: place markers", function () {
             if (layer) {
                 replaced = _dbAeRemoveOwnAroundLayer(comp, layer);
-                var before = _dbPlacedTimeline[placedKey] || [];
+                var before = placedKey ? _dbPlacedTimeline[placedKey] || [] : [];
                 for (var k = comp.markerProperty.numKeys; k >= 1; k--) {
                     var kt = comp.markerProperty.keyTime(k);
                     var kv = comp.markerProperty.keyValue(k);

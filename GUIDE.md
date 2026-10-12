@@ -404,6 +404,9 @@ Pro. Otherwise it works the same way, with a layer in place of a clip:
   To cut there, **J** and **K** jump the playhead to the previous or next
   marker, and **Edit → Split Layer** (⌘⇧D on Mac, Ctrl+Shift+D on Windows)
   splits the layer at the playhead.
+- Placing again with **Place on: Timeline** replaces Downbeat's earlier
+  composition markers for that layer. In After Effects 2021, the ones left
+  outside the layer after you move it stay; delete those by hand.
 - Markers always go on the start of the frame the beat begins in: After
   Effects has no Show Audio Time Units, and its playhead and Split Layer
   work in whole frames, so there is no Timing setting (or Shift) here.
@@ -478,13 +481,13 @@ data first if you want everything gone.
 
 Each file is saved by writing a new copy and swapping it in, so a crash or a
 full disk mid-save leaves the previous version whole. If a saved file still
-cannot be read, Downbeat keeps it as `<name>.unreadable-<date>-<time>.json`
-next to it, says so on the Library tab and starts that part empty — it never
-saves over it. If Windows refuses the save (another program, such as OneDrive
-or an antivirus, holds the file), the new data stays next to it as
-`<name>.unsaved-<date>-<time>.json`; the next start puts it back in place, and
-the next successful save removes Downbeat's own older copies. Premiere Pro and After Effects can run Downbeat at the same
-time: each panel takes in what the other saved before saving its own changes;
+cannot be read, Downbeat keeps its contents next to it as
+`<name>.unreadable-<date>-<time>.json` (never saved over), says so on the
+Library tab and starts that part empty. If Windows refuses the save (another
+program, such as OneDrive or an antivirus, holds the file), the new data stays
+next to it as `<name>.unsaved-<date>-<time>.json`; every start takes such
+copies in, and Downbeat removes one only after a later save has written its
+data. Premiere Pro and After Effects can run Downbeat at the same time: each panel takes in what the other saved before saving its own changes;
 after Delete my data in one, the other panel empties itself instead of saving
 the old data again. Analyses of songs on a disconnected drive are kept until
 the drive is back.
