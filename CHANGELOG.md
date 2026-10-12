@@ -3,6 +3,47 @@
 Release notes and packages for every version are on the
 [Releases](https://github.com/ominousopera/Downbeat/releases) page.
 
+## 1.0.5
+
+### The "1" of each bar
+
+- With **Beat grid → Refined**, the second detector (Beat This!) counts the
+  bars over the whole song at once, so the "1" comes every four beats and
+  does not jump to a loud beat 3. Silence before and after the music is left
+  out of the count.
+- A "1" less than a beat and a half after another one is left out, also on
+  tracks analyzed earlier. No "1" is moved or added.
+- When the detector is unsure where the bars start, or its "1"s still come
+  at uneven distances, a warning under **The "1" is beat** says so: listen to
+  the click and pick the real "1" in **1 2 3 4**, or switch **Beat grid** to
+  **Basic**. The warning comes back when the track's analysis is opened
+  again.
+
+### Requirements
+
+- Premiere Pro 2025 (25.0) or After Effects 2025 (25.0) or newer. Earlier
+  versions do not show this panel; 1.0.4 stays on the Releases page for
+  them.
+- macOS 13.5 or newer (Apple Silicon and Intel) and Windows 10 or 11 (x64),
+  as the bundled Node.js requires. Windows on Arm is not supported yet.
+
+### Saved data
+
+- When another program holds a data file and Windows refuses a save, the
+  complete new data is kept next to it as
+  `<name>.unsaved-<date>-<time>.json` and taken in at the next start. A file
+  cut short by a failed save is set aside and replaced by that copy. The
+  copies are removed only after the panel that holds their data saves
+  successfully, and by Delete my data.
+- A data file that cannot be read is copied aside instead of moved, so the
+  other host never takes the moment without the file for Delete my data.
+- With Premiere Pro and After Effects open together, settings are merged
+  setting by setting: a change made in one host is kept when the other one
+  saves.
+- Delete my data in one host is noticed by the other one also when it first
+  shows in the settings file (a language change there keeps the deleted
+  analyses deleted) and when that panel started from kept copies.
+
 ## 1.0.4
 
 ### Saved data and markers

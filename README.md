@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/ominousopera/Downbeat/releases/latest"><img alt="release v1.0.4" src="docs/images/badges/release.svg"></a>
+  <a href="https://github.com/ominousopera/Downbeat/releases/latest"><img alt="release v1.0.5" src="docs/images/badges/release.svg"></a>
   <img alt="license AGPL-3.0" src="docs/images/badges/license.svg">
   <img alt="Premiere Pro 25.0+" src="docs/images/badges/premiere-pro.svg">
   <img alt="After Effects 25.0+" src="docs/images/badges/after-effects.svg">
