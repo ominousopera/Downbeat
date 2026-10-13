@@ -64,7 +64,7 @@ Release notes and packages for every version are on the
   other host never takes the moment without the file for Delete my data.
 - With Premiere Pro and After Effects open together, settings are merged
   setting by setting: a change made in one host is kept when the other one
-  saves.
+  saves, also when both save at the same moment.
 - Delete my data in one host is noticed by the other one also when it first
   shows in the settings file (a language change there keeps the deleted
   analyses deleted) and when that panel started from kept copies.

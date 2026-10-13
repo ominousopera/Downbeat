@@ -31,7 +31,7 @@
 
   // ---- Deleting: the places this plugin removes anything it did not just
   // create itself are the startup temp sweep and the Settings "Delete my
-  // data" button, plus one more below. Both use _listOwnFiles(), which
+  // data" button, plus two more below. Both use _listOwnFiles(), which
   // returns an explicit list of files that are provably this plugin's, and
   // nothing more:
   //  - only directly inside Documents/Downbeat/ and Documents/Downbeat/tmp/,
@@ -41,11 +41,14 @@
   //    OWN_TEMP_FILE_PATTERN (samples-/beatthis-/skey-/library-<n>-<n>.raw,
   //    library-<n>-<n>.json);
   //  - only plain files.
-  // Otherwise it refuses outright. The one more is a data file's kept copy
-  // after a save Windows refused: only by the panel that holds its data and
-  // has just saved it, only that exact name next to its data file, only a
-  // plain file, and only while it is the file the panel read (see "A save
-  // Windows refused"). The pattern must match the names the panel gives its
+  // Otherwise it refuses outright. The two more: a data file's kept copy (a
+  // save Windows refused, or one made while the other host was saving):
+  // only by the panel that holds its data and has just saved it, only that
+  // exact name next to its data file, only a plain file, and only while it
+  // is the file the panel read (see "A save Windows refused"); and a data
+  // file's lock left by a host that quit mid-save: only that exact name,
+  // only a plain file, only once it is over a minute old (see "One save at
+  // a time"). The pattern must match the names the panel gives its
   // worker handoff files.
   var OWN_TEMP_FILE_PATTERN = /^((samples|beatthis|skey|library)-[0-9]+-[0-9]+\.raw|library-[0-9]+-[0-9]+\.json)$/;
   // In Documents/Downbeat itself: the new copy of a data file while it is
@@ -54,10 +57,14 @@
   var OWN_DATA_TEMP_PATTERN = /^(library|settings|sound-library)\.json\.tmp-[0-9]+-[0-9]+$/;
   var OWN_SET_ASIDE_PATTERN = /^(library|settings|sound-library)\.unreadable-[0-9]{8}-[0-9]{6}(-[0-9]+)?\.json$/;
   // The complete new copy of a data file whose save Windows refused
-  // (_writeAtomic): never swept, taken in by every load, and removed by the
-  // next successful save of a panel that took it in (see "A save Windows
-  // refused").
+  // (_writeAtomic), or of settings saved while the other host held the lock
+  // (see "One save at a time"): never swept, taken in by every load, and
+  // removed by the next successful save of a panel that took it in (see "A
+  // save Windows refused").
   var OWN_UNSAVED_PATTERN = /^(library|settings|sound-library)\.unsaved-[0-9]{8}-[0-9]{6}(-[0-9]+)?\.json$/;
+  // Held by a panel while it saves a data file (see "One save at a time");
+  // one left by a host that quit mid-save is swept like a temp file.
+  var OWN_LOCK_PATTERN = /^(library|settings|sound-library)\.json\.lock$/;
   // The start-up sweep leaves younger temp files alone: Premiere and After
   // Effects can both run Downbeat on one Documents/Downbeat, and a panel
   // starting in one must not remove files the other is still using.
@@ -117,7 +124,8 @@
       var full = dataDir + "/" + names[i];
       var ownData = ownDataNames.indexOf(names[i]) !== -1 || OWN_SET_ASIDE_PATTERN.test(names[i]) ||
         OWN_UNSAVED_PATTERN.test(names[i]);
-      if (((includeDataFiles && ownData) || OWN_DATA_TEMP_PATTERN.test(names[i])) && _pathKind(fs, full) === "file") {
+      if (((includeDataFiles && ownData) || OWN_DATA_TEMP_PATTERN.test(names[i]) || OWN_LOCK_PATTERN.test(names[i])) &&
+          _pathKind(fs, full) === "file") {
         listing.files.push(full);
       } else {
         listing.kept.push(full);
@@ -420,7 +428,7 @@
   //   - every load takes in all of a data file's kept copies: the newest of
   //     them and the data file is the data, and the two libraries take in
   //     the others as well (absorb), so when each host kept one, nothing is
-  //     lost;
+  //     lost; every settings save takes in those it has not seen as well;
   //   - a load never writes over a data file that is whole. One that does
   //     not parse is kept aside (_keepUnreadable) and the newest kept copy
   //     is renamed over it: a rename happens or not, it cannot cut a file;
@@ -502,13 +510,18 @@
   // when only its .tmp- file holds it. When no new copy can be made, the
   // temp file stays as it is: its name is its own, while renaming it to a
   // dated name could go over a copy the other host made in the same second.
+  // `temp` is null for a save made while the other host held the lock (see
+  // "One save at a time").
   function _keepCompleteCopy(fs, temp, filePath, text) {
     var kept = _writeDatedFile(fs, filePath, "unsaved", text, null);
-    var tempLeft = !kept;
-    if (kept) {
+    var tempLeft = !kept && !!temp;
+    if (kept && temp) {
       try { fs.unlinkSync(temp); } catch (e) { tempLeft = true; }
     }
     var where = kept || temp, st, whole = false;
+    if (!where) {
+      return null;
+    }
     try {
       st = fs.statSync(where);
       whole = fs.readFileSync(where, "utf8") === text;
@@ -521,6 +534,102 @@
       try { var tst = fs.statSync(temp); _noteTaken(filePath, temp, tst.mtimeMs + ":" + tst.size, true); } catch (e3) { /* gone */ }
     }
     return kept;
+  }
+
+  // ---- One save at a time. A settings save reads settings.json, takes in
+  // what the other host changed and writes the result; if Premiere and
+  // After Effects did that in the same moment, the write that came last
+  // would have read the file before the other one's write and dropped its
+  // change. So a settings save runs while its panel holds
+  // settings.json.lock, a file created only when there is none:
+  //   - the panel that holds it reads, merges and writes as before;
+  //   - a panel that finds it held does not wait: it keeps its complete
+  //     settings as a copy (<name>.unsaved-<date>-<time>.json, see "A save
+  //     Windows refused") and tries once more, saving normally if the lock
+  //     is free by then;
+  //   - the holder lets go, then looks for copies it has not taken in and
+  //     saves again with them. Either it sees the other panel's copy or the
+  //     other panel finds the lock free, so no copy waits for a restart;
+  //   - a lock over a minute old was left by a host that quit mid-save and
+  //     is removed; one that cannot be created for another reason (a
+  //     read-only folder) does not stop the save, which goes ahead as before.
+  var _waiting = {}; // file path -> true while its save goes to a copy (the other host holds the lock)
+  function _lock(fs, filePath) {
+    var lockPath = filePath + ".lock", token = _newGeneration();
+    for (var attempt = 0; attempt < 2; attempt++) {
+      var fd;
+      try {
+        fd = fs.openSync(lockPath, "wx");
+      } catch (e) {
+        if (!e || e.code !== "EEXIST" || _pathKind(fs, lockPath) !== "file") {
+          return { path: lockPath, token: null }; // cannot be locked here: saved as before
+        }
+        var age;
+        try { age = Date.now() - fs.statSync(lockPath).mtimeMs; } catch (e2) { age = 0; }
+        if (attempt === 0 && age >= SETTLE_MS) {
+          try { fs.unlinkSync(lockPath); } catch (e3) { /* the next try tells */ }
+          continue;
+        }
+        return null; // another host is saving
+      }
+      try {
+        fs.writeSync(fd, token);
+        fs.closeSync(fd);
+      } catch (writeErr) {
+        try { fs.closeSync(fd); } catch (e4) { /* already closed */ }
+        try { fs.unlinkSync(lockPath); } catch (e5) { /* the open above created it: this panel's own */ }
+        return { path: lockPath, token: null };
+      }
+      return { path: lockPath, token: token };
+    }
+    return null;
+  }
+  // Only this panel's own lock: Delete my data in the other host may have
+  // removed it, and another panel may hold a new one.
+  function _unlock(fs, lock) {
+    if (!lock.token) { return; }
+    try {
+      if (fs.readFileSync(lock.path, "utf8") === lock.token) { fs.unlinkSync(lock.path); }
+    } catch (e) {
+      // Gone already, or it stays until it is a minute old.
+    }
+  }
+  // Kept copies of `filePath` whose data this panel does not hold yet. A
+  // temp file younger than a minute may be another host's save in progress.
+  function _newCopies(fs, filePath, validate) {
+    var taken = _taken[filePath] || [], now = Date.now();
+    return _validCopies(fs, filePath, validate).filter(function (c) {
+      if (_isTempName(c.path) && now - c.mtime < SETTLE_MS) { return false; }
+      for (var i = 0; i < taken.length; i++) {
+        if (taken[i].path === c.path && taken[i].stamp === c.stamp) { return false; }
+      }
+      return true;
+    });
+  }
+  // Runs `save` (the panel's whole read, merge and saveSettings) in turn
+  // with the other host, as described above. `save` may run up to three
+  // times; changes it applies belong to its first run only.
+  function settingsInTurn(csInterface, save) {
+    var fs, filePath, lock;
+    try {
+      fs = window.cep_node.require("fs");
+      var dir = _getDataDir(csInterface);
+      fs.mkdirSync(dir, { recursive: true });
+      filePath = dir + "/" + SETTINGS_FILE_NAME;
+      lock = _lock(fs, filePath);
+    } catch (e) {
+      save(); // cannot be locked here: saved as before, and saveSettings reports any error
+      return;
+    }
+    if (!lock) {
+      _waiting[filePath] = true;
+      try { save(); } finally { delete _waiting[filePath]; }
+      lock = _lock(fs, filePath);
+    }
+    for (var round = 0; lock && round < 3; round++) {
+      try { save(); } finally { _unlock(fs, lock); }
+      lock = _newCopies(fs, filePath, VALIDATE.settings).length ? _lock(fs, filePath) : null;
+    }
   }
 
   // Settings from two hosts or from kept copies, taken together key by key:
@@ -729,7 +838,9 @@
   // { unavailable: true } means the file could not be checked (a drive or
   // cloud folder failing for a moment): the caller does not save this time,
   // and nothing counts as deleted. After a recovery (_takeOverUnreadable)
-  // the libraries take in `takeIn` too.
+  // the libraries take in `takeIn` too. For settings, `value` also holds
+  // the kept copies this panel has not taken in yet (see "One save at a
+  // time"), listed in `keptCopies`.
   function readIfChanged(csInterface, kind) {
     var name = kind === "settings" ? SETTINGS_FILE_NAME : kind === "sound-library" ? SOUND_LIBRARY_FILE_NAME : FILE_NAME;
     try {
@@ -750,11 +861,12 @@
         }
         return { changed: false };
       }
+      var copies = kind === "settings" ? _newCopies(fs, filePath, VALIDATE.settings) : [];
       if (stat.stamp === _synced[filePath]) {
-        return { changed: false };
+        return _withNewCopies(filePath, null, 0, copies);
       }
       if (stat.stamp === _cutByMe[filePath]) {
-        return { changed: false }; // an unreadable file this panel may replace: its next save does
+        return _withNewCopies(filePath, null, 0, copies); // an unreadable file this panel may replace: its next save does
       }
       var raw = fs.readFileSync(filePath, "utf8");
       var value;
@@ -773,12 +885,27 @@
       }
       _synced[filePath] = stat.stamp;
       _gen[filePath] = generation;
-      return { changed: true, value: value };
+      return _withNewCopies(filePath, value, parseFloat(stat.stamp), copies);
     } catch (e) {
       // Read errors (a drive or cloud folder failing for a moment): not
       // checked, so nothing is saved over it this time.
       return { changed: false, unavailable: true };
     }
+  }
+
+  // What readIfChanged returns for settings when `copies` (_newCopies) are
+  // there: the file's new value (or null when it did not change) and theirs,
+  // key by key, oldest first.
+  function _withNewCopies(filePath, value, mtime, copies) {
+    if (!copies.length) {
+      return value === null ? { changed: false } : { changed: true, value: value };
+    }
+    var all = (value === null ? [] : [{ value: value, mtime: mtime }]).concat(copies);
+    all.sort(function (a, b) { return a.mtime - b.mtime; });
+    var merged = all[0].value;
+    for (var i = 1; i < all.length; i++) { merged = mergeSettings(merged, all[i].value); }
+    for (var j = 0; j < copies.length; j++) { _noteTaken(filePath, copies[j].path, copies[j].stamp, false); }
+    return { changed: true, value: merged, keptCopies: copies.map(function (c) { return c.path; }) };
   }
 
   // The log line for a load or a check that took in kept copies or kept an
@@ -794,7 +921,7 @@
         ", and the data was taken from the complete copies that save kept (" + copies + ").";
     }
     if (copies) {
-      return what + ": took in the complete copies kept by a save that failed (" + copies + "); they are removed once a save works again.";
+      return what + ": took in the complete copies kept by a save that could not replace it (" + copies + "); they are removed once a save works again.";
     }
     if (result.setAside) {
       return what + " could not be read; its bytes are kept as " + result.setAside + ", and this panel's next save replaces it.";
@@ -889,18 +1016,28 @@
       fs.mkdirSync(dir, { recursive: true });
       var filePath = dir + "/" + SETTINGS_FILE_NAME;
       var generation = _generationForSave(fs, filePath);
-      _writeAtomic(fs, filePath, JSON.stringify(_withGeneration(settings, generation), null, 2), generation);
+      var text = JSON.stringify(_withGeneration(settings, generation), null, 2);
+      var kept = null;
+      if (_waiting[filePath]) {
+        // The other host holds the lock: a copy it takes in (see "One save at a time").
+        kept = _keepCompleteCopy(fs, null, filePath, text);
+        if (!kept) {
+          throw new Error("not saved: the other host was saving " + filePath + ", and no copy could be kept beside it");
+        }
+      } else {
+        _writeAtomic(fs, filePath, text, generation);
+      }
       // Restricted to the current OS user (owner read/write only, 0600) so
       // another local account on a shared machine cannot read the file.
       // Not encrypted.
       try {
-        fs.chmodSync(filePath, 0o600);
+        fs.chmodSync(kept || filePath, 0o600);
       } catch (chmodErr) {
       // Best-effort: never fail a settings save over permissions, and some
       // filesystems (network drives, FAT/exFAT mounts) have no Unix
       // permission bits.
       }
-      return { ok: true, path: filePath };
+      return kept ? { ok: true, path: filePath, keptIn: kept } : { ok: true, path: filePath };
     } catch (e) {
       return { ok: false, error: e.message ? e.message : String(e) };
     }
@@ -968,6 +1105,7 @@
     getTempDir: getTempDir,
     clearLeftoverTempFiles: clearLeftoverTempFiles,
     readIfChanged: readIfChanged,
+    settingsInTurn: settingsInTurn,
     mergeSettings: mergeSettings,
     recoveryNote: recoveryNote,
     listUserData: listUserData,

@@ -238,6 +238,16 @@
     // panel changes is stamped, and each key comes from whichever side
     // changed it last, so a change this panel could not save yet is not
     // lost either (see mergeSettings in js/persistence.js).
+    // One host saves at a time (see "One save at a time" in
+    // js/persistence.js): a later run of the save only takes in what the
+    // other host kept meanwhile.
+    var changes = overrides;
+    window.BeatMarkerPersistence.settingsInTurn(csInterface, function () {
+      _saveSettingsNow(changes);
+      changes = {};
+    });
+  }
+  function _saveSettingsNow(overrides) {
     var fresh = window.BeatMarkerPersistence.readIfChanged(csInterface, "settings");
     var changedAt = Date.now();
     if (fresh.unavailable) {
@@ -271,6 +281,8 @@
     var result = window.BeatMarkerPersistence.saveSettings(csInterface, merged);
     if (!result.ok) {
       log("WARNING: could not save settings to disk: " + result.error);
+    } else if (result.keptIn) {
+      log("The other host was saving settings.json; this change is kept in " + result.keptIn + " and taken in by the next save.");
     }
   }
   // Sets `overrides` on a settings object and stamps each of those keys

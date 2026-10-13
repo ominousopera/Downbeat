@@ -541,8 +541,8 @@ lado como `<nombre>.unsaved-<fecha>-<hora>.json`; cada inicio incorpora esas
 copias, y Downbeat solo borra una cuando un guardado posterior ya ha escrito sus
 datos.
 Premiere Pro y After Effects pueden usar Downbeat a la vez: antes de guardar
-sus cambios, cada panel incorpora lo que guardó el otro; tras Eliminar mis datos
-en uno, el panel del otro se vacía en lugar de volver a guardar los datos
+sus cambios, cada panel incorpora lo que guardó el otro, y un ajuste cambiado
+en los dos en el mismo momento no se pierde; tras Eliminar mis datos en uno, el panel del otro se vacía en lugar de volver a guardar los datos
 antiguos. Los análisis de canciones en un disco desconectado se conservan hasta
 que vuelve.
 

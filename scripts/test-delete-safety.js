@@ -25,8 +25,8 @@ try {
   const r = P.deleteUserData(cs); assert.ok(r.ok); assert.deepStrictEqual(r.deleted, []); ok("no data folder: nothing deleted, no error"); }
 // mixed folder with traps
 { const D = SP + "/docs2"; const DB = D + "/Downbeat"; const OUT = SP + "/outside";
-  w(DB + "/settings.json"); w(DB + "/library.json");
-  w(DB + "/my-notes.txt", "user file"); w(DB + "/Settings.JSON.bak");
+  w(DB + "/settings.json"); w(DB + "/library.json"); w(DB + "/settings.json.lock");
+  w(DB + "/my-notes.txt", "user file"); w(DB + "/Settings.JSON.bak"); w(DB + "/settings.json.lock.old", "user");
   w(DB + "/sub/settings.json", "nested, not ours"); w(DB + "/sub/library.json");
   w(DB + "/tmp/samples-1-2.raw"); w(DB + "/tmp/beatthis-3-4.raw");
   w(DB + "/sound-library.json"); w(DB + "/tmp/library-5-6.raw"); w(DB + "/tmp/library-7-8.json");
@@ -37,11 +37,11 @@ try {
   const { P, cs } = freshModule(D);
   const preview = P.listUserData(cs);
   assert.deepStrictEqual(preview.files.map((f) => path.relative(DB, f)).sort(),
-    ["library.json", "settings.json", "sound-library.json", "tmp/beatthis-3-4.raw", "tmp/library-5-6.raw", "tmp/library-7-8.json", "tmp/samples-1-2.raw"]);
-  ok("preview lists exactly the 7 own files");
+    ["library.json", "settings.json", "settings.json.lock", "sound-library.json", "tmp/beatthis-3-4.raw", "tmp/library-5-6.raw", "tmp/library-7-8.json", "tmp/samples-1-2.raw"]);
+  ok("preview lists exactly the 8 own files");
   const r = P.deleteUserData(cs);
-  assert.ok(r.ok); assert.strictEqual(r.deleted.length, 7); assert.strictEqual(r.folderRemoved, false);
-  for (const keep of ["my-notes.txt", "Settings.JSON.bak", "sub/settings.json", "sub/library.json", "tmp/samples-final.raw", "tmp/song.mp3",
+  assert.ok(r.ok); assert.strictEqual(r.deleted.length, 8); assert.strictEqual(r.folderRemoved, false);
+  for (const keep of ["my-notes.txt", "Settings.JSON.bak", "settings.json.lock.old", "sub/settings.json", "sub/library.json", "tmp/samples-final.raw", "tmp/song.mp3",
                       "tmp/library-notes.json", "tmp/samples-9-9.json"])
     assert.ok(fs.existsSync(DB + "/" + keep), "kept " + keep);
   assert.ok(fs.existsSync(OUT + "/precious.txt"));
@@ -85,6 +85,17 @@ ok("empty / root / drive-root / relative Documents path: refused");
 { const D = SP + "/docs7"; const { P, cs } = freshModule(D);
   assert.ok(P.saveSettings(cs, { language: "en" }).ok); assert.ok(fs.existsSync(D + "/Downbeat/settings.json"));
   ok("settings save recreates the folder after a delete"); }
+// 9. a link named settings.json.lock (a settings save takes the lock):
+// never removed or followed, and the save still goes through
+{ const D = SP + "/docs9"; const DB = D + "/Downbeat"; const OUT = SP + "/outside9";
+  w(OUT + "/real.lock", "outside"); fs.mkdirSync(DB, { recursive: true });
+  fs.symlinkSync(OUT + "/real.lock", DB + "/settings.json.lock");
+  fs.utimesSync(OUT + "/real.lock", new Date(Date.now() - 3600e3), new Date(Date.now() - 3600e3));
+  const { P, cs } = freshModule(D);
+  P.settingsInTurn(cs, () => assert.ok(P.saveSettings(cs, { language: "en" }).ok));
+  assert.ok(fs.lstatSync(DB + "/settings.json.lock").isSymbolicLink()); assert.strictEqual(fs.readFileSync(OUT + "/real.lock", "utf8"), "outside");
+  assert.strictEqual(JSON.parse(fs.readFileSync(DB + "/settings.json", "utf8")).language, "en");
+  ok("link disguised as the settings lock: neither the link nor its target touched, settings saved"); }
 console.log("ALL " + n + " DELETE-SAFETY CHECKS PASSED");
 } finally {
   fs.rmSync(SP, { recursive: true, force: true }); // throwaway fixture made above

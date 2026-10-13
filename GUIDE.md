@@ -487,8 +487,9 @@ Library tab and starts that part empty. If Windows refuses the save (another
 program, such as OneDrive or an antivirus, holds the file), the new data stays
 next to it as `<name>.unsaved-<date>-<time>.json`; every start takes such
 copies in, and Downbeat removes one only after a later save has written its
-data. Premiere Pro and After Effects can run Downbeat at the same time: each panel takes in what the other saved before saving its own changes;
-after Delete my data in one, the other panel empties itself instead of saving
+data. Premiere Pro and After Effects can run Downbeat at the same time: each panel takes in what the other saved before saving its own changes,
+and a setting changed in both at the same moment is not lost; after Delete
+my data in one, the other panel empties itself instead of saving
 the old data again. Analyses of songs on a disconnected drive are kept until
 the drive is back.
 

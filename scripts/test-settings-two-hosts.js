@@ -1,13 +1,18 @@
 "use strict";
 // Settings changed in Premiere and After Effects at once, with Windows
-// refusing a save. Each host is the real
+// refusing a save or both saving in the same moment. Each host is the real
 // panel (panel-harness) in its own Node process on one Documents/Downbeat;
-// only the refusal is injected (replace and in-place write of settings.json).
+// only the refusal or the timing is injected.
 //   - Premiere switches markers to the timeline and its save is refused (a
 //     copy is kept); After Effects, open since before, then turns synonyms
-//     off and saves normally. The next start has both changes.
-//   - The same with both saves refused (two copies).
+//     off, takes the copy in and saves both. The next start has both.
+//   - The same with both saves refused: After Effects' own copy holds both.
 //   - The next settings change saves both and removes the copies.
+//   - Premiere's save is held just before it replaces settings.json while
+//     After Effects opens, turns synonyms off and saves: the file ends with
+//     both changes, and no copy or lock is left.
+//   - A lock left by a host that quit mid-save: a change goes to a copy the
+//     next start takes in; once the lock is a minute old it is removed.
 // Run: node scripts/test-settings-two-hosts.js
 const fs = require("fs");
 const os = require("os");
@@ -23,9 +28,22 @@ function check(label, cond, detail) {
 // One host: boots the panel, waits for a line on stdin when asked to, then
 // changes "Place on" and/or the synonyms switch through the UI and prints
 // what it shows.
+// With `inside`, the other host's steps run (as a separate host) at the
+// moment this one is about to replace settings.json.
 const HOST = `
-const fs = require("fs"), path = require("path");
-const [harness, docs, refuse, stepsJson, wait] = process.argv.slice(1);
+const fs = require("fs"), path = require("path"), cp = require("child_process");
+const [harness, docs, refuse, stepsJson, wait, inside] = process.argv.slice(2);
+if (inside) {
+  const file = docs + "/Downbeat/settings.json", rename = fs.renameSync;
+  let once = true;
+  fs.renameSync = function (a, b) {
+    if (once && b === file && String(a).indexOf(".tmp-") !== -1) {
+      once = false;
+      cp.execFileSync(process.execPath, [__filename, harness, docs, "0", inside, "0", ""], { stdio: "ignore", timeout: 60000 });
+    }
+    return rename.apply(fs, arguments);
+  };
+}
 if (refuse === "1") {
   const file = docs + "/Downbeat/settings.json";
   const rename = fs.renameSync, write = fs.writeFileSync;
@@ -54,13 +72,17 @@ setTimeout(function () {
 }, 300);
 `;
 // The harness reads DOWNBEAT_ROOT itself, which the child inherits.
-function args(docs, refuse, steps, wait) { return ["-e", HOST, path.join(__dirname, "panel-harness.js"), docs, refuse ? "1" : "0", JSON.stringify(steps), wait ? "1" : "0"]; }
+const HOST_FILE = path.join(WORK, "host.js");
+fs.writeFileSync(HOST_FILE, HOST);
+function args(docs, refuse, steps, wait, inside) {
+  return [HOST_FILE, path.join(__dirname, "panel-harness.js"), docs, refuse ? "1" : "0", JSON.stringify(steps), wait ? "1" : "0", inside ? JSON.stringify(inside) : ""];
+}
 function result(text) {
   const line = String(text).split("\n").filter(function (l) { return l.indexOf("RESULT ") === 0; })[0];
   return line ? JSON.parse(line.slice(7)) : null;
 }
-function runHost(docs, refuse, steps) {
-  return result(execFileSync(process.execPath, args(docs, refuse, steps, false), { encoding: "utf8", timeout: 60000 }));
+function runHost(docs, refuse, steps, inside) {
+  return result(execFileSync(process.execPath, args(docs, refuse, steps, false, inside), { encoding: "utf8", timeout: 120000 }));
 }
 // A host that is open from the start and acts when `go()` is called.
 function openHost(docs, refuse, steps) {
@@ -82,6 +104,8 @@ function setup(name) {
 }
 const copies = (docs) => fs.readdirSync(path.join(docs, "Downbeat")).filter(function (n) { return /^settings\.unsaved-/.test(n); });
 const onDisk = (docs) => JSON.parse(fs.readFileSync(path.join(docs, "Downbeat", "settings.json"), "utf8"));
+const copyHolds = (docs, n) => JSON.parse(fs.readFileSync(path.join(docs, "Downbeat", n), "utf8"));
+const lockFile = (docs) => path.join(docs, "Downbeat", "settings.json.lock");
 
 (async function () {
   try {
@@ -93,8 +117,10 @@ const onDisk = (docs) => JSON.parse(fs.readFileSync(path.join(docs, "Downbeat", 
       runHost(docs, true, [{ target: "sequence" }]); // Premiere, then closed
       check(L + "Premiere kept a copy", copies(docs).length === 1, JSON.stringify(copies(docs)));
       await ae.go();
-      check(L + (both ? "After Effects kept its own copy beside it" : "After Effects saved normally"),
-        copies(docs).length === (both ? 2 : 1) && (both || onDisk(docs).librarySynonyms === false), JSON.stringify(copies(docs)));
+      const held = both ? copies(docs).map(function (n) { return copyHolds(docs, n); })[0] : onDisk(docs);
+      check(L + (both ? "After Effects took the copy in and kept its own with both changes" : "After Effects took the copy in and saved both"),
+        copies(docs).length === (both ? 1 : 0) && held && held.markerTarget === "sequence" && held.librarySynonyms === false,
+        JSON.stringify(copies(docs)) + " " + JSON.stringify(held));
       const next = runHost(docs, false, []);
       check(L + "the next start has both changes", next && next.target === "sequence" && next.synonyms === false, JSON.stringify(next));
       runHost(docs, false, [{ synonyms: true }, { synonyms: true }]);
@@ -102,9 +128,37 @@ const onDisk = (docs) => JSON.parse(fs.readFileSync(path.join(docs, "Downbeat", 
       check(L + "the next settings change saves both and removes the copies",
         saved.markerTarget === "sequence" && saved.librarySynonyms === false && copies(docs).length === 0, JSON.stringify(saved) + " " + JSON.stringify(copies(docs)));
     }
+
+    {
+      const L = "saves in the same moment: ";
+      const docs = setup("overlap");
+      runHost(docs, false, [{ target: "sequence" }], [{ synonyms: true }]);
+      const saved = onDisk(docs);
+      check(L + "settings.json has both changes", saved.markerTarget === "sequence" && saved.librarySynonyms === false, JSON.stringify(saved));
+      check(L + "no copy or lock is left", copies(docs).length === 0 && !fs.existsSync(lockFile(docs)), fs.readdirSync(path.join(docs, "Downbeat")).join(", "));
+    }
+
+    {
+      const L = "lock left by a host that quit: ";
+      const docs = setup("left-lock");
+      fs.writeFileSync(lockFile(docs), "gone");
+      runHost(docs, false, [{ synonyms: true }]);
+      check(L + "a change waits in a copy while the lock is new",
+        copies(docs).length === 1 && onDisk(docs).librarySynonyms === true && copyHolds(docs, copies(docs)[0]).librarySynonyms === false,
+        JSON.stringify(copies(docs)) + " " + JSON.stringify(onDisk(docs)));
+      const next = runHost(docs, false, []);
+      check(L + "the next start has it", next && next.synonyms === false, JSON.stringify(next));
+      const old = new Date(Date.now() - 2 * 60 * 1000);
+      fs.utimesSync(lockFile(docs), old, old);
+      runHost(docs, false, [{ target: "sequence" }]);
+      const saved = onDisk(docs);
+      check(L + "once a minute old it is removed and the save takes the copy in",
+        saved.markerTarget === "sequence" && saved.librarySynonyms === false && copies(docs).length === 0 && !fs.existsSync(lockFile(docs)),
+        JSON.stringify(saved) + " " + fs.readdirSync(path.join(docs, "Downbeat")).join(", "));
+    }
   } finally {
     fs.rmSync(WORK, { recursive: true, force: true });
   }
   if (failures) { console.error("\n" + failures + " check(s) failed"); process.exit(1); }
-  console.log("\nSettings changed in two hosts both survive a refused save");
+  console.log("\nSettings changed in two hosts both survive a refused save and saves in the same moment");
 })();
