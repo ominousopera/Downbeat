@@ -92,7 +92,7 @@ ok("empty / root / drive-root / relative Documents path: refused");
   fs.symlinkSync(OUT + "/real.lock", DB + "/settings.json.lock");
   fs.utimesSync(OUT + "/real.lock", new Date(Date.now() - 3600e3), new Date(Date.now() - 3600e3));
   const { P, cs } = freshModule(D);
-  P.settingsInTurn(cs, () => assert.ok(P.saveSettings(cs, { language: "en" }).ok));
+  P.inTurn(cs, "settings", () => assert.ok(P.saveSettings(cs, { language: "en" }).ok));
   assert.ok(fs.lstatSync(DB + "/settings.json.lock").isSymbolicLink()); assert.strictEqual(fs.readFileSync(OUT + "/real.lock", "utf8"), "outside");
   assert.strictEqual(JSON.parse(fs.readFileSync(DB + "/settings.json", "utf8")).language, "en");
   ok("link disguised as the settings lock: neither the link nor its target touched, settings saved"); }

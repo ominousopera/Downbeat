@@ -112,6 +112,12 @@
   }
   // Fire-and-log save - called after every library mutation.
   function persistLibrary() {
+    // One host saves at a time (see "One save at a time" in
+    // js/persistence.js): a later run of the save takes in what the other
+    // host kept meanwhile.
+    window.BeatMarkerPersistence.inTurn(csInterface, "library", _saveLibraryNow);
+  }
+  function _saveLibraryNow() {
     // Another host may have saved since (Premiere and After Effects share
     // Documents/Downbeat): its newer entries are taken in first.
     var fresh = window.BeatMarkerPersistence.readIfChanged(csInterface, "library");
@@ -132,6 +138,8 @@
     var result = window.BeatMarkerPersistence.save(csInterface, window.BeatMarkerLibrary.getAll(), window.BeatMarkerLibrary.meta());
     if (!result.ok) {
       log("WARNING: could not save the track library to disk: " + result.error);
+    } else if (result.keptIn) {
+      log("The other host was saving library.json; this change is kept in " + result.keptIn + " and taken in by the next save.");
     }
   }
   // After a load or a check that recovered a data file (see "A save Windows
@@ -242,7 +250,7 @@
     // js/persistence.js): a later run of the save only takes in what the
     // other host kept meanwhile.
     var changes = overrides;
-    window.BeatMarkerPersistence.settingsInTurn(csInterface, function () {
+    window.BeatMarkerPersistence.inTurn(csInterface, "settings", function () {
       _saveSettingsNow(changes);
       changes = {};
     });

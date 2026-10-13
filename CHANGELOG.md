@@ -36,9 +36,11 @@ Release notes and packages for every version are on the
   on the target only in color; the target's own marker stays.
 - Place and Clear leave your own markers alone even when they are named D
   or b. Downbeat knows its markers by the name together with the
-  explanation in the comment (Premiere Pro) or its color (After Effects),
-  and no length. A Downbeat marker whose comment or length you change
-  becomes yours.
+  explanation in the comment (Premiere Pro), or with its color and a
+  "Downbeat" marker parameter (After Effects), and no length. A Downbeat
+  marker whose comment or length you change becomes yours. In After
+  Effects, D and b markers placed by 1.0.4 or earlier count as yours:
+  delete them by hand once.
 - When a clip with timeline markers was moved, placing markers on the clip
   also removes those earlier timeline markers.
 

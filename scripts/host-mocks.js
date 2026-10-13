@@ -10,7 +10,10 @@ const vm = require("vm");
 // DOWNBEAT_ROOT: build-zxp.sh points this at the staged release copy.
 const ROOT = process.env.DOWNBEAT_ROOT || path.join(__dirname, "..");
 // ---------------- After Effects ----------------
-function MarkerValue(comment) { this.comment = comment; this.label = 0; }
+function MarkerValue(comment) { this.comment = comment; this.label = 0; this.params = {}; }
+// Cue point parameters, as After Effects keeps them (a copy each way).
+MarkerValue.prototype.getParameters = function () { return Object.assign({}, this.params); };
+MarkerValue.prototype.setParameters = function (p) { this.params = Object.assign({}, p); };
 function MarkerProp() { this.keys = []; }
 MarkerProp.prototype.setValueAtTime = function (t, v) {
   this.keys = this.keys.filter(function (k) { return Math.abs(k.t - t) > 1e-9; });
@@ -359,7 +362,8 @@ function loadHost(hostContext) {
 }
 // A marker as Downbeat itself writes it (jsx/host.jsx _dbIsOwnMarker,
 // jsx/host-ae.jsx _dbAeIsOwnMarker): in Premiere the name and the English
-// explanation in the comment, in After Effects the text and Downbeat's label.
+// explanation in the comment, in After Effects the text, Downbeat's label
+// and the "Downbeat" parameter with that text.
 const DOWNBEAT_COMMENT = {
   D: "Downbeat (start of a bar/strong beat) - the recommended cut point for a beat-synced edit.",
   b: "Beat (not a downbeat) - a regular beat, weaker than a downbeat."
@@ -374,6 +378,7 @@ function ownPremiereMarker(collection, seconds, code) {
 function ownAeMarkerValue(code) {
   const v = new MarkerValue(code);
   v.label = DOWNBEAT_AE_LABEL[code];
+  v.setParameters({ Downbeat: code });
   return v;
 }
 

@@ -9,9 +9,10 @@
 //     length, and one of Downbeat's whose comment the editor rewrote stay
 //     through Place (on the clip and on the timeline) and Clear; Downbeat's
 //     own markers, also a Russian one from an earlier session, go;
-//   - After Effects: an editor's "D" in another color, or with a length,
-//     stays through Place and Clear, and Place does not write over it at the
-//     same time; Downbeat's own markers go.
+//   - After Effects: an editor's "D" in another color, with a length, or
+//     even in Downbeat's own color (no "Downbeat" parameter) stays through
+//     Place and Clear, on the layer and on the composition, and Place does
+//     not write over it at the same time; Downbeat's own markers go.
 // Run: node scripts/test-marker-ownership.js
 const path = require("path");
 const mocks = require("./host-mocks.js");
@@ -85,20 +86,25 @@ const longAeD = mocks.ownAeMarkerValue("D"); longAeD.duration = 0.4;
 layer.markers.setValueAtTime(8, longAeD); // source 3 s
 const compD = new mocks.MarkerValue("D");
 a.comp.markerProperty.setValueAtTime(12, compD);
+const greenD = new mocks.MarkerValue("D"); greenD.label = 9;
+layer.markers.setValueAtTime(10, greenD); // source 5 s, Downbeat's color
+const compGreenD = new mocks.MarkerValue("D"); compGreenD.label = 9;
+a.comp.markerProperty.setValueAtTime(13, compGreenD);
 const comments = function (prop) { return prop.keys.map(function (k) { return k.v.comment + "/" + k.v.label + "@" + k.t; }).join(" "); };
 
 r = place(ah, "createClipMarkers", [1, 2, 4], ["D", "b", "D"]);
-check("After Effects: Place keeps an editor's D in another color or with a length, and does not write over it",
+check("After Effects: Place keeps an editor's D in another color, with a length or in Downbeat's color, and does not write over it",
   r.ok && r.data.replaced === 0 && r.data.kept === 1 && r.data.created === 2 &&
   layer.markers.keys.some(function (k) { return k.v === yellowD && k.t === 7; }) &&
-  layer.markers.keys.some(function (k) { return k.v === longAeD; }), JSON.stringify(r.data) + " | " + comments(layer.markers));
+  layer.markers.keys.some(function (k) { return k.v === longAeD; }) &&
+  layer.markers.keys.some(function (k) { return k.v === greenD; }), JSON.stringify(r.data) + " | " + comments(layer.markers));
 r = place(ah, "createClipMarkers", [1, 4], ["D", "D"]);
 check("After Effects: Place again replaces only Downbeat's set",
-  r.ok && r.data.replaced === 2 && comments(layer.markers) === "D/9@6 D/2@7 D/9@8 D/9@9", comments(layer.markers));
+  r.ok && r.data.replaced === 2 && comments(layer.markers) === "D/9@6 D/2@7 D/9@8 D/9@9 D/9@10", comments(layer.markers));
 r = clear(ah);
 check("After Effects: Clear takes only Downbeat's markers",
   r.ok && r.data.clipMarkersRemoved === 2 && r.data.sequenceMarkersRemoved === 0 &&
-  comments(layer.markers) === "D/2@7 D/9@8" && a.comp.markerProperty.keys.length === 1 && a.comp.markerProperty.keys[0].v === compD,
+  comments(layer.markers) === "D/2@7 D/9@8 D/9@10" && comments(a.comp.markerProperty) === "D/0@12 D/9@13",
   JSON.stringify(r.data) + " | " + comments(layer.markers));
 
 if (failures) { console.error(failures + " check(s) failed"); process.exit(1); }

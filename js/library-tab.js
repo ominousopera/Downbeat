@@ -190,13 +190,20 @@
       setTranslatedText(libScanStatus, "library.deletedElsewhere");
       log("Downbeat's data was deleted in another app (Documents/Downbeat); this panel dropped its copy instead of writing it back.");
     }
+    // One host saves at a time (see "One save at a time" in
+    // js/persistence.js).
     function persistSoundLibrary() {
+      window.BeatMarkerPersistence.inTurn(ctx.csInterface(), "sound-library", _saveSoundLibraryNow);
+    }
+    function _saveSoundLibraryNow() {
       if (_libAbsorbFromDisk() === null) {
         return;
       }
       var result = window.BeatMarkerPersistence.saveSoundLibrary(ctx.csInterface(), SL.getState());
       if (!result.ok) {
         log("WARNING: could not save the folder library to disk: " + result.error);
+      } else if (result.keptIn) {
+        log("The other host was saving sound-library.json; this change is kept in " + result.keptIn + " and taken in by the next save.");
       }
     }
     // During a scan results arrive every second or two; one write per few

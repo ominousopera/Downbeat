@@ -21,13 +21,28 @@ var AE_LABEL_COLOR_INDEX = {
     "D": 9,
     "b": 8
 };
-// Whether a marker value is one Downbeat placed: the text D or b,
-// Downbeat's label color for that text, no duration and none of a chapter,
-// web link, cue point name or protected region. A hand-made "D" keeps its
-// own color or length and stays the editor's. eventCuePoint is not read:
-// its default for a new marker is not confirmed.
+// The marker parameter (Marker dialog > Parameters) Downbeat writes on
+// each marker it places: name "Downbeat", value the marker's text, D or b.
+// Text, color and length can all be made by hand, so they do not prove
+// who placed a marker; this parameter does.
+var AE_OWN_MARKER_PARAM = "Downbeat";
+// Whether a marker value is one Downbeat placed: the text D or b, the
+// Downbeat parameter with that text, Downbeat's label color for it, no
+// duration and none of a chapter, web link, cue point name or protected
+// region. Any other "D" stays the editor's, and so do markers placed
+// before the parameter existed: they are removed by hand. eventCuePoint is
+// not read: its default for a new marker is not confirmed.
 function _dbAeIsOwnMarker(v) {
     if (!v || !AE_LABEL_COLOR_INDEX.hasOwnProperty(v.comment)) {
+        return false;
+    }
+    var params = null;
+    try {
+        params = v.getParameters ? v.getParameters() : null;
+    } catch (paramErr) {
+        params = null;
+    }
+    if (!params || params[AE_OWN_MARKER_PARAM] !== v.comment) {
         return false;
     }
     if (v.label !== AE_LABEL_COLOR_INDEX[v.comment]) {
@@ -150,6 +165,15 @@ function _dbAeMarkerValue(label) {
             mv.label = AE_LABEL_COLOR_INDEX[typeCode]; // best-effort; without it the marker keeps the default color
         } catch (labelErr) {
         // the marker itself is still created
+        }
+    }
+    if (text === typeCode && AE_LABEL_COLOR_INDEX.hasOwnProperty(text)) {
+        var params = {};
+        params[AE_OWN_MARKER_PARAM] = text;
+        try {
+            mv.setParameters(params);
+        } catch (paramErr) {
+            // the marker is still created; Place and Clear leave it then
         }
     }
     return mv;

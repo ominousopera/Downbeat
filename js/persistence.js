@@ -57,7 +57,7 @@
   var OWN_DATA_TEMP_PATTERN = /^(library|settings|sound-library)\.json\.tmp-[0-9]+-[0-9]+$/;
   var OWN_SET_ASIDE_PATTERN = /^(library|settings|sound-library)\.unreadable-[0-9]{8}-[0-9]{6}(-[0-9]+)?\.json$/;
   // The complete new copy of a data file whose save Windows refused
-  // (_writeAtomic), or of settings saved while the other host held the lock
+  // (_writeAtomic), or of data saved while the other host held its lock
   // (see "One save at a time"): never swept, taken in by every load, and
   // removed by the next successful save of a panel that took it in (see "A
   // save Windows refused").
@@ -428,7 +428,7 @@
   //   - every load takes in all of a data file's kept copies: the newest of
   //     them and the data file is the data, and the two libraries take in
   //     the others as well (absorb), so when each host kept one, nothing is
-  //     lost; every settings save takes in those it has not seen as well;
+  //     lost; every save takes in those it has not seen as well;
   //   - a load never writes over a data file that is whole. One that does
   //     not parse is kept aside (_keepUnreadable) and the newest kept copy
   //     is renamed over it: a rename happens or not, it cannot cut a file;
@@ -536,15 +536,16 @@
     return kept;
   }
 
-  // ---- One save at a time. A settings save reads settings.json, takes in
-  // what the other host changed and writes the result; if Premiere and
-  // After Effects did that in the same moment, the write that came last
-  // would have read the file before the other one's write and dropped its
-  // change. So a settings save runs while its panel holds
-  // settings.json.lock, a file created only when there is none:
+  // ---- One save at a time. A save reads its data file, takes in what the
+  // other host changed and writes the result; if Premiere and After Effects
+  // did that in the same moment, the write that came last would have read
+  // the file before the other one's write and dropped its change. So each
+  // save of settings.json, library.json and sound-library.json runs while
+  // its panel holds <name>.json.lock, a file created only when there is
+  // none:
   //   - the panel that holds it reads, merges and writes as before;
   //   - a panel that finds it held does not wait: it keeps its complete
-  //     settings as a copy (<name>.unsaved-<date>-<time>.json, see "A save
+  //     data as a copy (<name>.unsaved-<date>-<time>.json, see "A save
   //     Windows refused") and tries once more, saving normally if the lock
   //     is free by then;
   //   - the holder lets go, then looks for copies it has not taken in and
@@ -554,6 +555,23 @@
   //     is removed; one that cannot be created for another reason (a
   //     read-only folder) does not stop the save, which goes ahead as before.
   var _waiting = {}; // file path -> true while its save goes to a copy (the other host holds the lock)
+  function _fileName(kind) {
+    return kind === "settings" ? SETTINGS_FILE_NAME : kind === "sound-library" ? SOUND_LIBRARY_FILE_NAME : FILE_NAME;
+  }
+  // Writes a data file, or, while the other host holds its lock, keeps the
+  // complete text as a copy for that host to take in. Returns the copy's
+  // path, or null when the file itself was written.
+  function _writeOrKeep(fs, filePath, text, generation) {
+    if (!_waiting[filePath]) {
+      _writeAtomic(fs, filePath, text, generation);
+      return null;
+    }
+    var kept = _keepCompleteCopy(fs, null, filePath, text);
+    if (!kept) {
+      throw new Error("not saved: the other host was saving " + filePath + ", and no copy could be kept beside it");
+    }
+    return kept;
+  }
   function _lock(fs, filePath) {
     var lockPath = filePath + ".lock", token = _newGeneration();
     for (var attempt = 0; attempt < 2; attempt++) {
@@ -606,19 +624,20 @@
       return true;
     });
   }
-  // Runs `save` (the panel's whole read, merge and saveSettings) in turn
-  // with the other host, as described above. `save` may run up to three
-  // times; changes it applies belong to its first run only.
-  function settingsInTurn(csInterface, save) {
+  // Runs `save` (the panel's whole read, merge and save of the `kind` file:
+  // "settings", "library" or "sound-library") in turn with the other host,
+  // as described above. `save` may run up to three times; changes it
+  // applies belong to its first run only.
+  function inTurn(csInterface, kind, save) {
     var fs, filePath, lock;
     try {
       fs = window.cep_node.require("fs");
       var dir = _getDataDir(csInterface);
       fs.mkdirSync(dir, { recursive: true });
-      filePath = dir + "/" + SETTINGS_FILE_NAME;
+      filePath = dir + "/" + _fileName(kind);
       lock = _lock(fs, filePath);
     } catch (e) {
-      save(); // cannot be locked here: saved as before, and saveSettings reports any error
+      save(); // cannot be locked here: saved as before, and the save reports any error
       return;
     }
     if (!lock) {
@@ -628,7 +647,7 @@
     }
     for (var round = 0; lock && round < 3; round++) {
       try { save(); } finally { _unlock(fs, lock); }
-      lock = _newCopies(fs, filePath, VALIDATE.settings).length ? _lock(fs, filePath) : null;
+      lock = _newCopies(fs, filePath, VALIDATE[kind]).length ? _lock(fs, filePath) : null;
     }
   }
 
@@ -838,11 +857,12 @@
   // { unavailable: true } means the file could not be checked (a drive or
   // cloud folder failing for a moment): the caller does not save this time,
   // and nothing counts as deleted. After a recovery (_takeOverUnreadable)
-  // the libraries take in `takeIn` too. For settings, `value` also holds
-  // the kept copies this panel has not taken in yet (see "One save at a
-  // time"), listed in `keptCopies`.
+  // the libraries take in `takeIn` too. The kept copies this panel has not
+  // taken in yet (see "One save at a time") are listed in `keptCopies`; for
+  // settings `value` holds them too, the libraries take them in from
+  // `takeIn`.
   function readIfChanged(csInterface, kind) {
-    var name = kind === "settings" ? SETTINGS_FILE_NAME : kind === "sound-library" ? SOUND_LIBRARY_FILE_NAME : FILE_NAME;
+    var name = _fileName(kind);
     try {
       var fs = window.cep_node.require("fs");
       var filePath = _getDataDir(csInterface) + "/" + name;
@@ -861,12 +881,12 @@
         }
         return { changed: false };
       }
-      var copies = kind === "settings" ? _newCopies(fs, filePath, VALIDATE.settings) : [];
+      var copies = _newCopies(fs, filePath, VALIDATE[kind === "settings" || kind === "sound-library" ? kind : "library"]);
       if (stat.stamp === _synced[filePath]) {
-        return _withNewCopies(filePath, null, 0, copies);
+        return _withNewCopies(filePath, null, 0, copies, kind);
       }
       if (stat.stamp === _cutByMe[filePath]) {
-        return _withNewCopies(filePath, null, 0, copies); // an unreadable file this panel may replace: its next save does
+        return _withNewCopies(filePath, null, 0, copies, kind); // an unreadable file this panel may replace: its next save does
       }
       var raw = fs.readFileSync(filePath, "utf8");
       var value;
@@ -885,7 +905,7 @@
       }
       _synced[filePath] = stat.stamp;
       _gen[filePath] = generation;
-      return _withNewCopies(filePath, value, parseFloat(stat.stamp), copies);
+      return _withNewCopies(filePath, value, parseFloat(stat.stamp), copies, kind);
     } catch (e) {
       // Read errors (a drive or cloud folder failing for a moment): not
       // checked, so nothing is saved over it this time.
@@ -893,12 +913,20 @@
     }
   }
 
-  // What readIfChanged returns for settings when `copies` (_newCopies) are
-  // there: the file's new value (or null when it did not change) and theirs,
-  // key by key, oldest first.
-  function _withNewCopies(filePath, value, mtime, copies) {
+  // What readIfChanged returns when `copies` (_newCopies) are there: for
+  // settings the file's new value (or null when it did not change) and
+  // theirs, key by key, oldest first; for a library the file's new value
+  // and theirs in `takeIn`, which the library takes in entry by entry.
+  function _withNewCopies(filePath, value, mtime, copies, kind) {
     if (!copies.length) {
       return value === null ? { changed: false } : { changed: true, value: value };
+    }
+    if (kind !== "settings") {
+      for (var c = 0; c < copies.length; c++) { _noteTaken(filePath, copies[c].path, copies[c].stamp, false); }
+      var out = value === null ? { changed: false } : { changed: true, value: value };
+      out.takeIn = copies.map(function (copy) { return copy.value; });
+      out.keptCopies = copies.map(function (copy) { return copy.path; });
+      return out;
     }
     var all = (value === null ? [] : [{ value: value, mtime: mtime }]).concat(copies);
     all.sort(function (a, b) { return a.mtime - b.mtime; });
@@ -977,8 +1005,8 @@
         if (meta.hasOwnProperty(mk) && mk !== "generation") { metaOut[mk] = meta[mk]; }
       }
       stripped.push({ mediaPath: "", downbeatLibraryMeta: metaOut });
-      _writeAtomic(fs, filePath, JSON.stringify(stripped, null, 2), generation);
-      return { ok: true, path: filePath, count: stripped.length };
+      var kept = _writeOrKeep(fs, filePath, JSON.stringify(stripped, null, 2), generation);
+      return kept ? { ok: true, path: filePath, count: stripped.length, keptIn: kept } : { ok: true, path: filePath, count: stripped.length };
     } catch (e) {
       return { ok: false, error: e.message ? e.message : String(e) };
     }
@@ -1016,17 +1044,7 @@
       fs.mkdirSync(dir, { recursive: true });
       var filePath = dir + "/" + SETTINGS_FILE_NAME;
       var generation = _generationForSave(fs, filePath);
-      var text = JSON.stringify(_withGeneration(settings, generation), null, 2);
-      var kept = null;
-      if (_waiting[filePath]) {
-        // The other host holds the lock: a copy it takes in (see "One save at a time").
-        kept = _keepCompleteCopy(fs, null, filePath, text);
-        if (!kept) {
-          throw new Error("not saved: the other host was saving " + filePath + ", and no copy could be kept beside it");
-        }
-      } else {
-        _writeAtomic(fs, filePath, text, generation);
-      }
+      var kept = _writeOrKeep(fs, filePath, JSON.stringify(_withGeneration(settings, generation), null, 2), generation);
       // Restricted to the current OS user (owner read/write only, 0600) so
       // another local account on a shared machine cannot read the file.
       // Not encrypted.
@@ -1072,8 +1090,8 @@
       fs.mkdirSync(dir, { recursive: true });
       var filePath = dir + "/" + SOUND_LIBRARY_FILE_NAME;
       var generation = _generationForSave(fs, filePath);
-      _writeAtomic(fs, filePath, JSON.stringify(_withGeneration(state, generation)), generation);
-      return { ok: true, path: filePath };
+      var kept = _writeOrKeep(fs, filePath, JSON.stringify(_withGeneration(state, generation)), generation);
+      return kept ? { ok: true, path: filePath, keptIn: kept } : { ok: true, path: filePath };
     } catch (e) {
       return { ok: false, error: e.message ? e.message : String(e) };
     }
@@ -1105,7 +1123,7 @@
     getTempDir: getTempDir,
     clearLeftoverTempFiles: clearLeftoverTempFiles,
     readIfChanged: readIfChanged,
-    settingsInTurn: settingsInTurn,
+    inTurn: inTurn,
     mergeSettings: mergeSettings,
     recoveryNote: recoveryNote,
     listUserData: listUserData,

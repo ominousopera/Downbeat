@@ -35,7 +35,9 @@ Windows 10 u 11 (x64). Windows en ARM aún no es compatible.
    anteriores de Downbeat en vez de añadir un segundo juego. Los
    marcadores que añadiste tú nunca se tocan, aunque se llamen D o b. Un
    marcador de Downbeat al que le cambias el comentario o la duración (en
-   After Effects, también el color) pasa a ser tuyo. After Effects admite un solo
+   After Effects, también el color) pasa a ser tuyo. En After Effects, los
+   marcadores D y b que puso Downbeat 1.0.4 o anterior también cuentan como
+   tuyos: bórralos a mano una vez. After Effects admite un solo
    marcador por instante, así que un tiempo que cae justo sobre uno de tus
    marcadores se omite allí (el registro lo cuenta). Para empezar de cero,
    **Borrar** quita los marcadores de Downbeat del clip —de cada trozo
