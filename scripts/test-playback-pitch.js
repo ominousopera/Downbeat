@@ -10,13 +10,13 @@ fs.writeFileSync(path.join(docs, "Downbeat/settings.json"), JSON.stringify({ lan
 const fake = mocks.makePremiereHost({ mediaPath: media, durationSec: 8, clipStart: 3, audioTrackCount: 8 });
 const originalItem = fake.audioTrack.clips[0].projectItem;
 const originalMarkers = originalItem.getMarkers();
-originalMarkers.createMarker(1).name = "D";
+mocks.ownPremiereMarker(originalMarkers, 1, "D");
 const editorMarker = originalMarkers.createMarker(2);
 editorMarker.name = "Editor note"; editorMarker.comments = "Keep this";
 const importFiles = fake.context.app.project.importFiles;
 fake.context.app.project.importFiles = function (paths, suppressUI, bin) {
   const answer = importFiles(paths, suppressUI, bin);
-  bin.children[bin.children.length - 1].getMarkers().createMarker(1).name = "D";
+  mocks.ownPremiereMarker(bin.children[bin.children.length - 1].getMarkers(), 1, "D");
   return answer;
 };
 const bridge = mocks.loadHost(fake.context), inserts = [];
@@ -77,11 +77,11 @@ async function pitch(to) {
     assert.strictEqual(result.ok, false, "Host revalidates selection before insertion");
     const ae = mocks.makeAeHost({ mediaPath: media, durationSec: 8, insertDurationSec: 8 });
     const aeOriginal = ae.comp.selectedLayers[0];
-    aeOriginal.markers.setValueAtTime(1, { comment: "D" });
+    aeOriginal.markers.setValueAtTime(1, mocks.ownAeMarkerValue("D"));
     const addLayer = ae.comp.layers.add;
     ae.comp.layers.add = function (item) {
       const layer = addLayer(item);
-      layer.markers.setValueAtTime(1, { comment: "D" });
+      layer.markers.setValueAtTime(1, mocks.ownAeMarkerValue("D"));
       layer.markers.setValueAtTime(2, { comment: "Editor note" });
       return layer;
     };

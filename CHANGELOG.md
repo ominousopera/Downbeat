@@ -31,6 +31,13 @@ Release notes and packages for every version are on the
 
 - Paste in Premiere Pro adds a copied marker that differs from one already
   on the target only in color; the target's own marker stays.
+- Place and Clear leave your own markers alone even when they are named D
+  or b. Downbeat knows its markers by the name together with the
+  explanation in the comment (Premiere Pro) or its color (After Effects),
+  and no length. A Downbeat marker whose comment or length you change
+  becomes yours.
+- When a clip with timeline markers was moved, placing markers on the clip
+  also removes those earlier timeline markers.
 
 ### Key
 

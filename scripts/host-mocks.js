@@ -357,9 +357,30 @@ function loadHost(hostContext) {
     }
   };
 }
+// A marker as Downbeat itself writes it (jsx/host.jsx _dbIsOwnMarker,
+// jsx/host-ae.jsx _dbAeIsOwnMarker): in Premiere the name and the English
+// explanation in the comment, in After Effects the text and Downbeat's label.
+const DOWNBEAT_COMMENT = {
+  D: "Downbeat (start of a bar/strong beat) - the recommended cut point for a beat-synced edit.",
+  b: "Beat (not a downbeat) - a regular beat, weaker than a downbeat."
+};
+const DOWNBEAT_AE_LABEL = { D: 9, b: 8 };
+function ownPremiereMarker(collection, seconds, code) {
+  const m = collection.createMarker(seconds);
+  m.name = code;
+  m.comments = DOWNBEAT_COMMENT[code];
+  return m;
+}
+function ownAeMarkerValue(code) {
+  const v = new MarkerValue(code);
+  v.label = DOWNBEAT_AE_LABEL[code];
+  return v;
+}
+
 module.exports = {
   MarkerValue: MarkerValue, MarkerProp: MarkerProp, ScaleProp: ScaleProp, CompItem: CompItem, Layer: Layer,
   FootageItem: FootageItem, FolderItem: FolderItem,
   makeAeHost: makeAeHost, makePremiereHost: makePremiereHost, loadHost: loadHost,
-  PClip: PClip, MarkerCollection: MarkerCollection
+  PClip: PClip, MarkerCollection: MarkerCollection,
+  DOWNBEAT_COMMENT: DOWNBEAT_COMMENT, ownPremiereMarker: ownPremiereMarker, ownAeMarkerValue: ownAeMarkerValue
 };

@@ -31,7 +31,9 @@ Windows 10 or 11 (x64). Windows on Arm is not supported yet.
    Placing again — or choosing another beat as the "1" after placing,
    or switching between the clip and the timeline — replaces Downbeat's
    earlier markers instead of adding a second set. Markers you added
-   yourself are never touched. After Effects holds one marker per moment,
+   yourself are never touched, even ones named D or b. A Downbeat marker
+   whose comment or length you change becomes yours too (in After Effects
+   also its color). After Effects holds one marker per moment,
    so a beat that falls exactly on one of your markers is left out there
    (the log counts it). To start over, **Clear** removes
    Downbeat's markers from the clip — from every piece of it after a cut —

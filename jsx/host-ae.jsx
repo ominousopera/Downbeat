@@ -21,6 +21,23 @@ var AE_LABEL_COLOR_INDEX = {
     "D": 9,
     "b": 8
 };
+// Whether a marker value is one Downbeat placed: the text D or b,
+// Downbeat's label color for that text, no duration and none of a chapter,
+// web link, cue point name or protected region. A hand-made "D" keeps its
+// own color or length and stays the editor's. eventCuePoint is not read:
+// its default for a new marker is not confirmed.
+function _dbAeIsOwnMarker(v) {
+    if (!v || !AE_LABEL_COLOR_INDEX.hasOwnProperty(v.comment)) {
+        return false;
+    }
+    if (v.label !== AE_LABEL_COLOR_INDEX[v.comment]) {
+        return false;
+    }
+    if (Math.abs(Number(v.duration) || 0) > 0.0005) {
+        return false;
+    }
+    return !(v.chapter || v.url || v.cuePointName || v.protectedRegion);
+}
 function _dbIsAe() {
     try {
         return typeof BridgeTalk !== "undefined" && String(BridgeTalk.appName).indexOf("aftereffects") !== -1;
@@ -155,7 +172,7 @@ function _dbAeForeignMarkerAt(markerProp, t) {
         return false;
     }
     var v = markerProp.keyValue(k);
-    return !(v && AE_LABEL_COLOR_INDEX.hasOwnProperty(v.comment));
+    return !_dbAeIsOwnMarker(v);
 }
 
 function _dbAeAddMarkers(markerProp, compTimes, labels, minTime, maxTime) {
@@ -226,7 +243,7 @@ function _dbAeRemoveOwnMarkers(markerProp, minTime, maxTime) {
     for (var i = markerProp.numKeys; i >= 1; i--) {
         var t = markerProp.keyTime(i);
         var v = markerProp.keyValue(i);
-        if (t >= minTime - 0.0005 && t <= maxTime + 0.0005 && v && AE_LABEL_COLOR_INDEX.hasOwnProperty(v.comment)) {
+        if (t >= minTime - 0.0005 && t <= maxTime + 0.0005 && _dbAeIsOwnMarker(v)) {
             markerProp.removeKey(i);
             removed++;
         }
@@ -257,6 +274,7 @@ function dbAeCreateClipMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, re
         var r = _dbAeWithUndo("Downbeat: place markers", function () {
             if (replaceOwn === true) {
                 replaced = _dbAeRemoveOwnAroundLayer(comp, layer);
+                replaced += _dbAeRemoveLastCompSet(comp, layer);
             }
             return _dbAeAddMarkers(layer.property("Marker"), compTimes, labels, layer.inPoint, layer.outPoint);
         });
@@ -270,6 +288,30 @@ function dbAeCreateClipMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, re
 // original's index.
 function _dbAeLayerKey(layer) {
     return layer.id !== undefined && layer.id !== null ? layer.id : null;
+}
+// Removes Downbeat's own composition markers at the times Place last put
+// them for this layer, wherever the layer sits now, and forgets those
+// times; both placements call it, as in host.jsx _dbRemoveLastTimelineSet.
+function _dbAeRemoveLastCompSet(comp, layer) {
+    var layerKey = _dbAeLayerKey(layer);
+    var key = layerKey !== null ? _dbPlacedKey(comp.id, layerKey) : null;
+    if (!key || !_dbPlacedTimeline[key] || !comp.markerProperty) {
+        return 0;
+    }
+    var before = _dbPlacedTimeline[key];
+    var removed = 0;
+    for (var k = comp.markerProperty.numKeys; k >= 1; k--) {
+        var kt = comp.markerProperty.keyTime(k);
+        for (var b = 0; b < before.length; b++) {
+            if (Math.abs(kt - before[b]) < 0.0005 && _dbAeIsOwnMarker(comp.markerProperty.keyValue(k))) {
+                comp.markerProperty.removeKey(k);
+                removed++;
+                break;
+            }
+        }
+    }
+    delete _dbPlacedTimeline[key];
+    return removed;
 }
 // Comp times, like Premiere's sequence markers.
 function dbAeCreateMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJson) {
@@ -291,18 +333,7 @@ function dbAeCreateMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, refere
         var r = _dbAeWithUndo("Downbeat: place markers", function () {
             if (layer) {
                 replaced = _dbAeRemoveOwnAroundLayer(comp, layer);
-                var before = placedKey ? _dbPlacedTimeline[placedKey] || [] : [];
-                for (var k = comp.markerProperty.numKeys; k >= 1; k--) {
-                    var kt = comp.markerProperty.keyTime(k);
-                    var kv = comp.markerProperty.keyValue(k);
-                    for (var b = 0; b < before.length; b++) {
-                        if (Math.abs(kt - before[b]) < 0.0005 && kv && AE_LABEL_COLOR_INDEX.hasOwnProperty(kv.comment)) {
-                            comp.markerProperty.removeKey(k);
-                            replaced++;
-                            break;
-                        }
-                    }
-                }
+                replaced += _dbAeRemoveLastCompSet(comp, layer);
             }
             return _dbAeAddMarkers(comp.markerProperty, times, labels, 0, comp.duration);
         });
@@ -412,8 +443,8 @@ function _dbAeMarkerTimes(markerProp) {
     }
     return out;
 }
-// Downbeat's own markers (comment = one of its type codes) on the layer and
-// among the composition markers inside its range; never an editor's.
+// Downbeat's own markers (_dbAeIsOwnMarker) on the layer and among the
+// composition markers inside its range; never an editor's.
 function dbAeClearMarkersForSelectedClip() {
     return _dbAeResult(function () {
         var comp = _dbAeActiveCompOrThrow();
@@ -424,7 +455,7 @@ function dbAeClearMarkersForSelectedClip() {
         _dbAeWithUndo("Downbeat: clear markers", function () {
             var lm = layer.property("Marker");
             for (var i = lm.numKeys; i >= 1; i--) {
-                if (!AE_LABEL_COLOR_INDEX.hasOwnProperty(lm.keyValue(i).comment)) {
+                if (!_dbAeIsOwnMarker(lm.keyValue(i))) {
                     continue;
                 }
                 lm.removeKey(i);
@@ -435,7 +466,7 @@ function dbAeClearMarkersForSelectedClip() {
                 for (var j = cm.numKeys; j >= 1; j--) {
                     var t = cm.keyTime(j);
                     if (t >= layer.inPoint - epsilon && t <= layer.outPoint + epsilon &&
-                            AE_LABEL_COLOR_INDEX.hasOwnProperty(cm.keyValue(j).comment)) {
+                            _dbAeIsOwnMarker(cm.keyValue(j))) {
                         cm.removeKey(j);
                         compRemoved++;
                     }
@@ -462,7 +493,7 @@ function dbAeCountOwnMarkersForSelectedClip() {
         var count = 0;
         var lm = layer.property("Marker");
         for (var i = 1; i <= lm.numKeys; i++) {
-            if (AE_LABEL_COLOR_INDEX.hasOwnProperty(lm.keyValue(i).comment)) {
+            if (_dbAeIsOwnMarker(lm.keyValue(i))) {
                 count++;
             }
         }
@@ -470,7 +501,7 @@ function dbAeCountOwnMarkersForSelectedClip() {
         if (cm) {
             for (var j = 1; j <= cm.numKeys; j++) {
                 var t = cm.keyTime(j);
-                if (t >= layer.inPoint - epsilon && t <= layer.outPoint + epsilon && AE_LABEL_COLOR_INDEX.hasOwnProperty(cm.keyValue(j).comment)) {
+                if (t >= layer.inPoint - epsilon && t <= layer.outPoint + epsilon && _dbAeIsOwnMarker(cm.keyValue(j))) {
                     count++;
                 }
             }

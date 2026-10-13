@@ -284,6 +284,48 @@ var LABEL_COMMENT = {
     "D": "Downbeat (start of a bar/strong beat) - the recommended cut point for a beat-synced edit.",
     "b": "Beat (not a downbeat) - a regular beat, weaker than a downbeat."
 };
+// Whether a marker is one Downbeat placed. It must carry every mark Downbeat
+// gives its markers: the name D or b, the explanation Downbeat writes into
+// the comment in any of the panel's languages (js/i18n.js marker.downbeat /
+// marker.beat, kept equal by scripts/test-marker-ownership.js; also an
+// older Russian beat text), and no duration. A marker named D or b with an
+// editor's own comment or a length stays the editor's, and so does one of
+// Downbeat's whose comment the editor rewrote. The color is not checked.
+var OWN_MARKER_COMMENTS = {
+    "D": [
+        LABEL_COMMENT.D,
+        "\u0421\u0438\u043b\u044c\u043d\u0430\u044f \u0434\u043e\u043b\u044f (\u043d\u0430\u0447\u0430\u043b\u043e \u0442\u0430\u043a\u0442\u0430) \u2014 \u0440\u0435\u043a\u043e\u043c\u0435\u043d\u0434\u0443\u0435\u043c\u0430\u044f \u0442\u043e\u0447\u043a\u0430 \u0440\u0430\u0437\u0440\u0435\u0437\u0430 \u0434\u043b\u044f \u043c\u043e\u043d\u0442\u0430\u0436\u0430 \u0432 \u0440\u0438\u0442\u043c.",
+        "Tiempo fuerte (inicio de comp\u00e1s) - el punto de corte recomendado para un montaje al ritmo."
+    ],
+    "b": [
+        LABEL_COMMENT.b,
+        "\u0414\u043e\u043b\u044f (\u043d\u0435 \u0441\u0438\u043b\u044c\u043d\u0430\u044f) \u2014 \u043e\u0431\u044b\u0447\u043d\u0430\u044f \u0434\u043e\u043b\u044f, \u0441\u043b\u0430\u0431\u0435\u0435 \u0441\u0438\u043b\u044c\u043d\u043e\u0439.",
+        "Tiempo (no fuerte) - un tiempo normal, m\u00e1s d\u00e9bil que un tiempo fuerte.",
+        "\u0414\u043e\u043b\u044f (\u043d\u0435 \u0441\u0438\u043b\u044c\u043d\u0430\u044f) \u2014 \u043e\u0431\u044b\u0447\u043d\u044b\u0439 \u0431\u0438\u0442, \u0441\u043b\u0430\u0431\u0435\u0435 \u0441\u0438\u043b\u044c\u043d\u043e\u0439 \u0434\u043e\u043b\u0438."
+    ]
+};
+function _dbIsOwnMarker(m) {
+    if (!m || !OWN_MARKER_COMMENTS.hasOwnProperty(m.name)) {
+        return false;
+    }
+    var comment = m.comments === undefined || m.comments === null ? "" : String(m.comments);
+    var texts = OWN_MARKER_COMMENTS[m.name];
+    var known = false;
+    for (var i = 0; i < texts.length; i++) {
+        if (comment === texts[i]) { known = true; break; }
+    }
+    if (!known) {
+        return false;
+    }
+    try {
+        if (Math.abs(m.end.seconds - m.start.seconds) > 0.0005) {
+            return false;
+        }
+    } catch (lengthError) {
+        // no end to read: a point marker
+    }
+    return true;
+}
 // LABEL_COMMENT_LOCAL holds the translated explanations set by
 // setMarkerComments(); LABEL_COMMENT above is the English fallback.
 var LABEL_COMMENT_LOCAL = null;
@@ -342,8 +384,8 @@ function _applyMarkerLabel(marker, label) {
 // Where Place last put timeline (sequence / composition) markers, per
 // sequence and clip instance, for this host session. Timeline markers stay
 // where they were when the clip moves, so re-placing also removes
-// Downbeat's own markers at exactly those times; only markers with
-// Downbeat's own names at those exact times go. The key is the clip's own
+// Downbeat's own markers at exactly those times; only Downbeat's own
+// markers (_dbIsOwnMarker) at those exact times go. The key is the clip's own
 // ID, not its media, so another use of the same song keeps its markers.
 // No ID from the host means no key, so nothing is removed.
 var _dbPlacedTimeline = {};
@@ -355,7 +397,7 @@ function _dbRemoveOwnAtTimes(markers, times) {
     var doomed = [];
     var m = markers.getFirstMarker();
     while (m) {
-        if (LABEL_COLOR_INDEX.hasOwnProperty(m.name)) {
+        if (_dbIsOwnMarker(m)) {
             for (var i = 0; i < times.length; i++) {
                 if (Math.abs(m.start.seconds - times[i]) < 0.0005) { doomed.push(m); break; }
             }
@@ -364,6 +406,17 @@ function _dbRemoveOwnAtTimes(markers, times) {
     }
     for (var d = 0; d < doomed.length; d++) { markers.deleteMarker(doomed[d]); }
     return doomed.length;
+}
+// Removes Downbeat's own timeline markers at the times Place last put them
+// for this clip instance, wherever the clip sits now, and forgets those
+// times. Both placements call it, so after the clip moved, Place on the
+// clip does not leave the earlier timeline set where the music was.
+function _dbRemoveLastTimelineSet(sequence, clip) {
+    var key = _dbPlacedKey(sequence.sequenceID || sequence.name, clip.nodeId);
+    if (!key || !_dbPlacedTimeline[key]) { return 0; }
+    var removed = _dbRemoveOwnAtTimes(sequence.markers, _dbPlacedTimeline[key]);
+    delete _dbPlacedTimeline[key];
+    return removed;
 }
 
 function createMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJson) {
@@ -392,9 +445,7 @@ function createMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJ
             var ownClip = _findSelectedAudioClipOrThrow(sequence).clip;
             placedKey = _dbPlacedKey(sequence.sequenceID || sequence.name, ownClip.nodeId);
             replacedCount = _removeOwnMarkersAroundClip(sequence, ownClip);
-            if (placedKey && _dbPlacedTimeline[placedKey]) {
-                replacedCount += _dbRemoveOwnAtTimes(sequence.markers, _dbPlacedTimeline[placedKey]);
-            }
+            replacedCount += _dbRemoveLastTimelineSet(sequence, ownClip);
         }
         var createdCount = 0;
         var stored = [];
@@ -437,7 +488,7 @@ function _removeOwnMarkersInRange(markers, fromSeconds, toSeconds) {
     var m = markers.getFirstMarker();
     while (m) {
         var t = m.start.seconds;
-        if (LABEL_COLOR_INDEX.hasOwnProperty(m.name) && t >= fromSeconds - epsilon && t <= toSeconds + epsilon) {
+        if (_dbIsOwnMarker(m) && t >= fromSeconds - epsilon && t <= toSeconds + epsilon) {
             doomed.push(m);
         }
         m = markers.getNextMarker(m);
@@ -453,7 +504,7 @@ function _countOwnMarkersInRange(markers, fromSeconds, toSeconds) {
     var m = markers.getFirstMarker();
     while (m) {
         var t = m.start.seconds;
-        if (LABEL_COLOR_INDEX.hasOwnProperty(m.name) && t >= fromSeconds - epsilon && t <= toSeconds + epsilon) {
+        if (_dbIsOwnMarker(m) && t >= fromSeconds - epsilon && t <= toSeconds + epsilon) {
             count++;
         }
         m = markers.getNextMarker(m);
@@ -555,6 +606,7 @@ function createClipMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, refere
             // Removes the sequence markers in the clip's timeline range and
             // the clip markers in its source range.
             replacedCount = _removeOwnMarkersAroundClip(sequence, found.clip);
+            replacedCount += _dbRemoveLastTimelineSet(sequence, found.clip);
         }
         var createdCount = 0;
         var stored = [];
@@ -699,8 +751,8 @@ function razorAtManySeconds(secondsJsonArray, labelsJsonArray, replaceOwn, refer
     return JSON.stringify(result);
 }
 // Cleanup for the two kinds of markers this plugin can create, scoped to the
-// selected clip. Only Downbeat's own markers - named with one of its type
-// codes (LABEL_COLOR_INDEX) - are ever removed; markers an editor placed by
+// selected clip. Only Downbeat's own markers - the ones _dbIsOwnMarker
+// recognizes - are ever removed; markers an editor placed by
 // hand always stay. Unlike createClipMarkers()'s replaceOwn, Clear is not
 // limited to this instance's in/out range: it means "start over", so every
 // Downbeat marker on the media goes, also on the other pieces after a cut.
@@ -723,7 +775,7 @@ function clearMarkersForSelectedClip() {
         while (sm) {
             var markerSeconds = sm.start.seconds;
             if (markerSeconds >= clipStart - epsilon && markerSeconds <= clipEnd + epsilon &&
-                    LABEL_COLOR_INDEX.hasOwnProperty(sm.name)) {
+                    _dbIsOwnMarker(sm)) {
                 seqToDelete.push(sm);
             }
             sm = seqMarkers.getNextMarker(sm);
@@ -1471,7 +1523,7 @@ function _dbPreparePitchMarkers(item, original) {
     var source = original.projectItem.getMarkers();
     var m = source.getFirstMarker();
     while (m) {
-        if (!LABEL_COLOR_INDEX.hasOwnProperty(m.name)) {
+        if (!_dbIsOwnMarker(m)) {
             var exists = false;
             var prior = markers.getFirstMarker();
             while (prior) {

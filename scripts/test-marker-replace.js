@@ -23,8 +23,7 @@ clip.outPoint = { seconds: 40, ticks: "0" };
 const ph = mocks.loadHost(p.context);
 const own = p.clipMarkers.createMarker(20);
 own.name = "Chorus"; // the editor's own marker
-const elsewhere = p.clipMarkers.createMarker(50);
-elsewhere.name = "D"; // ours, from another instance's range
+const elsewhere = mocks.ownPremiereMarker(p.clipMarkers, 50, "D"); // ours, from another instance's range
 const names = function () { return p.clipMarkers.list.map(function (m) { return m.name + "@" + m.start.seconds; }).join(" "); };
 
 let r = place(ph, [12, 14, 16], ["D", "D", "D"], true);
@@ -59,7 +58,7 @@ check("After Effects: without the flag nothing is removed", r.ok && r.data.repla
 // ---- Clear markers (ownOnly) vs a move after copy (everything). Premiere:
 // sequence markers inside the clip (ours and the editor's), clip markers
 // (ours in range, ours elsewhere, the editor's).
-const seqOurs = p.sequence.markers.createMarker(5); seqOurs.name = "D";
+mocks.ownPremiereMarker(p.sequence.markers, 5, "D");
 const seqTheirs = p.sequence.markers.createMarker(6); seqTheirs.name = "Intro";
 // Shift and the "1" buttons ask this before placing again.
 const countBefore = JSON.parse(ph.run("countOwnMarkersForSelectedClip()"));
@@ -78,7 +77,7 @@ check("Premiere: Clear without any flag still leaves the editor's markers (no ca
   r.ok && r.data.clipMarkersRemoved === 0 && r.data.sequenceMarkersRemoved === 0 &&
   p.clipMarkers.list.length === 1 && p.sequence.markers.list.length === 1, JSON.stringify(r.data));
 // After Effects: layer markers (ours, the editor's) and comp markers.
-a.comp.markerProperty.setValueAtTime(6, new mocks.MarkerValue("D"));
+a.comp.markerProperty.setValueAtTime(6, mocks.ownAeMarkerValue("D"));
 a.comp.markerProperty.setValueAtTime(9, new mocks.MarkerValue("Scene 2"));
 const aeBefore = JSON.parse(ah.run("countOwnMarkersForSelectedClip()"));
 r = JSON.parse(ah.run("clearMarkersForSelectedClip(true)"));
@@ -122,6 +121,29 @@ r = placeSeq(ah2, [6, 8, 10], ["D", "b", "D"]);
 check("After Effects: switching to the timeline moves the set to composition markers, in one undo step",
   r.ok && r.data.replaced === 2 && layer2.markers.keys.length === 1 && layer2.markers.keys[0].v.comment === "Hook" &&
   a2.comp.markerProperty.keys.length === 3 && a2.state.undoDepth === 0, JSON.stringify(r.data));
+
+// ---- Timeline markers, then the clip moves, then Place on the clip: the
+// earlier timeline set goes too, wherever the clip is now; an editor's
+// timeline marker stays.
+const p3 = mocks.makePremiereHost({ mediaPath: "/music/song3.mp3", durationSec: 10, clipStart: 0, audioTrackCount: 1 });
+const ph3 = mocks.loadHost(p3.context);
+const verse3 = p3.sequence.markers.createMarker(1.5); verse3.name = "Verse";
+r = placeSeq(ph3, [1, 2], ["D", "b"]);
+p3.audioTrack.clips[0].start.seconds = 20; p3.audioTrack.clips[0].end.seconds = 30;
+r = place(ph3, [1, 2], ["D", "b"], true);
+check("Premiere: after the clip moved, Place on the clip also takes the earlier timeline set",
+  r.ok && r.data.replaced === 2 && p3.sequence.markers.list.length === 1 && p3.sequence.markers.list[0] === verse3 &&
+  p3.clipMarkers.list.length === 2, JSON.stringify(r.data) + " | seq: " + p3.sequence.markers.list.map(function (m) { return m.name + "@" + m.start.seconds; }).join(" "));
+const a3 = mocks.makeAeHost({ mediaPath: "/music/song3.mp3", durationSec: 10 });
+const layer3 = a3.comp.layers[0];
+const ah3 = mocks.loadHost(a3.context);
+a3.comp.markerProperty.setValueAtTime(1.5, new mocks.MarkerValue("Verse"));
+r = placeSeq(ah3, [1, 2], ["D", "b"]);
+layer3.startTime = 20; layer3.inPoint = 20; layer3.outPoint = 30; a3.comp.duration = 40;
+r = place(ah3, [1, 2], ["D", "b"], true);
+check("After Effects: after the layer moved, Place on the layer also takes the earlier composition set",
+  r.ok && r.data.replaced === 2 && a3.comp.markerProperty.keys.length === 1 && a3.comp.markerProperty.keys[0].v.comment === "Verse" &&
+  layer3.markers.keys.length === 2 && a3.state.undoDepth === 0, JSON.stringify(r.data));
 
 if (failures) {
   console.error("\n" + failures + " marker replace check(s) failed");
