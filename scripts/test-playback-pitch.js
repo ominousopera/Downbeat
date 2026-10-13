@@ -94,6 +94,21 @@ async function pitch(to) {
     assert.strictEqual(aeMarkers.numKeys, 1);
     assert.strictEqual(aeMarkers.keyValue(1).comment, "Editor note");
     assert.strictEqual(aeOriginal.markers.numKeys, 1, "AE original markers remain intact");
+    // The same song with the same timing in another sequence / comp, opened
+    // between reading the selection and the insert: refused, nothing switched off there.
+    for (const isAe of [false, true]) {
+      const o = { mediaPath: media, durationSec: 8, audioTrackCount: 2, insertDurationSec: 8 };
+      const first = (isAe ? mocks.makeAeHost : mocks.makePremiereHost)(o), second = (isAe ? mocks.makeAeHost : mocks.makePremiereHost)(o);
+      if (isAe) { first.comp.id = 10; second.comp.id = 20; } else { first.sequence.sequenceID = "A"; second.sequence.sequenceID = "B"; }
+      const host = mocks.loadHost(first.context);
+      const ref = JSON.parse(host.run("getSelectedAudioInfo()")).data;
+      if (isAe) { first.context.app.project.activeItem = second.comp; } else { first.context.app.project.activeSequence = second.sequence; host.context.qe = second.context.qe; }
+      const other = isAe ? second.comp.layers[0] : second.audioTrack.clips[0];
+      const res = JSON.parse(host.run("insertAudioAtPlayhead(" + JSON.stringify(JSON.stringify(media)) + ", 8, " +
+        JSON.stringify(JSON.stringify({ atSeconds: ref.clipStartSeconds, inSec: 0, outSec: 8, speed: 1.2, muteSelected: true, pitchReference: ref })) + ")"));
+      assert.strictEqual(res.ok, false, (isAe ? "AE" : "Premiere") + ": pitch refuses the same song in another sequence / comp");
+      assert.ok(isAe ? other.audioEnabled !== false : other.disabled !== true, (isAe ? "AE" : "Premiere") + ": the other original stays on");
+    }
     console.log("PASS: cumulative pitch, marker isolation in both hosts, source preservation and stale-plan rejection.");
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 })().catch(function (error) { console.error(error); process.exitCode = 1; });

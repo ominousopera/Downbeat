@@ -1147,7 +1147,7 @@
           }
           return new Promise(function (resolve) { setTimeout(resolve, 500); })
             .then(function () {
-              return evalJson("retryEdgeFades(" + data.target + ", " + data.startSeconds + ", " + _jsxJsonArg(refused) + ")");
+              return evalJson("retryEdgeFades(" + data.target + ", " + data.startSeconds + ", " + _jsxJsonArg(refused) + ", " + _jsxStringArg(data.placedToken || "") + ")");
             })
             .then(function (again) {
               _libLogFades(again, "fades, second try in a call of its own");

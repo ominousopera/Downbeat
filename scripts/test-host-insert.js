@@ -129,7 +129,20 @@ try {
   check("Premiere that refuses inside the insert: the answer says refused, lists the fresh lookup too, and names the track",
     r.ok && r.data.fades.fadeIn.asked === false && /fresh clip lookup after a pause: refused/.test(r.data.fades.fadeIn.why || "") && typeof r.data.target === "number",
     JSON.stringify(r.data && r.data.fades));
-  const late = JSON.parse(phLate.run("retryEdgeFades(" + r.data.target + ", " + r.data.startSeconds + ", " + js(({ fadeInSec: 0.2, transitionIn: "Constant Power" })) + ")"));
+  const retryLate = "retryEdgeFades(" + r.data.target + ", " + r.data.startSeconds + ", " + js(({ fadeInSec: 0.2, transitionIn: "Constant Power" })) + ", " + JSON.stringify(String(r.data.placedToken)) + ")";
+  // Another sequence opened before the retry, with the same sound at the
+  // same place on the same track: refused, its clip gets no fade.
+  const pOther = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60, playheadSeconds: 40, audioTrackCount: 2, insertDurationSec: 5 });
+  JSON.parse(mocks.loadHost(pOther.context).run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + js({}) + ")"));
+  pLate.context.app.project.activeSequence = pOther.sequence;
+  phLate.context.qe = pOther.context.qe;
+  const wrong = JSON.parse(phLate.run(retryLate));
+  const otherClip = pOther.sequence.audioTracks[r.data.target].clips.filter(function (c) { return Math.abs(c.start.seconds - 40) < 1e-6; })[0];
+  check("... a retry after another sequence was opened is refused, and that sequence's clip at the same place gets no fade",
+    !wrong.ok && otherClip && !(otherClip.transitions || []).length, JSON.stringify(wrong));
+  pLate.context.app.project.activeSequence = pLate.sequence;
+  phLate.context.qe = pLate.context.qe;
+  const late = JSON.parse(phLate.run(retryLate));
   const lateClip = [].concat.apply([], pLate.sequence.audioTracks.map(function (t) { return t.clips; })).filter(function (c) { return Math.abs(c.start.seconds - 40) < 1e-6; })[0];
   check("... and the second call adds it to the same clip, as a transition",
     late.ok && late.data.fadeIn.asked === true && lateClip && lateClip.transitions && lateClip.transitions.length === 1 && lateClip.transitions[0].atStart === true,

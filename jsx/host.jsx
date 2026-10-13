@@ -39,7 +39,8 @@ function insertMetronomeTrack(mediaPathJson, durationSeconds, referenceJson) {
         var selection = JSON.parse(getSelectedAudioInfo());
         if (!selection.ok) { throw new Error(selection.error); }
         var clip = selection.data;
-        if (!_dbSamePath(clip.mediaPath, reference.mediaPath) || clip.trackIndex !== reference.trackIndex ||
+        if (!_dbSameSelection(reference.selectionToken, clip.selectionToken) ||
+            !_dbSamePath(clip.mediaPath, reference.mediaPath) || clip.trackIndex !== reference.trackIndex ||
             Math.abs(clip.clipStartSeconds - reference.clipStartSeconds) > 0.0001 ||
             Math.abs(clip.inPointSeconds - reference.inPointSeconds) > 0.0001 ||
             Math.abs(clip.outPointSeconds - reference.outPointSeconds) > 0.0001 ||
@@ -186,15 +187,19 @@ function _dbSameSelectionPart(a, b, idKey, objectKey) {
     if (a[idKey] !== undefined && b[idKey] !== undefined) { return a[idKey] === b[idKey]; }
     return a[objectKey] === b[objectKey];
 }
+// Same sequence / comp, same clip / layer and same media behind two tokens.
+function _dbSameSelection(tokenA, tokenB) {
+    var a = _dbSelectionRefs[tokenA];
+    var b = _dbSelectionRefs[tokenB];
+    return !!a && !!b && _dbSameSelectionPart(a, b, "ownerId", "owner") && _dbSameSelectionPart(a, b, "itemId", "item") && _dbSameSelectionPart(a, b, "mediaId", "media");
+}
 function _dbValidateSelection(referenceJson) {
     if (!referenceJson) { return; }
     var expected = JSON.parse(referenceJson);
     var currentResult = JSON.parse(getSelectedAudioInfo());
     if (!currentResult.ok) { throw new Error(currentResult.error); }
     var current = currentResult.data;
-    var a = _dbSelectionRefs[expected.selectionToken];
-    var b = _dbSelectionRefs[current.selectionToken];
-    if (!a || !b || !_dbSameSelectionPart(a, b, "ownerId", "owner") || !_dbSameSelectionPart(a, b, "itemId", "item") || !_dbSameSelectionPart(a, b, "mediaId", "media") || expected.mediaPath !== current.mediaPath) {
+    if (!_dbSameSelection(expected.selectionToken, current.selectionToken) || expected.mediaPath !== current.mediaPath) {
         throw new Error("The selected clip changed. Select the intended clip and try again.");
     }
     var fields = ["clipStartSeconds", "inPointSeconds", "outPointSeconds", "speed", "reversed", "frameRate", "trackIndex"];
@@ -1485,11 +1490,18 @@ function _applyClipSpeed(sequence, target, startSeconds, speed, reverse, timelin
 // it a moment after the insert when Premiere refused them): the clip placed
 // by the earlier call is found again on track `target` at startSeconds and
 // the fades named in optsJson are asked for once more, the same way.
-function retryEdgeFades(target, startSeconds, optsJson) {
+// placedToken names that clip: another sequence opened meanwhile, or
+// another clip now at that place, is refused rather than faded.
+function retryEdgeFades(target, startSeconds, optsJson, placedToken) {
     var result = { ok: false };
     try {
         var opts = JSON.parse(optsJson);
         var sequence = _getActiveSequenceOrThrow();
+        var track = sequence.audioTracks[Number(target)];
+        var clip = track ? _findClipStartingAt(track, Number(startSeconds)) : null;
+        if (!clip || !_dbSameSelection(placedToken, _dbRememberSelection(sequence, clip, clip.projectItem))) {
+            throw new Error("The sequence or the inserted clip changed; the fades were not added.");
+        }
         result.data = _addEdgeFades(sequence, Number(target), Number(startSeconds), opts);
         result.ok = true;
     } catch (e) {
@@ -1502,7 +1514,9 @@ function _dbAssertPitchReference(reference) {
     var selection = JSON.parse(getSelectedAudioInfo());
     if (!selection.ok) { throw new Error(selection.error); }
     var clip = selection.data;
-    if (!_dbSamePath(clip.mediaPath, reference.mediaPath) || clip.trackIndex !== reference.trackIndex ||
+    // The same song in another sequence / comp can match every timing below.
+    if (!_dbSameSelection(reference.selectionToken, clip.selectionToken) ||
+        !_dbSamePath(clip.mediaPath, reference.mediaPath) || clip.trackIndex !== reference.trackIndex ||
         Math.abs(clip.clipStartSeconds - reference.clipStartSeconds) > 0.0001 ||
         Math.abs(clip.inPointSeconds - reference.inPointSeconds) > 0.0001 ||
         Math.abs(clip.outPointSeconds - reference.outPointSeconds) > 0.0001 ||
@@ -1801,8 +1815,11 @@ function insertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
                 }
             } catch (selectionErr) { selected = false; /* the panel asks for manual selection */ }
         }
+        // For retryEdgeFades: this clip in this sequence, nothing else.
+        var placedNow = _findClipStartingAt(targetTrack, startSeconds);
+        var placedToken = placedNow ? _dbRememberSelection(sequence, placedNow, placedNow.projectItem) : null;
         result.ok = true;
-        result.data = { where: "A" + (target + 1), target: target, startSeconds: startSeconds, imported: imported, trimmed: !!opts && (inSec > 0 || outSec !== null), fades: fades, muted: muted, speed: speedResult, selected: selected };
+        result.data = { where: "A" + (target + 1), target: target, startSeconds: startSeconds, imported: imported, trimmed: !!opts && (inSec > 0 || outSec !== null), fades: fades, muted: muted, speed: speedResult, selected: selected, placedToken: placedToken };
     } catch (e) {
         result.ok = false;
         result.error = e.message ? e.message : e.toString();
