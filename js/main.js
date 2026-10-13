@@ -1591,11 +1591,15 @@
     "bassPhase", "bassPhaseMarginRatio", "chordPhase", "chordPhaseMarginRatio",
     "chordPhaseAvailable", "phaseAgreement", "chordChangeEvents", "tempoChangeRegions", "barsUnsure"
   ];
+  // `analysis` is the one on screen, so the BPM shown belongs to its grid;
+  // the snapshot keeps it for a grid that cannot be measured again
+  // (_applyBeatFieldsAndRefreshUI).
   function _snapshotBeatFields(analysis) {
     var snapshot = {};
     for (var i = 0; i < BEAT_FIELD_KEYS.length; i++) {
       snapshot[BEAT_FIELD_KEYS[i]] = analysis[BEAT_FIELD_KEYS[i]];
     }
+    snapshot.shownBpm = parseFloat(bpmDisplay.textContent);
     return snapshot;
   }
   function _applyBeatFieldsAndRefreshUI(fields, audioPath, clipInfo) {
@@ -1607,8 +1611,12 @@
     _updatePhaseShiftUi();
     beatCountDisplay.textContent = String(lastAnalysis.beatsArray.length);
     // The BPM follows the grid just applied (Beat This!'s, or essentia's
-    // again on Basic); kept as it was when the grid has no even span.
-    var gridBpm = _gridBpm(lastAnalysis.beatsArray, 0);
+    // again on Basic). When its beats have no even span: a restored grid
+    // gets back the BPM it was shown with (its snapshot's), a new one keeps
+    // the BPM on screen.
+    var keptBpm = typeof fields.shownBpm === "number" && fields.shownBpm > 0
+      ? fields.shownBpm : parseFloat(bpmDisplay.textContent);
+    var gridBpm = _gridBpm(lastAnalysis.beatsArray, keptBpm);
     if (gridBpm > 0) {
       _setBpmText(gridBpm.toFixed(2));
     }
