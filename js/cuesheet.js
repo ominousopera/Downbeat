@@ -303,6 +303,45 @@
     }
     return essentiaIbi / otherIbi;
   }
+  // The tempo of a beat grid in BPM: the median beat period over spans of 32
+  // beats whose intervals all lie within 12% of their own median (no missed
+  // or doubled beat inside), or of 16, then 8 beats when every longer span
+  // is uneven; 0 when every 8-beat span is. Long spans keep the 20 ms steps of
+  // Beat This!'s beat times out of the result: one interval can be off by
+  // 4%, an 8-beat span by 0.5%. The octave is the grid's own.
+  var TEMPO_SPAN_LENGTHS = [32, 16, 8];
+  var TEMPO_SPAN_TOLERANCE = 0.12;
+  function _evenSpanPeriod(beatsArray, span) {
+    var periods = [];
+    for (var i = 0; i + span < beatsArray.length; i++) {
+      var gaps = [];
+      for (var j = i; j < i + span; j++) {
+        gaps.push(beatsArray[j + 1] - beatsArray[j]);
+      }
+      var m = _median(gaps);
+      if (!(m > 0)) { continue; }
+      var even = true;
+      for (var k = 0; k < gaps.length; k++) {
+        if (Math.abs(gaps[k] - m) > TEMPO_SPAN_TOLERANCE * m) { even = false; break; }
+      }
+      if (even) {
+        periods.push((beatsArray[i + span] - beatsArray[i]) / span);
+      }
+    }
+    return _median(periods);
+  }
+  function tempoFromBeats(beatsArray) {
+    if (!beatsArray) {
+      return 0;
+    }
+    for (var s = 0; s < TEMPO_SPAN_LENGTHS.length; s++) {
+      var period = _evenSpanPeriod(beatsArray, TEMPO_SPAN_LENGTHS[s]);
+      if (period > 0) {
+        return 60 / period;
+      }
+    }
+    return 0;
+  }
   // The beat phase (0..3) implied by Beat This!'s native downbeatTimes: the
   // most common value of (nearest-beat-index mod 4) over all downbeats.
   function computeNativeDownbeatPhase(beatsArray, downbeatTimes) {
@@ -474,6 +513,7 @@
     shiftDownbeatTimes: shiftDownbeatTimes,
     interpolateDownbeatMidpoints: interpolateDownbeatMidpoints,
     computeGridDensityRatio: computeGridDensityRatio,
+    tempoFromBeats: tempoFromBeats,
     computeNativeDownbeatPhase: computeNativeDownbeatPhase,
     computeDownbeatRegularity: computeDownbeatRegularity,
     thinCloseDownbeats: thinCloseDownbeats,

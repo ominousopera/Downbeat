@@ -85,8 +85,9 @@ algorithm, then a small local AI model (Beat This!) that is usually better
 at finding which beat is "one". The model's result is used only if it
 passes checks against the first one (for example, it must not hear the
 track at half or double speed); otherwise the usual result stays. It adds a
-few seconds per track. The tempo (BPM) always comes from the usual
-algorithm.
+few seconds per track. The BPM is measured from the beats the markers use,
+so it agrees with them; switching **Beat grid** can change it by a
+fraction.
 
 **Tempo → Beat grid** shows which result is in use: **Refined** (the
 second detector was applied) or **Basic** (the usual result only). Listen

@@ -19,6 +19,14 @@ Release notes and packages for every version are on the
   **Basic**. The warning comes back when the track's analysis is opened
   again.
 
+### Tempo
+
+- The BPM now comes from the beats the markers use, so the number agrees
+  with the markers (before, it could be 1-5% off while the markers were
+  right, for example 91.4 for a 94 BPM song). The Library scan reads it the
+  same way. Tracks analyzed earlier keep their number until they are
+  analyzed again.
+
 ### Markers
 
 - Paste in Premiere Pro adds a copied marker that differs from one already

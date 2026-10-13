@@ -889,6 +889,12 @@
         try {
           rhythm = essentia.RhythmExtractor2013(signalVector, 208, "multifeature", 40);
           bpm = rhythm && rhythm.bpm > 0 ? rhythm.bpm : null;
+          // The tempo of the tracker's own beats, measured as the Analyze
+          // tab does (js/cuesheet.js tempoFromBeats); its BPM stays when the
+          // beats have no even 8-beat span.
+          var beatTempo = bpm && rhythm.ticks ?
+            global.BeatMarkerCuesheet.tempoFromBeats(essentia.vectorToArray(rhythm.ticks)) : 0;
+          if (beatTempo > 0) { bpm = beatTempo; }
           bpmConfidence = rhythm ? rhythm.confidence : null;
         } finally {
           _freeWasmResult(rhythm);

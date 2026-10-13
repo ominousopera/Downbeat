@@ -93,8 +93,9 @@ algoritmo habitual y después un pequeño modelo de IA local (Beat This!),
 que suele encontrar mejor cuál es el tiempo «uno». El resultado del
 modelo solo se usa si pasa unas comprobaciones frente al primero (por
 ejemplo, no debe oír la pista a la mitad o al doble de velocidad); si no,
-se queda el resultado habitual. Añade unos segundos por pista. El tempo
-(BPM) siempre viene del algoritmo habitual.
+se queda el resultado habitual. Añade unos segundos por pista. El BPM se
+mide a partir de los tiempos que usan los marcadores, así que coincide con
+ellos; cambiar la **Cuadrícula** puede moverlo unas décimas.
 
 **Tempo → Cuadrícula** muestra qué resultado se usa: **Afinada** (se
 aplicó el segundo detector) o **Básica** (solo el resultado habitual).

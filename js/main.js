@@ -835,6 +835,15 @@
     bpmDisplay.textContent = text;
     _renderHeard();
   }
+  // The BPM the panel shows and stores: the tempo of the beats the markers
+  // use (js/cuesheet.js tempoFromBeats), or `fallbackBpm` (essentia's) when
+  // the grid has no even 8-beat span. The half-time hint and its automatic
+  // correction read essentia's own BPM (analysis.cuesheet.bpm), the value
+  // their thresholds are set for.
+  function _gridBpm(beatsArray, fallbackBpm) {
+    var bpm = window.BeatMarkerCuesheet.tempoFromBeats(beatsArray);
+    return bpm > 0 ? bpm : fallbackBpm;
+  }
   function _renderHeard() {
     _renderHeardTempo();
     _renderHeardKey();
@@ -1442,6 +1451,11 @@
         _assertAudioUnchanged(clipInfoForPlacement);
         var beatCount = analysis.beatsArray.length;
         log("Analysis ok: bpm=" + analysis.cuesheet.bpm + ", " + beatCount + " beats detected.");
+        var shownBpm = _gridBpm(analysis.beatsArray, analysis.cuesheet.bpm);
+        if (Math.abs(shownBpm - analysis.cuesheet.bpm) >= 0.005) {
+          log("Tempo of the beats: " + shownBpm.toFixed(2) + " BPM (shown instead of the tracker's " +
+              analysis.cuesheet.bpm.toFixed(2) + ").");
+        }
         log("Downbeat phase picked: " + analysis.phase +
             " (average energy by phase: " + analysis.phaseAverages.map(function (v) { return v.toFixed(4); }).join(", ") + ")");
         // The library cache write is unconditional (see
@@ -1451,7 +1465,7 @@
         var upsertResult = window.BeatMarkerLibrary.upsertAnalysis(
           clipInfoForPlacement.mediaPath, basename(clipInfoForPlacement.mediaPath),
           {
-            bpm: analysis.cuesheet.bpm,
+            bpm: shownBpm,
             beatsArray: analysis.beatsArray,
             confidence: analysis.confidence,
             phase: analysis.phase,
@@ -1489,7 +1503,7 @@
           tempoChangeRegions: analysis.tempoChangeRegions || []
         };
         _updatePhaseShiftUi();
-        _setBpmText(analysis.cuesheet.bpm.toFixed(2));
+        _setBpmText(shownBpm.toFixed(2));
         beatCountDisplay.textContent = String(beatCount);
         _updatePhaseUncertainHint(analysis.phaseMarginRatio);
         _updatePhaseAgreementHint(analysis);
@@ -1592,6 +1606,12 @@
     _forgetPhaseShift();
     _updatePhaseShiftUi();
     beatCountDisplay.textContent = String(lastAnalysis.beatsArray.length);
+    // The BPM follows the grid just applied (Beat This!'s, or essentia's
+    // again on Basic); kept as it was when the grid has no even span.
+    var gridBpm = _gridBpm(lastAnalysis.beatsArray, 0);
+    if (gridBpm > 0) {
+      _setBpmText(gridBpm.toFixed(2));
+    }
     _updatePhaseUncertainHint(lastAnalysis.phaseMarginRatio);
     _updatePhaseAgreementHint(lastAnalysis);
     _updateGridConfidenceHint(lastAnalysis.confidence);
@@ -1599,7 +1619,7 @@
     window.BeatMarkerLibrary.upsertAnalysis(
       audioPath, basename(audioPath),
       {
-        bpm: parseFloat(bpmDisplay.textContent), // unchanged by Beat This! - essentia stays the tempo source
+        bpm: parseFloat(bpmDisplay.textContent),
         beatsArray: lastAnalysis.beatsArray,
         confidence: lastAnalysis.confidence,
         phase: lastAnalysis.phase,
@@ -1985,7 +2005,7 @@
     // Onsets are not recomputed here (it would need another worker call).
     lastAnalysis.onsetsArray = null;
     _forgetPhaseShift();
-    var newBpm = analysis.cuesheet.bpm;
+    var newBpm = _gridBpm(analysis.beatsArray, analysis.cuesheet.bpm);
     _updatePhaseShiftUi();
     _setBpmText(newBpm.toFixed(2));
     beatCountDisplay.textContent = String(analysis.beatsArray.length);
