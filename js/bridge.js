@@ -237,8 +237,12 @@
       });
     }
     // `samples22050` must already be resampled to 22050 Hz (js/audio.js's
-    // resampleMono()); the worker does no resampling itself.
-    function runBeatThisWorker(samples22050) {
+    // resampleMono()); the worker does no resampling itself. `gridBeats`
+    // (optional): the beats of the grid on screen, handed over in a second
+    // file of the same name pattern (a long song's beats are too long for a
+    // Windows command line); the worker then also counts the bars on them
+    // (gridBars).
+    function runBeatThisWorker(samples22050, gridBeats) {
       return new Promise(function (resolve, reject) {
         try {
           if (!window.cep_node) {
@@ -253,11 +257,21 @@
           var tmpFile = tmpDir + "/beatthis-" + Date.now() + "-" + Math.floor(Math.random() * 1e6) + ".raw";
           fs.writeFileSync(tmpFile, samples22050);
           _tempFilesInFlight++;
+          var gridFile = null;
+          if (gridBeats && gridBeats.length) {
+            try {
+              gridFile = tmpDir + "/beatthis-" + Date.now() + "-" + Math.floor(Math.random() * 1e6) + ".raw";
+              fs.writeFileSync(gridFile, new Float64Array(gridBeats));
+            } catch (gridErr) {
+              // Only the grid's bars are lost; Beat This! still runs.
+              gridFile = null;
+            }
+          }
           var workerPath = extensionRoot + "/worker/beatthis-worker.js";
           var btTimeoutMs = _workerTimeoutMs(120000, samples22050.length / 22050);
           childProcess.execFile(
             _resolveNodeExecutable(fs, os, extensionRoot),
-            [workerPath, tmpFile],
+            gridFile ? [workerPath, tmpFile, gridFile] : [workerPath, tmpFile],
             { maxBuffer: 80 * 1024 * 1024, timeout: btTimeoutMs },
             function (err, stdout, stderr) {
               _tempFilesInFlight--;
@@ -265,6 +279,11 @@
                 fs.unlinkSync(tmpFile);
               } catch (cleanupErr) {
               // Best-effort, same reasoning as runAnalyzeWorker() above.
+              }
+              try {
+                if (gridFile) { fs.unlinkSync(gridFile); }
+              } catch (gridCleanupErr) {
+                // Best-effort as well.
               }
               if (err) {
                 var reason = err.killed

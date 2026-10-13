@@ -15,11 +15,14 @@
 //     than 8 frames or further than 100, more than 30 minutes of frames;
 //   - NaN and Infinity in the activations do not break it;
 //   - the input arrays are not changed;
-//   - 10 minutes at 60 BPM decodes in a few seconds.
+//   - 10 minutes at 60 BPM decodes in a few seconds;
+//   - decodeBarsOnGrid on another detector's beats (13 ms early, jittered,
+//     or at half the tempo): its "1"s are that grid's own beats and real
+//     "1"s; under 8 beats gives null; the grid passed in is not changed.
 // Run: node scripts/test-beatthis-bars.js
 const path = require("path");
 const { postprocessMinimal, FRAME_RATE } = require(path.join(__dirname, "..", "worker", "beatthis-pipeline.js"));
-const { decodeBarsOnBeats, MAX_FRAMES } = require(path.join(__dirname, "..", "worker", "beatthis-bars.js"));
+const { decodeBarsOnBeats, decodeBarsOnGrid, MAX_FRAMES } = require(path.join(__dirname, "..", "worker", "beatthis-bars.js"));
 
 let failures = 0;
 function check(label, cond, detail) {
@@ -113,6 +116,28 @@ const t0 = Date.now();
 const { r: r6 } = run(longSong);
 const sec = (Date.now() - t0) / 1000;
 check("10 minutes at 60 BPM decodes in a few seconds", r6 && sec < 10, sec.toFixed(2) + " s");
+
+// decodeBarsOnGrid: the same song on another detector's grid, placed 13 ms
+// before the model's frames with a few ms of jitter, as essentia's beats sit.
+const LAT = 0.013;
+const jitter = (i) => ((i * 7) % 5 - 2) * 0.002;
+const grid = frames.map((f, i) => f / FRAME_RATE - LAT + jitter(i));
+const gridCopy = grid.slice();
+const g1 = decodeBarsOnGrid(s1.B, s1.D, grid, m1.downbeatTimes, LAT);
+const gridSet = new Set(grid);
+const gIdx = g1 ? g1.downbeatTimes.map((t) => grid.indexOf(t)) : [];
+check("grid: every \"1\" is one of the grid's own beats", g1 && g1.downbeatTimes.every((t) => gridSet.has(t)) && g1.modelDownbeatTimes.every((t) => gridSet.has(t)));
+check("grid: every \"1\" is a real one, none lost", g1 && gIdx.every((i) => i % 4 === 0) && gIdx.length === ones.length, JSON.stringify(gIdx.filter((i) => i % 4 !== 0)) + ", " + gIdx.length);
+check("grid: the model's own \"1\"s come back on the grid, decoys included", g1 && g1.modelDownbeatTimes.some((t) => grid.indexOf(t) === 42) && g1.unsure === false);
+check("grid: the grid passed in is not changed", grid.every((t, i) => t === gridCopy[i]));
+// The count guard's usual case: the grid at half the model's tempo (every
+// other model beat). Its "1"s fall every 4 grid beats, on real "1"s.
+const half = frames.filter((_, i) => i % 2 === 0).map((f) => f / FRAME_RATE - LAT);
+const gHalf = decodeBarsOnGrid(s1.B, s1.D, half, m1.downbeatTimes, LAT);
+const halfIdx = gHalf ? gHalf.downbeatTimes.map((t) => half.indexOf(t) * 2) : [];
+check("grid at half tempo: every \"1\" is a real one", gHalf && halfIdx.length >= 30 && halfIdx.every((i) => i % 4 === 0), JSON.stringify(halfIdx.filter((i) => i % 4 !== 0)) + ", " + halfIdx.length);
+check("grid: under 8 beats or none gives null", decodeBarsOnGrid(s1.B, s1.D, grid.slice(0, 7), m1.downbeatTimes, LAT) === null &&
+  decodeBarsOnGrid(s1.B, s1.D, null, m1.downbeatTimes, LAT) === null);
 
 if (failures) { console.error("\n" + failures + " check(s) failed"); process.exit(1); }
 console.log("\nThe \"1\"s are counted over the whole song");

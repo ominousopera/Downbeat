@@ -102,7 +102,9 @@ suggests **Refined**, which is often more accurate there.
 With **Refined**, the second detector also places the "1" of each bar. It
 counts the bars over the whole song at once, so the "1" comes every four
 beats and does not jump to a loud beat 3. Songs in 6/8 or 12/8 are counted
-in fours too. When the detector is unsure where the bars start, a warning
+in fours too. When its beats do not pass the checks and the usual beats
+stay (the **Beat grid** line is not shown then), it still counts the bars,
+on the usual beats. When the detector is unsure where the bars start, a warning
 under **The "1" is beat** says so: listen to the click, and if the "1" is
 off, click the beat that really is the "1" in **1 2 3 4**, or switch
 **Beat grid** to **Basic**.

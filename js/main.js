@@ -1667,7 +1667,7 @@
     log("Running alternative beat detector (Beat This!)" + (automatic ? " as part of Analyze" : "") + "...");
     return window.BeatMarkerAudio.resampleMono(samples44100, window.BeatMarkerAudio.TARGET_SAMPLE_RATE, 22050)
       .then(function (samples22050) {
-        return runBeatThisWorker(samples22050);
+        return runBeatThisWorker(samples22050, originalBeatsArray);
       })
       .then(function (btResult) {
         var newBeats = btResult.beatTimes;
@@ -1676,15 +1676,15 @@
         }
         var ratio = newBeats.length / originalBeatsArray.length;
         if (ratio > BEATTHIS_COUNT_RATIO_GUARD || ratio < 1 / BEATTHIS_COUNT_RATIO_GUARD) {
-          throw new Error(
+          throw _keptGridError(
             "beat count (" + newBeats.length + ") differs too much from the original (" + originalBeatsArray.length +
-            ") to trust - keeping the original grid."
+            ") to trust - keeping the original grid.", btResult
           );
         }
         if (typeof btResult.meanPeakLogit === "number" && btResult.meanPeakLogit < BEATTHIS_MIN_MEAN_PEAK_LOGIT) {
-          throw new Error(
+          throw _keptGridError(
             "model confidence too low (mean peak logit " + btResult.meanPeakLogit.toFixed(2) +
-            " < " + BEATTHIS_MIN_MEAN_PEAK_LOGIT + ") - keeping the original grid."
+            " < " + BEATTHIS_MIN_MEAN_PEAK_LOGIT + ") - keeping the original grid.", btResult
           );
         }
         // downbeatTimes come from the same inference that produced newBeats:
@@ -1795,9 +1795,61 @@
           // same button again would only reject again.
           analysis.beatThisRejected = true;
           _updateGridConfidenceHint(analysis.confidence);
+          if (err && err.gridBars) {
+            _applyBarsOnKeptGrid(err.gridBars, originalBeatsArray, audioPath, clipInfo);
+          }
         }
         return false;
       });
+  }
+
+  // When the count or the peak-logit guard turns Beat This!'s beats away,
+  // the worker has already counted the bars on the grid that stays
+  // (decodeBarsOnGrid in worker/beatthis-bars.js); those "1"s replace the
+  // bass / chord phase. The two other guards (too few beats or "1"s) keep
+  // that phase.
+  function _keptGridError(message, btResult) {
+    var err = new Error(message);
+    var g = btResult && btResult.gridBars;
+    if (g && g.downbeatTimes && g.downbeatTimes.length >= 2) { err.gridBars = g; }
+    return err;
+  }
+
+  // The warning row follows the same rule as on Beat This!'s grid: the
+  // decoder's "unsure", or the model's own "1"s, placed on this grid, too
+  // uneven. The phase margin describes the bass / chord pick, not these
+  // "1"s, so phaseMarginRatio is cleared.
+  function _applyBarsOnKeptGrid(gridBars, gridBeats, audioPath, clipInfo) {
+    if (lastAnalysis.beatsArray !== gridBeats) {
+      // ½x / 2x replaced the grid while Beat This! was running.
+      log("Bars on the original grid: the grid changed meanwhile - kept its own \"1\" markers.");
+      return;
+    }
+    try {
+      var C = window.BeatMarkerCuesheet;
+      var thinned = C.thinCloseDownbeats(gridBeats, gridBars.downbeatTimes);
+      var own = gridBars.modelDownbeatTimes || [];
+      var modelUneven = own.length < 2 || C.downbeatsLookUneven(C.thinCloseDownbeats(gridBeats, own).times);
+      var phase = C.computeNativeDownbeatPhase(gridBeats, gridBars.downbeatTimes);
+      var fields = _snapshotBeatFields(lastAnalysis);
+      fields.downbeatTimes = thinned.times;
+      fields.phase = phase !== null ? phase : 0;
+      fields.phaseMarginRatio = null;
+      fields.phaseSource = "bars-decoded";
+      fields.bassPhase = null;
+      fields.bassPhaseMarginRatio = null;
+      fields.chordPhase = null;
+      fields.chordPhaseMarginRatio = null;
+      fields.chordPhaseAvailable = false;
+      fields.phaseAgreement = "native";
+      fields.chordChangeEvents = [];
+      fields.barsUnsure = gridBars.unsure === true || modelUneven;
+      _applyBeatFieldsAndRefreshUI(fields, audioPath, clipInfo);
+      log("Bars counted over the whole song on the original grid: " + thinned.times.length + " \"1\" markers" +
+          (fields.barsUnsure ? " (the model was unsure where the bars start)." : "."));
+    } catch (e) {
+      log("Bars on the original grid: " + (e && e.message ? e.message : e));
+    }
   }
   beatThisBtn.addEventListener("click", function () {
     if (!lastAnalysis || !lastDecodedSamples || lastDecodedSamplesPath !== lastAnalysis.audioPath) {

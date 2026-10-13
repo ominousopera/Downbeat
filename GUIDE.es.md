@@ -111,7 +111,10 @@ sugiere **Afinada**, que ahí suele ser más precisa.
 Con **Afinada**, el segundo detector también coloca el «uno» de cada
 compás. Cuenta los compases en toda la canción a la vez, así que el «uno»
 llega cada cuatro tiempos y no salta a un tercer tiempo fuerte. Las
-canciones en 6/8 o 12/8 también se cuentan de cuatro en cuatro. Si el
+canciones en 6/8 o 12/8 también se cuentan de cuatro en cuatro. Si sus
+tiempos no pasan las comprobaciones y se queda la cuadrícula habitual (la
+línea **Cuadrícula** no aparece entonces), cuenta igualmente los compases,
+sobre los tiempos habituales. Si el
 detector no está seguro de dónde empiezan los compases, un aviso bajo
 **El «uno» es el tiempo** lo indica: escucha el clic y, si el «uno» no cae
 bien, pulsa en **1 2 3 4** el tiempo que de verdad es el «uno», o cambia la

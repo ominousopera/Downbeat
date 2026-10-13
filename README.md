@@ -336,12 +336,12 @@ is a classic beat tracker from the open-source
 beats. The second is **Beat This!**, a small neural network that finds beats and
 downbeats (the first beat of each bar). Downbeat uses the network's result only
 if it passes checks against the first one (for example, it must not hear the
-track at half or double speed); otherwise the classic result stays. With the
-classic detector the first beat of a bar is chosen by weighing the low-end
-energy and the chord changes at each beat; with the network, the bars are
-counted over the whole song from the network's own scores for every moment
-(the bar-tracking method of Krebs, Böck and Widmer), so the "1" comes every four
-beats instead of jumping to a loud beat. The beat times are then evened out along the local tempo line,
+track at half or double speed); otherwise the classic beats stay. Either way
+the bars are counted over the whole song from the network's own scores for
+every moment (the bar-tracking method of Krebs, Böck and Widmer), on whichever
+beats are used, so the "1" comes every four beats instead of jumping to a loud
+beat. Only when the network cannot count them is the first beat of a bar chosen
+by weighing the low-end energy and the chord changes at each beat. The beat times are then evened out along the local tempo line,
 corrected for the detectors' delay, and every marker is placed at the start of
 the video frame its beat falls in (or at the exact time, in Premiere Pro with
 **Timing → Exact**).

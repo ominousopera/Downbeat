@@ -259,8 +259,36 @@ function decodeBarsOnBeats(beatLogits, downbeatLogits, beatTimes, modelDownbeatT
   };
 }
 
+// The same decoding on another detector's beats: the grid js/main.js keeps
+// when its count or peak-logit guard turns Beat This!'s own beats away.
+// gridBeats: that grid in seconds as placed, latencySec earlier than the
+// model's frame times (the worker's LATENCY_SEC); they are moved into frame
+// time for decoding and the "1"s come back as members of gridBeats.
+// modelDownbeatTimes: the model's own "1"s in frame time, moved onto the
+// nearest grid beat for the agreement test and returned the same way for
+// js/main.js's unevenness test. Returns { downbeatTimes, modelDownbeatTimes,
+// strength, agreement, unsure } or null, as decodeBarsOnBeats.
+function decodeBarsOnGrid(beatLogits, downbeatLogits, gridBeats, modelDownbeatTimes, latencySec) {
+  if (!gridBeats || gridBeats.length < 8) { return null; }
+  const placed = Array.from(gridBeats).sort((a, b) => a - b);
+  const late = placed.map((t) => t + latencySec);
+  const asPlaced = new Map(late.map((t, i) => [t, placed[i]]));
+  const own = new Set();
+  for (const t of modelDownbeatTimes || []) { own.add(late[nearestIndex(late, t)]); }
+  const bars = decodeBarsOnBeats(beatLogits, downbeatLogits, late, Array.from(own));
+  if (!bars) { return null; }
+  return {
+    downbeatTimes: bars.downbeatTimes.map((t) => asPlaced.get(t)),
+    modelDownbeatTimes: Array.from(own).sort((a, b) => a - b).map((t) => asPlaced.get(t)),
+    strength: bars.strength,
+    agreement: bars.agreement,
+    unsure: bars.unsure
+  };
+}
+
 module.exports = {
   decodeBarsOnBeats,
+  decodeBarsOnGrid,
   MAX_FRAMES,
   MIN_BEAT_FRAMES,
   MAX_BEAT_FRAMES

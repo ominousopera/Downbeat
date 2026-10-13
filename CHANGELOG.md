@@ -11,6 +11,9 @@ Release notes and packages for every version are on the
   bars over the whole song at once, so the "1" comes every four beats and
   does not jump to a loud beat 3. Silence before and after the music is left
   out of the count.
+- When the second detector's beats do not pass its checks and the first
+  detector's beats stay, it still counts the bars, on those beats. Before,
+  the "1" there was chosen from the low end and the chords alone.
 - A "1" less than a beat and a half after another one is left out, also on
   tracks analyzed earlier. No "1" is moved or added.
 - When the detector is unsure where the bars start, or its "1"s still come
