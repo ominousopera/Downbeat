@@ -645,9 +645,10 @@
       try { save(); } finally { delete _waiting[filePath]; }
       lock = _lock(fs, filePath);
     }
-    for (var round = 0; lock && round < 3; round++) {
+    for (var round = 1; lock; round++) {
       try { save(); } finally { _unlock(fs, lock); }
-      lock = _newCopies(fs, filePath, VALIDATE[kind]).length ? _lock(fs, filePath) : null;
+      // No new lock after the third round: nothing would release it.
+      lock = round < 3 && _newCopies(fs, filePath, VALIDATE[kind]).length ? _lock(fs, filePath) : null;
     }
   }
 

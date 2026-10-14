@@ -217,6 +217,15 @@
         persistSoundLibrary();
       }, 3000);
     }
+    // A user's own edit (a star) is saved at once, together with any scan
+    // results still waiting: closing the panel right after must not lose it.
+    function _persistSoundLibraryNow() {
+      if (_libPersistTimer) {
+        clearTimeout(_libPersistTimer);
+        _libPersistTimer = null;
+      }
+      persistSoundLibrary();
+    }
     // Timeline-analyzed clips shown in a section, unless a folder already
     // lists the same file.
     function _libTimelineItems(section) {
@@ -669,7 +678,7 @@
       btn.classList.toggle("is-on", on);
       btn.setAttribute("aria-pressed", on ? "true" : "false");
       btn.title = I18n.t(on ? "library.favRemove" : "library.favAdd");
-      _persistSoundLibrarySoon();
+      _persistSoundLibraryNow();
       if (libFavOnlyCheckbox.checked && !on) {
         renderLibrary(true);
       }
