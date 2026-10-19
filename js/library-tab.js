@@ -196,7 +196,8 @@
       window.BeatMarkerPersistence.inTurn(ctx.csInterface(), "sound-library", _saveSoundLibraryNow);
     }
     function _saveSoundLibraryNow() {
-      if (_libAbsorbFromDisk() === null) {
+      var absorbed = _libAbsorbFromDisk();
+      if (absorbed === null) {
         return;
       }
       var result = window.BeatMarkerPersistence.saveSoundLibrary(ctx.csInterface(), SL.getState());
@@ -204,6 +205,12 @@
         log("WARNING: could not save the folder library to disk: " + result.error);
       } else if (result.keptIn) {
         log("The other host was saving sound-library.json; this change is kept in " + result.keptIn + " and taken in by the next save.");
+      }
+      // The rows shown still hold the records replaced by the other host's
+      // newer ones: redraw them, so a star it set shows here and can be
+      // switched off.
+      if (absorbed) {
+        renderLibrary(true);
       }
     }
     // During a scan results arrive every second or two; one write per few
@@ -670,8 +677,10 @@
       }
       _libFocusKeys();
     }
+    // The star flips what the button shows: the row's own record may have
+    // been replaced by the other host's newer one since it was drawn.
     function _libToggleFavorite(item, btn) {
-      var on = !item.fav;
+      var on = btn.getAttribute("aria-pressed") !== "true";
       if (!SL.setFavorite(item.path, on)) {
         return;
       }
