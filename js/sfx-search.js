@@ -11,7 +11,12 @@
 (function (global) {
   "use strict";
 
-  var WORD_SPLIT = /[^0-9a-zà-ÿ\u0430-\u044f\u0451]+/;
+  // A word is a run of digits or letters: Latin with accents (Polish, Czech,
+  // Turkish, Vietnamese), Greek, the whole Cyrillic block (Ukrainian i and
+  // yi), Armenian, Hebrew, Arabic, Thai, kana, CJK and Hangul. Scripts with
+  // no spaces between words (Chinese, Japanese) count a run as one word, so
+  // only its start is matched.
+  var WORD_SPLIT = /[^0-9a-z\u00c0-\u024f\u0370-\u03ff\u0400-\u04ff\u0530-\u058f\u05d0-\u05ff\u0600-\u06ff\u0e00-\u0e7f\u1e00-\u1eff\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af]+/;
   var index = null;
 
   function _norm(s) {
@@ -121,7 +126,32 @@
     var t = String(s || "").replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2");
     return " " + _norm(t).split(WORD_SPLIT).filter(function (w) { return w; }).join(" ") + " ";
   }
-  // Per-file cache: the name's and last folders' words, and the UCS parse.
+  // The folders the user added to the section. A file's searchable folder
+  // words are its folders from the added folder down (the added folder's own
+  // name included), never the path above it ("Users", the user's name).
+  // Without a root (an older caller) the last three folders.
+  var roots = [];
+  function setRoots(list) {
+    var next = (list || []).map(function (r) { return _norm(r).replace(/[\\/]+$/, ""); });
+    if (next.join("\n") !== roots.join("\n")) {
+      roots = next;
+      fileCache = {};
+    }
+  }
+  function _folderWords(path) {
+    var p = _norm(path);
+    var parts = p.split(/[\\/]/).slice(0, -1);
+    for (var i = 0; i < roots.length; i++) {
+      var r = roots[i];
+      if (p.indexOf(r + "/") === 0 || p.indexOf(r + "\\") === 0) {
+        var depth = r.split(/[\\/]/).length;
+        return parts.slice(depth - 1).join(" ");
+      }
+    }
+    return parts.slice(-3).join(" ");
+  }
+
+  // Per-file cache: the name's and folders' words, and the UCS parse.
   var fileCache = {};
   function fileInfo(item) {
     var key = item.path || item.name;
@@ -129,7 +159,7 @@
     if (hit && hit.name === item.name) {
       return hit;
     }
-    var dirs = String(item.path || "").split(/[\\/]/).slice(0, -1).slice(-3).join(" ");
+    var dirs = _folderWords(item.path || "");
     hit = { name: item.name, text: _words(item.name.replace(/\.[^.]+$/, "")) + _words(dirs).slice(1), ucs: parseUcsName(item.name) };
     fileCache[key] = hit;
     return hit;
@@ -308,7 +338,9 @@
     words.forEach(function (raw) {
       var neg = raw.charAt(0) === "-" && raw.length > 1;
       var w = neg ? raw.slice(1) : raw;
-      var cats = (_synonyms && w.length >= 2) ? _catsFor(w) : { strong: {}, syn: {} };
+      // A one-letter word gets no categories; the empty "how" keeps
+      // _expansions from throwing on it (the first keystroke of every search).
+      var cats = (_synonyms && w.length >= 2) ? _catsFor(w) : { strong: {}, syn: {}, how: {} };
       var expand = [];
       if (!neg && _synonyms) {
         var own = _thesaurus(w);
@@ -391,6 +423,7 @@
     compile: compile,
     setSynonyms: setSynonyms,
     synonymsOn: synonymsOn,
+    setRoots: setRoots,
     score: score,
     fileInfo: fileInfo
   };

@@ -572,12 +572,12 @@
       return;
     }
     if (!result.existed) {
-      log("No saved track library yet (" + result.path + ").");
+      log("No saved track library yet (Documents/Downbeat/" + basename(result.path) + ").");
       return;
     }
     window.BeatMarkerLibrary.loadEntries(result.entries);
     _takeInKeptCopies("The track library file", result, window.BeatMarkerLibrary.absorb);
-    log("Loaded " + window.BeatMarkerLibrary.getAll().length + " track(s) from a previous session (" + result.path + ").");
+    log("Loaded " + window.BeatMarkerLibrary.getAll().length + " track(s) from a previous session (Documents/Downbeat/" + basename(result.path) + ").");
   })();
   loadSoundLibrary();
   // HOST AND WORKER CALLS: js/bridge.js. _bridge is made right after
@@ -1256,8 +1256,11 @@
         maxShiftMs: shifts.length ? shifts[shifts.length - 1] : 0
       };
     }
-    // The hand shift for this track (Shift − / +), after the evening.
-    var nudgeSec = _nudgeMsFor(lastAnalysis.audioPath) / 1000;
+    // The hand shift for this track (Shift − / +), after the evening. Only
+    // under Timing: Exact, where its row is shown; under Frame (and always
+    // in After Effects) a shift set earlier stays remembered but does not
+    // move the markers.
+    var nudgeSec = getMarkerTiming() === "exact" ? _nudgeMsFor(lastAnalysis.audioPath) / 1000 : 0;
     if (nudgeSec) {
       events = events.map(function (ev) {
         var copy = {};
@@ -1334,12 +1337,13 @@
     log("Placing " + downbeatsTrack.events.length + " " + markerType + " downbeat markers" +
         (snapToFrame ? " on the start of each beat's video frame" : " at exact times") +
         (usedNativeTimes ? " (native downbeats)" : " at phase " + phase) + "...");
-    return placeFn(csInterface, cuesheet, lastAnalysis.clipInfo, "downbeats", { snapToFrame: snapToFrame })
+    return placeFn(csInterface, cuesheet, lastAnalysis.clipInfo, "downbeats", { snapToFrame: snapToFrame, knownPlaced: _placedTimelineJson() })
       .then(function (result) {
         if (!result.ok) {
           log("Placement failed: " + result.error);
           return result;
         }
+        _rememberPlacedTimeline(result.data);
         log("Done: requested " + result.data.requested + ", created " + result.data.created +
             ", dropped (outside clip range) " + result.data.droppedCount +
             (result.data.replaced ? ", replaced " + result.data.replaced + " earlier Downbeat marker(s)" : "") +
@@ -1367,6 +1371,43 @@
       });
       persistLibrary();
     }
+  }
+
+  // Where Place last put timeline (composition) markers for each clip, so a
+  // host restart does not lose it: jsx/host.jsx keeps it per engine session
+  // (_dbPlacedTimeline) and returns placedKey + placedTimes with every
+  // placement; the panel stores them in settings.json and sends them back
+  // with every Place and Clear, so the set of a clip moved after a restart
+  // is still found. The newest 40 clips.
+  var PLACED_TIMELINE_KEEP = 40;
+  function _placedTimelineMemory() {
+    var m = initialSettings.placedTimeline;
+    return m && typeof m === "object" && !Array.isArray(m) ? m : {};
+  }
+  function _placedTimelineJson() {
+    var m = _placedTimelineMemory();
+    var out = {};
+    for (var k in m) {
+      if (m.hasOwnProperty(k) && m[k] && m[k].t && m[k].t.length) { out[k] = m[k].t; }
+    }
+    return out;
+  }
+  function _rememberPlacedTimeline(data) {
+    if (!data || !data.placedKey) { return; }
+    var m = _placedTimelineMemory();
+    var next = {};
+    for (var k in m) {
+      if (m.hasOwnProperty(k) && k !== data.placedKey) { next[k] = m[k]; }
+    }
+    if (data.placedTimes && data.placedTimes.length) {
+      next[data.placedKey] = { t: data.placedTimes, at: Date.now() };
+    } else if (!m.hasOwnProperty(data.placedKey)) {
+      return; // nothing to forget
+    }
+    var keys = Object.keys(next).sort(function (a, b) { return (next[b].at || 0) - (next[a].at || 0); });
+    var kept = {};
+    for (var i = 0; i < keys.length && i < PLACED_TIMELINE_KEEP; i++) { kept[keys[i]] = next[keys[i]]; }
+    persistSettings({ placedTimeline: kept });
   }
   // Shift and the "1" buttons change where the markers go. They put the
   // markers down again only when Downbeat's markers are already on the clip;
@@ -2524,8 +2565,9 @@
     clearMarkersBtn.disabled = true;
     showBusy("busy.clearMarkers");
     log("Clearing Downbeat's markers for the selected clip (your own markers stay)...");
-    evalJson("clearMarkersForSelectedClip(true)")
+    evalJson("clearMarkersForSelectedClip(true, " + JSON.stringify(JSON.stringify(_placedTimelineJson())) + ")")
       .then(function (data) {
+        _rememberPlacedTimeline({ placedKey: data.placedKey, placedTimes: null });
         log("Cleared " + data.sequenceMarkersRemoved + " sequence marker(s) between " +
             data.clipStartSeconds.toFixed(3) + "s and " + data.clipEndSeconds.toFixed(3) + "s" +
             (data.clipMarkersAttempted
@@ -3179,6 +3221,32 @@
   // line, already visible on every tab, instead of adding a separate banner
   // per button.
   var _selectionErrorTimeout = null;
+  // The host throws fixed English texts; the ones the user meets most are
+  // shown in the panel's language. A count in brackets is kept.
+  var _hostReasonKeys = [
+    ["Nothing selected. Select one audio clip on the timeline.", "selection.hostNothingClip"],
+    ["Nothing selected. Select one audio layer in the composition.", "selection.hostNothingLayer"],
+    ["Selection is video, not audio. Select an audio clip instead.", "selection.hostVideo"],
+    ["More than one audio clip selected (", "selection.hostManyClips"],
+    ["More than one layer with audio selected (", "selection.hostManyLayers"],
+    ["No active sequence.", "selection.hostNoSequence"],
+    ["No active composition. Open a composition and select a layer in its timeline.", "selection.hostNoComp"],
+    ["The selected layer has no audio. Select an audio layer instead.", "selection.hostNoAudioLayer"],
+    ["The selected layer is not a file (a precomp or a generated layer). Select the audio file's own layer.", "selection.hostNotFileLayer"],
+    ["The selected layer's media file is missing. Relink it first.", "selection.hostMissingMedia"],
+    ["The selected layer uses Time Remapping. Downbeat supports constant positive Time Stretch - turn Time Remap off first.", "selection.hostTimeRemap"],
+    ["The selected layer has a reversed or invalid Time Stretch. Analysis supports positive constant Stretch values.", "selection.hostBadStretch"]
+  ];
+  function _translateHostReason(message) {
+    var text = String(message || "");
+    for (var i = 0; i < _hostReasonKeys.length; i++) {
+      if (text.indexOf(_hostReasonKeys[i][0]) === 0) {
+        var count = /\((\d+)\)/.exec(text);
+        return I18n.t(_hostReasonKeys[i][1], { count: count ? count[1] : "" });
+      }
+    }
+    return null;
+  }
   function _flashSelectionError(message) {
     var markerErrorKeys = {
       "The selected clip changed. Select the intended clip and try again.": "selection.clipChanged",
@@ -3192,6 +3260,7 @@
       "The target does not expose markers.": "markers.unavailable"
     };
     if (markerErrorKeys[message]) { message = I18n.t(markerErrorKeys[message]); }
+    else { message = _translateHostReason(message) || message; }
     if (_selectionErrorTimeout) {
       clearTimeout(_selectionErrorTimeout);
     }
@@ -3324,13 +3393,16 @@
         var entry = window.BeatMarkerLibrary.get(clipInfo.mediaPath);
         _applyCachedEntry(entry, clipInfo);
       })
-      .catch(function () {
+      .catch(function (err) {
         if (lastSelectionKey === null) {
           return;
         }
         lastSelectionKey = null;
         _clearSelectionDependentState();
-        _setSelectionStatus(_selectionPlaceholder, "");
+        // A reason the host gave (video selected, two clips, no sequence)
+        // is more useful than the placeholder; shown in the panel's language.
+        var reason = _translateHostReason(err && err.message ? err.message : err);
+        _setSelectionStatus(reason || _selectionPlaceholder, "");
       });
   }
   pollSelection();

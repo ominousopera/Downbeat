@@ -370,6 +370,7 @@
           out.push({ path: full, size: st.size, mtimeMs: Math.round(st.mtimeMs) });
           if (out.length >= MAX_FILES_PER_SCAN) {
             out.incomplete = folders.slice();
+            out.capped = true; // the panel says so; "could not be fully read" would hide the limit
             return out;
           }
         }
@@ -664,6 +665,8 @@
   //   bpm      - target tempo, or empty
   //   tolPct   - allowed difference in percent (default 4)
   //   halfDouble - also accept half and double the target tempo
+  //   roots     - the section's added folders; folder words in the text
+  //               search start there (js/sfx-search.js setRoots)
   // Returns the matches, best first: an exact key before a compatible one,
   // then the closest tempo, then by name.
   function search(items, criteria) {
@@ -682,6 +685,9 @@
     // The smarter text search: word starts in the name and folders, UCS
     // categories, synonyms, "-word" to exclude. Without that module (the
     // worker loads this file too), plain every-word-in-the-name matching.
+    if (global.BeatMarkerSfxSearch && global.BeatMarkerSfxSearch.setRoots) {
+      global.BeatMarkerSfxSearch.setRoots(criteria.roots || state.folders.music.concat(state.folders.sfx));
+    }
     var smart = global.BeatMarkerSfxSearch && words.length ? global.BeatMarkerSfxSearch.compile(criteria.text) : null;
 
     var out = [];
@@ -840,6 +846,7 @@
   }
 
   global.BeatMarkerSoundLibrary = {
+    MAX_FILES_PER_SCAN: MAX_FILES_PER_SCAN,
     SECTIONS: SECTIONS,
     AUDIO_EXT: AUDIO_EXT,
     WORKER_READABLE_EXT: WORKER_READABLE_EXT,

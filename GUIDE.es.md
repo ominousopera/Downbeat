@@ -190,7 +190,7 @@ una tonalidad Camelot exacta.
 
 ## Pestaña Biblioteca: Música y SFX
 
-Añade carpetas de audio, o una unidad entera, una tarjeta de memoria o una carpeta de red; solo el disco del sistema no se puede añadir entero. Las carpetas Music y SFX no deben solaparse. Iniciar escaneo reintenta los archivos con errores. Las carpetas ilegibles conservan sus registros; cancelar detiene el trabajo pendiente y los errores de escritura liberan los controles. Sustituir un archivo en la misma ruta actualiza su vista previa antes de insertarlo.
+Añade carpetas de audio, o una unidad entera, una tarjeta de memoria o una carpeta de red; solo el disco del sistema no se puede añadir entero. Las carpetas Music y SFX no deben solaparse. Un escaneo cuenta hasta 50.000 archivos; si hay más, añade carpetas más pequeñas. El siguiente Iniciar escaneo vuelve a intentar los archivos con errores, y una carpeta que no se pudo leer conserva los registros que ya tenía. Si sustituyes un archivo en la misma ruta, su vista previa se vuelve a leer antes de insertarlo.
 
 Dos secciones, **Música** y **SFX**, cada una construida a partir de
 carpetas de tu equipo.
@@ -276,7 +276,7 @@ Para encontrar algo:
 - **BPM** (Música): un tempo y cuánto puede desviarse (±%). «también ½×
   y 2×» encuentra también archivos a la mitad o al doble de ese tempo, que
   suelen montarse bien juntos.
-- **Como el clip** (un interruptor, como Favoritos) rellena la tonalidad
+- **Como el clip** (un botón) rellena la tonalidad
   y el BPM del clip seleccionado, calculados a partir del análisis guardado
   del original y la velocidad actual, para encontrar sonidos compatibles. **Restablecer** quita todos los
   filtros.

@@ -173,7 +173,7 @@ speed between whole semitones has no exact Camelot key.
 
 ## Library tab: Music and SFX
 
-Add audio folders, or a whole drive, memory card or network share; only the system disk cannot be added whole. Music and SFX folders must not overlap. Start scan retries failed files. Unreadable folders keep their saved records; cancellation stops pending work, and write failures release the scan controls. Replacing a file at the same path reloads its preview before insertion.
+Add audio folders, or a whole drive, memory card or network share; only the system disk cannot be added whole. Music and SFX folders must not overlap. A scan lists up to 50,000 files at a time; for more, add smaller folders. Files that failed are tried again by the next Start scan, and a folder that cannot be read keeps the records it already had. If you replace a file at the same path, its preview is read again before it is inserted.
 
 Two sections, **Music** and **SFX**, each built from folders on your
 computer.
@@ -251,7 +251,7 @@ To find something:
 - **BPM** (Music) — a tempo and how far off it may be (±%). "Also ½× and
   2×" also finds files at half or double that tempo, which usually cut
   together fine.
-- **Match clip** (a checkbox, like Favorites) fills in the key and BPM of
+- **Match clip** (a button) fills in the key and BPM of
   the currently selected clip, calculated from saved source analysis and
   playback speed, so you get sounds that fit it. **Reset** clears every filter.
 - **Sort** — best match, name, length, or tempo (Music).

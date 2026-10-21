@@ -802,7 +802,15 @@
       throw new Error("not saved: " + filePath + " could not be read when the panel started, so it is left as it is. Restart the host to try again.");
     }
     var temp = filePath + ".tmp-" + Date.now() + "-" + Math.floor(Math.random() * 1e6);
-    fs.writeFileSync(temp, text, "utf8");
+    try {
+      fs.writeFileSync(temp, text, "utf8");
+    } catch (writeErr) {
+      // A full disk leaves the first bytes behind: the temp file is this
+      // save's own and never parses, so it goes at once instead of at the
+      // next start-up sweep.
+      try { fs.unlinkSync(temp); } catch (unlinkErr) { /* nothing to remove */ }
+      throw writeErr;
+    }
     try {
       fs.renameSync(temp, filePath);
     } catch (renameErr) {

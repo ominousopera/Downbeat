@@ -123,7 +123,15 @@
     _els();
     var step = STEPS[currentStepIndex];
     var I18n = global.BeatMarkerI18n;
-    stepIndicator.textContent = I18n.t("tour.stepOf", { n: currentStepIndex + 1, total: STEPS.length });
+    // Numbered among the steps actually shown: a hidden-feature step is
+    // skipped, so it must not count.
+    var shown = 0, total = 0;
+    for (var s = 0; s < STEPS.length; s++) {
+      if (shouldSkip(s)) { continue; }
+      total++;
+      if (s <= currentStepIndex) { shown++; }
+    }
+    stepIndicator.textContent = I18n.t("tour.stepOf", { n: shown, total: total });
     calloutTitle.textContent = I18n.t(step.titleKey);
     calloutBody.textContent = I18n.t(step.bodyKey);
     backBtn.style.visibility = currentStepIndex === 0 ? "hidden" : "visible";

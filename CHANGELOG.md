@@ -42,7 +42,35 @@ Release notes and packages for every version are on the
   Effects, D and b markers placed by 1.0.4 or earlier count as yours:
   delete them by hand once.
 - When a clip with timeline markers was moved, placing markers on the clip
-  also removes those earlier timeline markers.
+  also removes those earlier timeline markers. Downbeat remembers where it
+  put them also across a restart of Premiere Pro or After Effects, so Place
+  and Clear find that set after the clip moved.
+- **Shift − / +** counts only with **Timing: Exact**, where it is shown. A
+  shift set earlier leaves the markers alone under Frame timing and in
+  After Effects.
+- The reasons the host gives (nothing selected, a video clip, two clips, no
+  sequence, Time Remap on a layer) are shown in the panel's language.
+
+### Library
+
+- A star is saved at once, so closing the panel right after it keeps it. A star set in the other program shows here after the next save
+  and comes off with one click. A star here keeps what the other program
+  did to that sound meanwhile (its analysis, a confirmed key).
+- The search finds names in any letters (Polish, Czech, Greek, Ukrainian,
+  Japanese, Arabic and others), one-letter words, and folder names at any
+  depth below the folder you added. Before, the first letter typed did not
+  update the list, and only the last three folders of a path were searched.
+- A held Space leaves the preview alone; one press starts or stops it.
+- A scan that reaches its limit of 50,000 files says so.
+
+### Panel and texts
+
+- The in-panel Guide shows the sub-points of a numbered step under that
+  step, not as steps of their own.
+- The tour counts only the steps it shows.
+- Check now with background checks off says only that the check failed.
+- Delete my data describes the other items in Documents/Downbeat
+  (finished audio in processed/ among them) as left as they are.
 
 ### Key
 
@@ -73,6 +101,8 @@ Release notes and packages for every version are on the
 - Delete my data in one host is noticed by the other one also when it first
   shows in the settings file (a language change there keeps the deleted
   analyses deleted) and when that panel started from kept copies.
+- A save that fails on a full disk removes its cut-short temp file at once.
+- The support log names the data files without the user's home path.
 
 ## 1.0.4
 

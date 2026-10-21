@@ -70,8 +70,12 @@
       // The explanation Premiere shows for each marker (its `comments`) is
       // sent in the panel's current language with every placement. host.jsx
       // keeps an English fallback.
+      // options.knownPlaced: where Place last put timeline markers for each
+      // clip, as the panel remembers it across host restarts (main.js
+      // _placedTimelineMemory; jsx/host.jsx _dbSeedPlacedTimeline).
+      var knownArg = options && options.knownPlaced ? ", " + JSON.stringify(JSON.stringify(options.knownPlaced)) : "";
       var script = "setMarkerComments(" + JSON.stringify(_markerCommentsJson()) + ");" +
-        jsxFunctionName + "(" + JSON.stringify(secondsJson) + ", " + JSON.stringify(labelsJson) + (extraArgs || ", false") + ", " + JSON.stringify(_asciiJson(clipInfo)) + ")";
+        jsxFunctionName + "(" + JSON.stringify(secondsJson) + ", " + JSON.stringify(labelsJson) + (extraArgs || ", false") + ", " + JSON.stringify(_asciiJson(clipInfo)) + knownArg + ")";
 
       csInterface.evalScript(script, function (rawResult) {
         if (rawResult === "EvalScript error.") {
@@ -111,7 +115,7 @@
     return _mapAndCallJsx(
       csInterface, cuesheet, clipInfo, trackId, "createClipMarkers",
       global.BeatMarkerCuesheet.filterEventsInClipRange, ", true",
-      { snapToFrame: !!(options && options.snapToFrame), sourceTimes: true }
+      { snapToFrame: !!(options && options.snapToFrame), sourceTimes: true, knownPlaced: options && options.knownPlaced }
     );
   }
   // Cuts the given clip's track at every event in one impulse track of a
@@ -127,7 +131,7 @@
     return _mapAndCallJsx(
       csInterface, cuesheet, clipInfo, trackId, "createMarkers",
       global.BeatMarkerCuesheet.mapEventsToSequenceSeconds, ", true",
-      { snapToFrame: !!(options && options.snapToFrame), sourceTimes: false }
+      { snapToFrame: !!(options && options.snapToFrame), sourceTimes: false, knownPlaced: options && options.knownPlaced }
     );
   }
 

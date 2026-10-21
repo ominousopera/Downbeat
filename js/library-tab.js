@@ -263,7 +263,8 @@
         halfDouble: libHalfDoubleCheckbox.checked,
         sort: libSortSelect.value || "best",
         favOnly: libFavOnlyCheckbox.checked,
-        pitchedOnly: libSection === "sfx" && libPitchedOnlyCheckbox.checked
+        pitchedOnly: libSection === "sfx" && libPitchedOnlyCheckbox.checked,
+        roots: SL.getFolders(libSection) // folder words in the search start at the added folder
       };
     }
     // "best" keeps SL.search's order (exact key, closest tempo, name).
@@ -681,6 +682,11 @@
     // been replaced by the other host's newer one since it was drawn.
     function _libToggleFavorite(item, btn) {
       var on = btn.getAttribute("aria-pressed") !== "true";
+      // The other host may have analyzed this sound or confirmed its key
+      // since this list was drawn: take its file in first, so the star lands
+      // on the newest record and the save does not write the old one over
+      // it.
+      var absorbed = _libAbsorbFromDisk();
       if (!SL.setFavorite(item.path, on)) {
         return;
       }
@@ -688,8 +694,8 @@
       btn.setAttribute("aria-pressed", on ? "true" : "false");
       btn.title = I18n.t(on ? "library.favRemove" : "library.favAdd");
       _persistSoundLibraryNow();
-      if (libFavOnlyCheckbox.checked && !on) {
-        renderLibrary(true);
+      if (absorbed || (libFavOnlyCheckbox.checked && !on)) {
+        renderLibrary(true); // the other host's records, or a favorites-only list without this sound
       }
     }
     // Playing / selected marks on the rows already shown - no rebuild, so the
@@ -1901,7 +1907,7 @@
       if (evt.key === "ArrowDown" || evt.key === "ArrowUp") {
         _libMoveSelection(evt.key === "ArrowDown" ? 1 : -1);
         evt.preventDefault();
-      } else if ((evt.key === " " || evt.key === "Spacebar") && libSelectedPath) {
+      } else if ((evt.key === " " || evt.key === "Spacebar") && libSelectedPath && !evt.repeat) {
         _libTogglePreview(libSelectedPath);
         evt.preventDefault();
       } else if (evt.key === "Enter" && libSelectedPath && !evt.repeat) {
@@ -2200,12 +2206,14 @@
       });
       var found = SL.listAudioFiles(fs, section);
       var partial = found.incomplete && found.incomplete.length;
+      var capped = !!found.capped;
       var sync = SL.syncFiles(section, found, offline);
-      if (partial) { log("Library scan is incomplete; unreadable records are retained."); }
+      if (capped) { log("Library scan (" + section + ") stopped at " + SL.MAX_FILES_PER_SCAN + " files: the folders hold more; add smaller folders instead."); }
+      else if (partial) { log("Library scan is incomplete; unreadable records are retained."); }
       var queue = SL.pendingPaths(section);
       persistSoundLibrary();
       if (queue.length === 0) {
-        setTranslatedText(libScanStatus, partial ? "library.scanPartial" : "library.upToDate", { count: SL.counts(section).total });
+        setTranslatedText(libScanStatus, capped ? "library.scanCapped" : (partial ? "library.scanPartial" : "library.upToDate"), { count: SL.counts(section).total, max: SL.MAX_FILES_PER_SCAN });
         renderLibrary();
         return;
       }
@@ -2258,7 +2266,8 @@
         libScanChildren = [];
         libScanOverlay.hidden = true;
         persistSoundLibrary();
-        setTranslatedText(libScanStatus, scanError ? "library.scanError" : (partial ? "library.scanPartial" : (stopped ? "library.scanStopped" : (summary.failed ? "library.scanDoneFailed" : "library.scanDone"))), summary);
+        summary.max = SL.MAX_FILES_PER_SCAN;
+        setTranslatedText(libScanStatus, scanError ? "library.scanError" : (capped ? "library.scanCapped" : (partial ? "library.scanPartial" : (stopped ? "library.scanStopped" : (summary.failed ? "library.scanDoneFailed" : "library.scanDone")))), summary);
         if (scanError) { log("Library scan failed: " + (scanError.message || scanError)); }
         log("Library scan (" + section + ") " + (stopped ? "stopped" : "finished") + ": " + summary.done + " analyzed (" +
             libScan.fromName + " straight from the file name), " + summary.failed + " unreadable, " + summary.seconds + " s.");

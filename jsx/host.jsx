@@ -396,7 +396,27 @@ function _applyMarkerLabel(marker, label) {
 var _dbPlacedTimeline = {};
 function _dbPlacedKey(ownerId, itemId) {
     if (itemId === undefined || itemId === null || itemId === "") { return null; }
-    return String(ownerId) + "|" + String(itemId);
+    // The host's name in front: the panel keeps the keys of both hosts in
+    // one settings map.
+    return (_dbIsAe() ? "ae|" : "pr|") + String(ownerId) + "|" + String(itemId);
+}
+// The panel keeps those times across host restarts (settings.json,
+// "placedTimeline": the host returns placedKey and placedTimes with every
+// placement) and sends them back with every Place and Clear; a key this
+// engine has not seen since it started is seeded from them, so a clip
+// moved after a restart still gets its old set replaced and Clear reaches
+// it. A key the engine holds is newer than the panel's copy and wins.
+function _dbSeedPlacedTimeline(knownJson) {
+    if (!knownJson) { return; }
+    var known = null;
+    try { known = JSON.parse(knownJson); } catch (parseErr) { known = null; }
+    if (!known || typeof known !== "object") { return; }
+    for (var key in known) {
+        if (known.hasOwnProperty(key) && !_dbPlacedTimeline.hasOwnProperty(key) &&
+                known[key] && known[key].length !== undefined) {
+            _dbPlacedTimeline[key] = known[key];
+        }
+    }
 }
 function _dbRemoveOwnAtTimes(markers, times) {
     var doomed = [];
@@ -424,9 +444,9 @@ function _dbRemoveLastTimelineSet(sequence, clip) {
     return removed;
 }
 
-function createMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJson) {
+function createMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJson, knownPlacedJson) {
     if (_dbIsAe()) {
-        return dbAeCreateMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJson);
+        return dbAeCreateMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJson, knownPlacedJson);
     }
     var result = { ok: false, error: null, data: null };
     try {
@@ -449,6 +469,7 @@ function createMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJ
         if (replaceOwn === true) {
             var ownClip = _findSelectedAudioClipOrThrow(sequence).clip;
             placedKey = _dbPlacedKey(sequence.sequenceID || sequence.name, ownClip.nodeId);
+            _dbSeedPlacedTimeline(knownPlacedJson);
             replacedCount = _removeOwnMarkersAroundClip(sequence, ownClip);
             replacedCount += _dbRemoveLastTimelineSet(sequence, ownClip);
         }
@@ -474,7 +495,9 @@ function createMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJ
             requested: times.length,
             created: createdCount,
             replaced: replacedCount,
-            stored: stored
+            stored: stored,
+            placedKey: placedKey,
+            placedTimes: placedKey ? placedTimes : null
         };
     } catch (e) {
         result.ok = false;
@@ -574,9 +597,9 @@ function _noteStored(stored, marker, requestedSeconds) {
 // arguments as createMarkers(); times are in the file's own (source) seconds.
 // With replaceOwn, Downbeat's own markers around the clip are removed first
 // (see _removeOwnMarkersAroundClip()). Paste markers does not pass it.
-function createClipMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJson) {
+function createClipMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJson, knownPlacedJson) {
     if (_dbIsAe()) {
-        return dbAeCreateClipMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJson);
+        return dbAeCreateClipMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJson, knownPlacedJson);
     }
     var result = { ok: false, error: null, data: null };
     try {
@@ -607,9 +630,12 @@ function createClipMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, refere
             }
         }
         var replacedCount = 0;
+        var placedKey = null;
         if (replaceOwn === true) {
             // Removes the sequence markers in the clip's timeline range and
             // the clip markers in its source range.
+            placedKey = _dbPlacedKey(sequence.sequenceID || sequence.name, found.clip.nodeId);
+            _dbSeedPlacedTimeline(knownPlacedJson);
             replacedCount = _removeOwnMarkersAroundClip(sequence, found.clip);
             replacedCount += _dbRemoveLastTimelineSet(sequence, found.clip);
         }
@@ -630,7 +656,9 @@ function createClipMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, refere
             requested: times.length,
             created: createdCount,
             replaced: replacedCount,
-            stored: stored
+            stored: stored,
+            placedKey: placedKey, // the timeline set of this clip is gone: the panel forgets it
+            placedTimes: null
         };
     } catch (e) {
         result.ok = false;
@@ -761,9 +789,9 @@ function razorAtManySeconds(secondsJsonArray, labelsJsonArray, replaceOwn, refer
 // hand always stay. Unlike createClipMarkers()'s replaceOwn, Clear is not
 // limited to this instance's in/out range: it means "start over", so every
 // Downbeat marker on the media goes, also on the other pieces after a cut.
-function clearMarkersForSelectedClip() {
+function clearMarkersForSelectedClip(unused, knownPlacedJson) {
     if (_dbIsAe()) {
-        return dbAeClearMarkersForSelectedClip();
+        return dbAeClearMarkersForSelectedClip(knownPlacedJson);
     }
     var result = { ok: false, error: null, data: null };
     try {
@@ -789,6 +817,11 @@ function clearMarkersForSelectedClip() {
             seqMarkers.deleteMarker(seqToDelete[i]);
             sequenceMarkersRemoved++;
         }
+        // And the set Place last put on the timeline for this clip, wherever
+        // the clip sat then.
+        var placedKey = _dbPlacedKey(sequence.sequenceID || sequence.name, clip.nodeId);
+        _dbSeedPlacedTimeline(knownPlacedJson);
+        sequenceMarkersRemoved += _dbRemoveLastTimelineSet(sequence, clip);
         var clipMarkersRemoved = 0;
         var clipMarkersAttempted = false;
         var projectItem = clip.projectItem;
@@ -805,7 +838,8 @@ function clearMarkersForSelectedClip() {
             clipMarkersRemoved: clipMarkersRemoved,
             clipMarkersAttempted: clipMarkersAttempted,
             clipStartSeconds: clipStart,
-            clipEndSeconds: clipEnd
+            clipEndSeconds: clipEnd,
+            placedKey: placedKey
         };
     } catch (e) {
         result.ok = false;
@@ -1705,7 +1739,6 @@ function insertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
                 throw new Error("Downbeat could not read how long this sound is, so it did not insert it. Nothing on the timeline was changed.");
             }
         }
-
         if (trim) {
             try {
                 item.setInPoint(inSec, 4); // 4 = every media type

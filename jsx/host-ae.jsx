@@ -283,7 +283,7 @@ function _dbAeRemoveOwnAroundLayer(comp, layer) {
     }
     return removed;
 }
-function dbAeCreateClipMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJson) {
+function dbAeCreateClipMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJson, knownPlacedJson) {
     return _dbAeResult(function () {
         _dbValidateSelection(referenceJson);
         var comp = _dbAeActiveCompOrThrow();
@@ -295,6 +295,9 @@ function dbAeCreateClipMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, re
             compTimes.push(layer.startTime + times[i] * layer.stretch / 100);
         }
         var replaced = 0;
+        var layerKey = replaceOwn === true ? _dbAeLayerKey(layer) : null;
+        var placedKey = layerKey !== null ? _dbPlacedKey(comp.id, layerKey) : null;
+        if (placedKey) { _dbSeedPlacedTimeline(knownPlacedJson); }
         var r = _dbAeWithUndo("Downbeat: place markers", function () {
             if (replaceOwn === true) {
                 replaced = _dbAeRemoveOwnAroundLayer(comp, layer);
@@ -302,7 +305,8 @@ function dbAeCreateClipMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, re
             }
             return _dbAeAddMarkers(layer.property("Marker"), compTimes, labels, layer.inPoint, layer.outPoint);
         });
-        return { requested: times.length, created: r.created, skipped: r.skipped, kept: r.kept, replaced: replaced, stored: r.stored };
+        // placedKey without times: the panel forgets this layer's composition set.
+        return { requested: times.length, created: r.created, skipped: r.skipped, kept: r.kept, replaced: replaced, stored: r.stored, placedKey: placedKey, placedTimes: null };
     });
 }
 // The layer's identity for _dbPlacedTimeline: Layer.id (After Effects 22.0
@@ -338,7 +342,7 @@ function _dbAeRemoveLastCompSet(comp, layer) {
     return removed;
 }
 // Comp times, like Premiere's sequence markers.
-function dbAeCreateMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJson) {
+function dbAeCreateMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJson, knownPlacedJson) {
     return _dbAeResult(function () {
         _dbValidateSelection(referenceJson);
         var comp = _dbAeActiveCompOrThrow();
@@ -353,6 +357,7 @@ function dbAeCreateMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, refere
         // ones at the times it used last time.
         var layerKey = layer ? _dbAeLayerKey(layer) : null;
         var placedKey = layerKey !== null ? _dbPlacedKey(comp.id, layerKey) : null;
+        if (placedKey) { _dbSeedPlacedTimeline(knownPlacedJson); }
         var replaced = 0;
         var r = _dbAeWithUndo("Downbeat: place markers", function () {
             if (layer) {
@@ -364,7 +369,8 @@ function dbAeCreateMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, refere
         if (placedKey) {
             _dbPlacedTimeline[placedKey] = r.placed;
         }
-        return { requested: times.length, created: r.created, skipped: r.skipped, kept: r.kept, replaced: replaced, stored: r.stored };
+        return { requested: times.length, created: r.created, skipped: r.skipped, kept: r.kept, replaced: replaced, stored: r.stored,
+            placedKey: placedKey, placedTimes: placedKey ? r.placed : null };
     });
 }
 // Splits the layer at one comp time the way Edit > Split Layer does: the
@@ -469,13 +475,16 @@ function _dbAeMarkerTimes(markerProp) {
 }
 // Downbeat's own markers (_dbAeIsOwnMarker) on the layer and among the
 // composition markers inside its range; never an editor's.
-function dbAeClearMarkersForSelectedClip() {
+function dbAeClearMarkersForSelectedClip(knownPlacedJson) {
     return _dbAeResult(function () {
         var comp = _dbAeActiveCompOrThrow();
         var layer = _dbAeSelectedAudioLayerOrThrow(comp);
         var epsilon = 0.0005;
         var layerRemoved = 0;
         var compRemoved = 0;
+        var layerKey = _dbAeLayerKey(layer);
+        var placedKey = layerKey !== null ? _dbPlacedKey(comp.id, layerKey) : null;
+        if (placedKey) { _dbSeedPlacedTimeline(knownPlacedJson); }
         _dbAeWithUndo("Downbeat: clear markers", function () {
             var lm = layer.property("Marker");
             for (var i = lm.numKeys; i >= 1; i--) {
@@ -495,6 +504,9 @@ function dbAeClearMarkersForSelectedClip() {
                         compRemoved++;
                     }
                 }
+                // And the set Place last put on the composition for this
+                // layer, wherever the layer sat then.
+                compRemoved += _dbAeRemoveLastCompSet(comp, layer);
             }
         });
         return {
@@ -502,7 +514,8 @@ function dbAeClearMarkersForSelectedClip() {
             clipMarkersRemoved: layerRemoved,
             clipMarkersAttempted: true,
             clipStartSeconds: layer.inPoint,
-            clipEndSeconds: layer.outPoint
+            clipEndSeconds: layer.outPoint,
+            placedKey: placedKey
         };
     });
 }

@@ -145,6 +145,67 @@ check("After Effects: after the layer moved, Place on the layer also takes the e
   r.ok && r.data.replaced === 2 && a3.comp.markerProperty.keys.length === 1 && a3.comp.markerProperty.keys[0].v.comment === "Verse" &&
   layer3.markers.keys.length === 2 && a3.state.undoDepth === 0, JSON.stringify(r.data));
 
+// ---- The host restarts between the two placements: the engine's memory
+// of the timeline set is gone, so the panel sends
+// back what the host returned last time (placedKey + placedTimes, kept in
+// settings.json). Place on the moved clip then takes the old set, and so
+// does Clear; a placement that removed the set says so without times, so
+// the panel forgets it.
+function js2(v) { return JSON.stringify(JSON.stringify(v)); }
+function placeSeqKnown(host, times, labels, known) {
+  return JSON.parse(host.run("createMarkers(" + js(times) + ", " + js(labels) + ", true, null, " + js2(known) + ")"));
+}
+function placeKnown(host, times, labels, known) {
+  return JSON.parse(host.run("createClipMarkers(" + js(times) + ", " + js(labels) + ", true, null, " + js2(known) + ")"));
+}
+function clearKnown(host, known) {
+  return JSON.parse(host.run("clearMarkersForSelectedClip(true, " + js2(known) + ")"));
+}
+const p4 = mocks.makePremiereHost({ mediaPath: "/music/song4.mp3", durationSec: 10, clipStart: 0, audioTrackCount: 1 });
+let ph4 = mocks.loadHost(p4.context);
+const verse4 = p4.sequence.markers.createMarker(1.5); verse4.name = "Verse";
+r = placeSeqKnown(ph4, [1, 3, 5], ["D", "b", "b"], {});
+check("Premiere: a timeline placement returns its key and times for the panel to keep",
+  r.ok && r.data.placedKey && r.data.placedTimes && r.data.placedTimes.length === 3, JSON.stringify(r.data));
+const memory4 = {}; memory4[r.data.placedKey] = r.data.placedTimes;
+ph4 = mocks.loadHost(p4.context); // the host restarted: a fresh engine on the same project
+p4.audioTrack.clips[0].start.seconds = 20; p4.audioTrack.clips[0].end.seconds = 30;
+r = placeSeqKnown(ph4, [21, 23, 25], ["D", "b", "b"], memory4);
+check("Premiere: after a restart, Place on the moved clip takes the earlier timeline set from the panel's memory",
+  r.ok && r.data.replaced === 3 && p4.sequence.markers.list.length === 4 && p4.sequence.markers.list.indexOf(verse4) !== -1 &&
+  p4.sequence.markers.list.every(function (m) { return m === verse4 || m.start.seconds > 20; }), JSON.stringify(r.data));
+memory4[r.data.placedKey] = r.data.placedTimes;
+ph4 = mocks.loadHost(p4.context);
+r = clearKnown(ph4, memory4);
+check("Premiere: after another restart, Clear takes that set too and names its key",
+  r.ok && r.data.sequenceMarkersRemoved === 3 && r.data.placedKey === Object.keys(memory4)[0] && p4.sequence.markers.list.length === 1, JSON.stringify(r.data));
+r = placeSeqKnown(ph4, [21, 23], ["D", "b"], {});
+ph4 = mocks.loadHost(p4.context);
+const memory4b = {}; memory4b[r.data.placedKey] = r.data.placedTimes;
+r = placeKnown(ph4, [1, 2], ["D", "b"], memory4b);
+check("Premiere: after a restart, Place on the clip takes the timeline set and tells the panel to forget it",
+  r.ok && r.data.replaced === 2 && r.data.placedKey === Object.keys(memory4b)[0] && r.data.placedTimes === null && p4.sequence.markers.list.length === 1, JSON.stringify(r.data));
+
+const a4 = mocks.makeAeHost({ mediaPath: "/music/song4.mp3", durationSec: 10, compDuration: 60 });
+const layer4 = a4.comp.layers[0];
+let ah4 = mocks.loadHost(a4.context);
+a4.comp.markerProperty.setValueAtTime(1.5, new mocks.MarkerValue("Verse"));
+r = placeSeqKnown(ah4, [1, 3, 5], ["D", "b", "b"], {});
+check("After Effects: a composition placement returns its key and times",
+  r.ok && r.data.placedKey && r.data.placedTimes && r.data.placedTimes.length === 3, JSON.stringify(r.data));
+const memoryA4 = {}; memoryA4[r.data.placedKey] = r.data.placedTimes;
+ah4 = mocks.loadHost(a4.context);
+layer4.startTime = 20; layer4.inPoint = 20; layer4.outPoint = 30;
+r = placeSeqKnown(ah4, [21, 23, 25], ["D", "b", "b"], memoryA4);
+check("After Effects: after a restart, Place on the moved layer takes the earlier composition set",
+  r.ok && r.data.replaced === 3 && a4.comp.markerProperty.keys.length === 4 &&
+  a4.comp.markerProperty.keys.every(function (k) { return k.v.comment === "Verse" || k.t > 20; }), JSON.stringify(r.data));
+memoryA4[r.data.placedKey] = r.data.placedTimes;
+ah4 = mocks.loadHost(a4.context);
+r = clearKnown(ah4, memoryA4);
+check("After Effects: after another restart, Clear takes that set too",
+  r.ok && r.data.sequenceMarkersRemoved === 3 && r.data.placedKey === Object.keys(memoryA4)[0] && a4.comp.markerProperty.keys.length === 1, JSON.stringify(r.data));
+
 if (failures) {
   console.error("\n" + failures + " marker replace check(s) failed");
   process.exit(1);

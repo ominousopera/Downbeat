@@ -206,7 +206,12 @@
         if (isBullet(line)) {
           var ordered = /^\s*\d+\. /.test(line);
           var list = document.createElement(ordered ? "ol" : "ul");
+          var lastLi = null;
+          var nested = null;
           while (i < lines.length && isBullet(lines[i])) {
+            // An indented bullet under a numbered step is its sub-list,
+            // not the next step.
+            var indented = /^\s+/.test(lines[i]) && lastLi !== null;
             var item = lines[i].replace(/^\s*(- |\* |\d+\. )/, "");
             i++;
             while (i < lines.length && /^\s{2,}\S/.test(lines[i]) && !isBullet(lines[i]) && !/^\s*```/.test(lines[i])) {
@@ -215,7 +220,17 @@
             }
             var li = document.createElement("li");
             _appendInline(li, item);
-            list.appendChild(li);
+            if (indented) {
+              if (!nested) {
+                nested = document.createElement("ul");
+                lastLi.appendChild(nested);
+              }
+              nested.appendChild(li);
+            } else {
+              list.appendChild(li);
+              lastLi = li;
+              nested = null;
+            }
           }
           container.appendChild(list);
           continue;
@@ -340,7 +355,9 @@
         _updateBusy = false;
         if (err) {
           log("Update check: " + err.message);
-          setTranslatedText(updateStatus, "settings.updateFailed", { error: err.message });
+          // "It will try again later" only while the background check is
+          // on; after Check now with it off nothing retries.
+          setTranslatedText(updateStatus, updateCheckCheckbox.checked ? "settings.updateFailedRetry" : "settings.updateFailed", { error: err.message });
           return;
         }
         persistSettings({ lastUpdateCheck: Date.now(), latestRelease: latest });

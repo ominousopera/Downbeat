@@ -85,6 +85,25 @@ check("with synonyms off, \"hit\" adds no synonyms and no categories",
 S.setSynonyms(true);
 check("and with them on again, \"hit\" finds impact, punch, slam...", S.compile("hit").include[0].expand.indexOf("impact") !== -1);
 
+// One letter in Find must not throw inside the list redraw; names in
+// Polish, Greek, Ukrainian, Japanese or Arabic letters are found; a folder
+// more than three levels above the file is searched, as the guide promises.
+let oneLetter = null;
+try { oneLetter = S.compile("w"); } catch (e) { oneLetter = e; }
+check("a one-letter word compiles (the first keystroke of every search)", oneLetter && oneLetter.include && oneLetter.include.length === 1 && S.score(oneLetter, file("Wind gust.wav", "/SFX")) >= 0);
+check("and so does one letter excluded", S.score(S.compile("-w"), file("Wind gust.wav", "/SFX")) === -1);
+[["Zółw kroki.wav", "zółw"], ["Řeka šum.wav", "řeka"], ["Θάλασσα κύμα.wav", "θάλασσα"], ["\u0412\u0456\u0442\u0435\u0440 \u043f\u043e\u043b\u0435.wav", "\u0432\u0456\u0442\u0435\u0440"], // Ukrainian, escaped: no Cyrillic in files
+ ["風 呼嘯.wav", "風"], ["رياح.wav", "رياح"], ["İstanbul çarşı.wav", "çarşı"]].forEach(function (c) {
+  check("a name in other letters is found: " + c[0], S.score(S.compile(c[1]), file(c[0], "/SFX")) >= 0);
+});
+S.setRoots(["/Volumes/SFX", "C:/Audio/Packs"]);
+const deep = file("file.wav", "/Volumes/SFX/Airy Pack/Whoosh/Long/Soft");
+const deepWin = { name: "file.wav", path: "C:/Audio/Packs/Boom Library/Cinematic Hits/Designed/Sub/Low/file.wav" };
+check("a folder five levels above the file is searched from the added folder down", S.score(S.compile("airy"), deep) >= 0 && S.score(S.compile("sfx"), deep) >= 0 && S.score(S.compile("boom"), deepWin) >= 0);
+check("but not the path above the added folder (the user's name)", S.score(S.compile("volumes"), deep) === -1 && S.score(S.compile("audio"), deepWin) === -1 && S.score(S.compile("packs"), deepWin) >= 0);
+S.setRoots([]);
+check("without roots the last three folders are searched, as before", S.score(S.compile("soft"), file("file.wav", "/Volumes/SFX/Airy Pack/Whoosh/Long/Soft")) >= 0 && S.score(S.compile("airy"), file("file.wav", "/Volumes/SFX/Airy Pack/Whoosh/Long/Soft")) === -1);
+
 if (failures) {
   console.error("\n" + failures + " search check(s) failed");
   process.exit(1);
