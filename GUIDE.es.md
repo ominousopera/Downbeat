@@ -89,6 +89,24 @@ Secciones numeradas, de arriba abajo:
   momento, y el desplazamiento se recuerda para esa pista (hasta ±30 ms).
 - Abajo, **Colocar marcadores**, **Borrar** y **Más** (copiar / pegar
   marcadores).
+- **Añadir pista de metrónomo** (bajo esos botones) crea una pista de clics a
+  partir de la cuadrícula actual: un WAV mono de 44,1 kHz con todos los
+  tiempos y un acento en cada «uno», según tu «uno», los ajustes de la
+  cuadrícula y el recorte y la velocidad del clip. Empieza con la música, no
+  en el cabezal, y va debajo de ella: en Premiere, en una pista de audio
+  desbloqueada bajo la música con sitio para todo el WAV (añade una pista si
+  no hay ninguna libre); en After Effects, en una capa nueva justo debajo de
+  la capa de la música. La música se sigue oyendo. Dónde se guarda el WAV se
+  elige en **Ajustes → Audio terminado**; si no se puede insertar, la línea
+  junto al botón muestra dónde se guardó. Hasta 30 minutos.
+
+**Análisis guardados.** Cada análisis se guarda junto con el tamaño y la fecha
+del archivo. Si sustituyes el archivo, se analiza de nuevo; si el archivo
+cambia mientras se analiza, el resultado se descarta. Una entrada guardada
+cuyos datos de tiempos no sirven conserva su tonalidad, y su cuadrícula
+necesita un nuevo Analizar. Una corrección de tempo (**½×**, **2×**,
+**Afinada**) que sigue en marcha cuando eliges otro clip o empiezas otro
+análisis se descarta, así que nunca sustituye a la cuadrícula más nueva.
 
 ## Segundo detector de tiempos (Beat This!)
 
@@ -155,18 +173,30 @@ Funciona independientemente del análisis. Primero elige **Música** o
 resultado se muestra en la rueda Camelot y en notación tradicional, con
 las tonalidades que combinan bien con él.
 
+**Analizar: Archivo completo / Clip seleccionado** elige qué se mide: todo el
+archivo o solo la parte que usa el clip seleccionado (entre su entrada y su
+salida). Otro recorte tiene su propio resultado. El análisis de tiempos y la
+vista previa no cambian. Una parte muy corta, o una en la que la música cambia
+de tonalidad, puede dar una tonalidad poco fiable.
+
 Bajo el resultado, una línea indica cuánto fiarse. En modo **Música**
 opinan tres análisis independientes: los perfiles clásicos de
 tonalidad, la progresión de acordes y un pequeño modelo de IA (S-KEY);
 si los dos últimos coinciden contra el primero, gana su respuesta.
 Cuando coinciden los tres, la tonalidad es fiable; cuando coinciden dos
-o ninguno, escucha antes de fiarte. En modo **Efecto de sonido** el
+o ninguno, escucha antes de fiarte. En música de dos minutos o más, la
+progresión de acordes solo se lee cuando las otras dos opiniones difieren
+(si coinciden, no cambiaría la respuesta), y entonces la línea habla de dos
+opiniones. En modo **Efecto de sonido** el
 análisis está ajustado para sonidos y no para canciones: una ventana de
 análisis más larga que oye mejor las notas graves, y sin modelo de IA
 (está entrenado con música y aquí funciona peor). La segunda opinión es
 la progresión de acordes. Los sonidos de menos de 10 segundos reciben una
 nota que lo indica: con tan poco audio la tonalidad es menos fiable. Si
 ya conoces la tonalidad, puedes fijarla a mano (**Ajustar tonalidad del original**).
+Se guarda para ese archivo y esa parte; **Usar tonalidad detectada**, junto a
+**Detectar tonalidad**, recupera la tonalidad detectada. Sustituir el archivo
+de audio borra su análisis y la tonalidad fijada a mano.
 
 **Cambio de tono** (bajo el resultado): elige la tonalidad en la que está
 un sonido y la tonalidad que quieres, y te da los números para tu propio
@@ -182,11 +212,32 @@ está. El original se queda donde estaba, desactivado (Desactivar en
 Premiere, sin sonido en After Effects): vuelve a activarlo para
 deshacerlo.
 
-Tonalidad en la línea de tiempo (calculada) es el resultado principal y
-controla la rueda y las coincidencias. La tonalidad del original se muestra
-aparte. Con velocidades distintas del 100 %, una línea adicional explica
-el cambio (por ejemplo «5A, +3 semitonos»). Entre semitonos enteros no hay
-una tonalidad Camelot exacta.
+**Cambiar el tono del clip** está junto a los números de semitonos / cents /
+velocidad (debajo de ellos en un panel estrecho). Cada cambio se suma a la
+velocidad actual del clip: +2 y luego otros +2 dan 125,99 %, y volver a la
+tonalidad original devuelve el 100 %. Se muestra la velocidad final del
+clip, y la línea de BPM va del tempo actual al nuevo. Si la selección o la
+velocidad cambian antes de pulsar, revisa los números nuevos y pulsa otra
+vez. Después queda seleccionado el clip (capa) nuevo, así que el siguiente
+**Detectar tonalidad** oye su velocidad; si la aplicación no puede
+seleccionarlo, el panel te pide que lo hagas. El clip nuevo empieza sin
+marcadores de Downbeat: colócalos de nuevo para su velocidad. Tus
+marcadores, el clip original y los marcadores de la línea de tiempo se
+quedan como estaban; en Premiere el clip nuevo tiene su propio elemento de
+proyecto, así que borrar sus marcadores no toca el original.
+
+**Tonalidad del original** es lo que Detectar tonalidad midió en el propio
+archivo (o en la parte elegida); no cambia con la velocidad: un archivo en
+la menor sigue siendo 8A. **Tonalidad en la línea de tiempo (calculada)** es
+la tonalidad en la que suena el clip a su velocidad actual (el mismo
+archivo a +2 semitonos suena en si menor, 10A), y es el resultado
+principal: la rueda, las tonalidades compatibles, **Como el clip** y **En
+tono** la siguen, y se actualiza cuando cambia la velocidad del clip. Con
+velocidades distintas del 100 %, una línea adicional explica el cambio (por
+ejemplo «5A, +3 semitonos»). Una velocidad entre semitonos enteros no tiene
+una tonalidad Camelot exacta, así que no se puede emparejar ni cambiar de
+tono automáticamente. Los efectos de audio, el estiramiento que conserva el
+tono y Maintain Audio Pitch de Premiere no entran en este cálculo.
 
 ## Pestaña Biblioteca: Música y SFX
 
@@ -409,7 +460,9 @@ Solo se transfieren los marcadores dentro del intervalo audible del clip selecci
 El icono del engranaje, arriba a la derecha:
 
 - **Guía / FAQ**: este texto.
-- **Repetir el recorrido**.
+- **Repetir el recorrido**: un paseo por el panel que incluye la pista de
+  metrónomo, el intervalo de análisis de tonalidad y la tonalidad fijada a
+  mano, Cambiar el tono del clip, Audio terminado y las actualizaciones.
 - **Idioma**: inglés, ruso o español.
 - **Biblioteca**:
   - **Guardar copia…** escribe toda la biblioteca —carpetas y resultados
@@ -422,6 +475,13 @@ El icono del engranaje, arriba a la derecha:
     carpetas añadidas, todos los sonidos analizados, los favoritos y los
     clips analizados. Tus archivos y carpetas de audio en el disco nunca se
     tocan. Después, cierra y vuelve a abrir el panel de Downbeat.
+- **Audio terminado**: dónde se guardan los WAV nuevos (la pista de
+  metrónomo): Documentos/Downbeat/processed, una carpeta Downbeat/processed
+  junto al proyecto guardado (guarda antes el proyecto) o una carpeta que
+  elijas. El cambio solo afecta a archivos nuevos: no se mueve ni se
+  sobrescribe nada. Los ajustes, las bibliotecas y los archivos temporales
+  siguen en Documentos/Downbeat, y Eliminar mis datos conserva estos WAV.
+  Cambiar el tono y Reverse nunca generan audio procesado.
 - **Actualizaciones**: **Comprobar ahora** aparece primero y consulta una
   sola vez aunque los avisos estén desactivados. **Avisarme de una versión
   nueva** activa una comprobación cada tres días, sin descargas ni instalación
@@ -437,6 +497,11 @@ El icono del engranaje, arriba a la derecha:
   borrar nada, muestra la lista exacta de archivos.
 - **Diagnóstico**: **Copiar registro** pone todo el registro en el
   portapapeles: es lo que conviene enviar al informar de un problema.
+  Primero reproduce el problema en la misma sesión, luego copia el registro
+  y envíalo con los pasos y una captura de pantalla. El registro contiene
+  las versiones del plugin y de la aplicación y los errores; no se envía a
+  ningún sitio por sí solo. Puede mostrar las rutas de tus archivos de
+  audio: revísalo antes de publicarlo.
 - **Acerca de**: Enviar comentarios, la Licencia y los componentes de
   terceros sobre los que está hecho Downbeat.
 
@@ -526,6 +591,15 @@ No. El análisis y la Biblioteca se ejecutan por completo en tu equipo. La
 ahora** o los avisos opcionales), que pide a GitHub la última versión y no
 envía nada sobre tu audio ni tus proyectos.
 
+**Un programa de seguridad (BlockBlock, Little Snitch…) pregunta por `node`. ¿Qué es?**
+Es el propio análisis de Downbeat. Analizar, Detectar tonalidad y el
+escaneo de la Biblioteca funcionan en una copia de Node.js que viene dentro
+del plugin (firmada por la Node.js Foundation): inicia `analyze-worker.js`,
+`beatthis-worker.js` o `skey-worker.js` desde la carpeta `worker` del
+plugin. Todo ocurre en tu equipo y no se conecta a internet. Permítelo de
+forma permanente (no «una vez» ni «temporalmente») y las preguntas dejarán
+de aparecer.
+
 **¿Dónde guarda Downbeat sus datos y cómo los quito?**
 En la carpeta Documentos/Downbeat: tus ajustes, la biblioteca (qué
 carpetas añadiste y qué resultado dio cada archivo, nunca el audio en sí)
@@ -556,70 +630,3 @@ Sí a las dos. Downbeat es software libre bajo la GNU AGPL-3.0 (Ajustes →
 Licencia tiene el texto completo), que te permite usarlo, estudiarlo,
 compartirlo y cambiarlo. El código fuente completo está en GitHub,
 y los archivos del plugin instalado son código normal y legible.
-
-### Audio del metrónomo
-
-Después del análisis, **Añadir pista de metrónomo** crea un WAV mono de
-44,1 kHz con los tiempos de la cuadrícula actual y acentos en los tiempos
-fuertes. Incluye la fase, los ajustes de cuadrícula, el recorte y la velocidad
-constante. Empieza con la música, no con el cabezal. En After Effects añade
-una capa justo debajo de la música. En Premiere necesita una pista de audio
-desbloqueada debajo de la música con espacio para todo el WAV; añade una
-si hace falta. La música sigue sonando. Si falla la inserción, se muestra
-la ruta del WAV guardado. El límite es de 30 minutos.
-
-**Ajustes → Audio terminado** permite elegir
-Documentos/Downbeat/processed, Downbeat/processed junto al proyecto guardado
-o una carpeta personalizada. Guarda el proyecto antes de usar la segunda
-opción. Solo afecta a WAV nuevos: no mueve ni sobrescribe archivos. Los
-ajustes, bibliotecas y temporales siguen en Documentos/Downbeat. Eliminar
-los datos del panel conserva los WAV. Pitch y Reverse cambian parámetros
-del clip y no generan copias de audio.
-
-El registro incluye rutas locales. Revísalo antes de compartirlo públicamente.
-
-Si una pista guardada contiene un tempo o tiempos inválidos, conserva los datos válidos de tonalidad, pero hay que analizar de nuevo su rejilla de tiempos.
-
-La corrección de tempo pertenece al análisis que la inició. Si seleccionas otro clip o inicias un nuevo análisis mientras se ejecuta, el resultado tardío no sustituirá la cuadrícula actual.
-
-Los resultados guardados se comprueban por tamaño y fecha de modificación. Reemplazar el archivo invalida sus resultados; los resultados guardados por una versión anterior se conservan y toman el tamaño y la fecha del archivo al usarse por primera vez. Los cambios durante el análisis descartan el resultado.
-
-### Intervalo de análisis y tonalidad manual
-
-En Key, elige **Archivo completo** o **Clip seleccionado**. El segundo usa solo
-el intervalo de entrada/salida en el archivo de origen y guarda cada recorte por
-separado. Los beats y la escucha siguen usando todo el archivo. La velocidad se
-muestra aparte. Los intervalos muy breves o con cambios de tonalidad pueden ser
-poco fiables.
-
-La tonalidad manual se guarda para el archivo o intervalo; **Usar tonalidad
-detectada** recupera el último análisis. Reemplazar el audio borra el análisis
-y la tonalidad manual. Tamaño/fecha no detectan un cambio que conserve ambos
-atributos.
-
-Para música de al menos dos minutos, los acordes se analizan solo si los
-perfiles y S-KEY discrepan. Cuando coinciden, la regla garantiza la misma
-tonalidad final y se omite ese paso; la confianza describe dos opiniones, no
-tres. Los clips cortos y SFX conservan el análisis completo. Si falta S-KEY o
-falla el proceso adicional se vuelve al análisis completo. Las coincidencias
-ahorran trabajo; las discrepancias pueden tardar más. Los pases de BPM idénticos se reutilizan solo con las mismas muestras
-y límites de tempo; los errores se vuelven a intentar.
-
-**Cambiar el tono del clip** aparece junto a semitonos, cents y velocidad; en un
-panel estrecho pasa debajo.
-
-### Recorrido y registro para soporte
-
-El recorrido incluye metrónomo, intervalo de análisis y valores guardados, cambio de tono, carpeta de audio y actualizaciones mediante la página de la versión. Para informar de un problema, reprodúcelo en esta sesión y usa Ajustes → Diagnóstico → Copiar registro; envíalo con los pasos y una captura. El registro contiene versiones del complemento y de la aplicación y errores; no ejecuta pruebas ni envía nada por Internet. Puede contener rutas locales: revísalas antes de compartirlo.
-
-### Tonalidad del original y tono en la línea de tiempo
-
-Detectar tonalidad analiza el archivo original o el intervalo seleccionado del original. Cambiar el tono del clip ajusta la velocidad sin modificar el archivo: un original en la menor conserva 8A y +2 semitonos suenan como si menor, 10A. El resultado Tonalidad del original no cambia; el resultado principal indica la tonalidad a la velocidad del clip seleccionado. Los cambios de velocidad actualizan esta vista. Los efectos de audio y el estiramiento que conserva el tono no se miden desde el archivo.
-
-Tras aplicar Pitch the clip, se selecciona automáticamente el nuevo clip o capa para que Detect key use su velocidad de reproducción. Si la aplicación no confirma la selección, el panel pide seleccionarlo manualmente. Copy log registra la velocidad del clip seleccionado; los mensajes del detector siguen describiendo el audio original.
-
-El resultado principal es Tonalidad en la línea de tiempo (calculada). La rueda, las tonalidades compatibles, Match clip e In key siguen la velocidad actual del clip seleccionado. La tonalidad del original y sus valores manuales conservan la tonalidad del archivo. Cada cambio se combina con la velocidad existente: +2 seguido de otro +2 da 125,99 %, y volver a la tonalidad original restaura el 100 %. La calculadora muestra la velocidad final y el cambio del BPM actual al nuevo. Si cambian la selección o la velocidad antes de insertar, revisa el cálculo y pulsa de nuevo. Una velocidad entre semitonos no tiene una tonalidad Camelot exacta para coincidencias o cambio de tono automático. Mantener tono de audio y los efectos de tono quedan fuera del cálculo.
-
-La copia con pitch elimina los marcadores de clip/capa heredados de Downbeat. Premiere crea un elemento de proyecto independiente para conservar los marcadores del original. Los marcadores propios del original y de la secuencia/composición se conservan. Analiza y coloca nuevos marcadores para la nueva velocidad.
-
-Al añadir una región, Library establece límites exactos de tiempo de origen en el clip insertado de Premiere y comprueba el inicio y la duración antes de aplicar fades, pitch o Reverse. Evita el redondeo de In/Out del elemento de proyecto a fotogramas. Si el recorte se rechaza, la inserción se elimina.

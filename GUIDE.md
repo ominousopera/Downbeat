@@ -81,6 +81,22 @@ Numbered sections, top to bottom:
   (up to ±30 ms).
 - **Place markers**, **Clear** and **Tools** (copy / paste markers) at the
   bottom.
+- **Add metronome track** (under those buttons) makes a click track from the
+  current beat grid: a mono 44.1 kHz WAV with every beat and an accent on
+  each "1", following your "1", the grid choices and the clip's trim and
+  speed. It starts with the music, not at the playhead, and goes under it:
+  in Premiere on an unlocked audio track below the music with room for the
+  whole WAV (add a track if none is free), in After Effects on a new layer
+  right below the music layer. The music stays audible. Where the WAV is
+  saved is set in **Settings → Finished audio**; if it cannot be inserted,
+  the line next to the button shows where it was saved. Up to 30 minutes.
+
+**Saved analyses.** Each analysis is saved together with the file's size and
+date. Replace the file and it is analyzed fresh; a file that changes while it
+is being analyzed is refused. A saved entry whose beat data cannot be used
+keeps its key, and its beat grid needs a new Analyze. A tempo correction
+(**½×**, **2×**, **Refined**) still running when you select another clip or
+start a new analysis is dropped, so it never replaces the newer grid.
 
 ## Second beat detector (Beat This!)
 
@@ -143,17 +159,29 @@ the two need different analysis settings. The result is shown on the
 Camelot wheel and in traditional notation, with the keys that mix well
 with it.
 
+**Analyze: Whole file / Selected clip** sets what is measured: the whole
+file, or only the part of it the selected clip uses (its in and out points).
+A different trim gets its own result. Beat analysis and the preview are not
+affected. A very short part, or one where the music changes key, can give an
+unreliable key.
+
 Under the result, a line tells you how far to trust it. In **Music** mode
 three independent analyses weigh in: the classic key profiles, the chord
 progression, and a small AI model (S-KEY); if the last two agree against
 the first, their answer wins. When all three agree the key is dependable;
-when only two do, or none do, listen before relying on it. In **Sound
+when only two do, or none do, listen before relying on it. For music of two
+minutes or more the chord progression is read only when the other two
+disagree (when they agree it could not change the answer), so the line then
+speaks of two opinions. In **Sound
 effect** mode the analysis is tuned for sounds rather than songs: a longer
 analysis window that hears low notes better, and no AI model (it is
 trained on music and does worse there). The chord progression is the
 second opinion. Sounds shorter than 10 seconds get a note saying so, since
 a key from so little audio is less reliable. If you already know the key,
-you can set the source key by hand (Source override).
+you can set the source key by hand (Source override). It is kept for that
+file and part; **Use detected key**, next to **Detect key**, brings the
+detected key back. Replacing the audio file clears its analysis and its
+hand-set key.
 
 **Pitch shift** (under the result): pick the key a sound is in and the key
 you want, and it gives the numbers for your own pitch shifter — semitones,
@@ -166,10 +194,28 @@ the shift — no copy is made, it is still your file where it lies. The
 original stays where it was, switched off (Disable in Premiere, its sound
 off in After Effects) — switch it back on to undo.
 
-Timeline key (calculated) is the main result and drives the wheel and
-matching. Source key stays separate. At speeds other than 100%, the
-supplemental line explains the shift (for example "5A, +3 semitones"). A
-speed between whole semitones has no exact Camelot key.
+**Pitch the clip** sits next to the semitones / cents / speed numbers (below
+them in a narrow panel). Each shift adds to the clip's current speed: +2 and
+then another +2 gives 125.99%, and going back to the original key returns
+100%. The speed shown is the clip's final speed, and the BPM line goes from
+the current tempo to the new one. If the selection or the speed changes
+before you click, check the new numbers and click again. Afterwards the new
+clip (layer) is selected, so the next **Detect key** hears its speed; if the
+host cannot select it, the panel asks you to. The new clip starts without
+Downbeat's markers: place them again for its speed. Your own markers, the
+original clip and the timeline markers are left as they are; in Premiere the
+new clip has its own project item, so clearing it cannot clear the original.
+
+**Source key** is what Detect key measured in the file (or the selected
+part); it does not change with speed: an A minor file stays 8A. **Timeline
+key (calculated)** is the key the clip plays at its current speed — the same
+file at +2 semitones plays as B minor, 10A — and it is the main result: the
+wheel, compatible keys, **Match clip** and **In key** follow it, and it
+updates when the clip's speed changes. At speeds other than 100% a line
+explains the shift (for example "5A, +3 semitones"). A speed between whole
+semitones has no exact Camelot key, so it cannot be matched or pitched
+automatically. Audio effects, pitch-preserving stretch and Premiere's
+Maintain Audio Pitch are not part of this calculation.
 
 ## Library tab: Music and SFX
 
@@ -366,7 +412,9 @@ Only markers inside the selected clip’s audible range are transferred. Positio
 The gear icon, top right:
 
 - **Guide / FAQ** — this text.
-- **Replay the tour**.
+- **Replay the tour** — a walk through the panel, the metronome track, key
+  scope and hand-set keys, Pitch the clip, Finished audio and updates
+  included.
 - **Language** — English, Russian or Spanish.
 - **Library**:
   - **Save a copy…** writes the whole library — folders and analysis
@@ -379,6 +427,12 @@ The gear icon, top right:
     folders, every scanned sound, favorites and analyzed clips. Your audio
     files and folders on disk are never touched. Close and reopen the
     Downbeat panel afterwards.
+- **Finished audio** — where new WAVs (the metronome track) are saved:
+  Documents/Downbeat/processed, a Downbeat/processed folder next to the saved
+  project (save the project first), or a folder you choose. A change applies
+  to new files only; nothing is moved or overwritten. Settings, libraries and
+  temporary files stay in Documents/Downbeat, and Delete my data keeps these
+  WAVs. Pitch and Reverse never render audio.
 - **Updates** — **Check now** is the first action and makes a one-time
   request even when background notifications are off. **Tell me when a new
   version is out** enables a check every three days; it does not download or
@@ -393,7 +447,11 @@ The gear icon, top right:
   your audio files are never touched. It lists the exact files before deleting
   anything.
 - **Diagnostics** — **Copy log** puts the whole log on the clipboard:
-  that is the thing to send when reporting a problem.
+  that is the thing to send when reporting a problem. Make the problem
+  happen in the same session first, then copy the log and send it with the
+  steps and a screenshot. The log holds the plugin and host versions and the
+  errors; nothing is sent anywhere by itself. It can show the paths of your
+  audio files: look through it before posting it publicly.
 - **About** — Give Feedback, the License, and the third-party components
   Downbeat is built on.
 
@@ -474,6 +532,14 @@ network request is the update check (**Check now**, or the optional
 notifications), which asks GitHub for the latest release and sends nothing
 about your audio or projects.
 
+**A security tool (BlockBlock, Little Snitch…) asks about `node`. What is it?**
+That is Downbeat's own analysis. Analyze, Detect key and the Library scan run
+in a copy of Node.js that comes inside the plugin (signed by the Node.js
+Foundation): it starts `analyze-worker.js`, `beatthis-worker.js` or
+`skey-worker.js` from the plugin's `worker` folder. It works on your computer
+only and does not connect to the internet. Allow it permanently (not "once"
+or "temporarily") and the questions stop.
+
 **Where does Downbeat keep its data, and how do I remove it?**
 In the folder Documents/Downbeat: your settings, the library (which folders
 you added and what each file analyzed to — never the audio itself), and
@@ -502,68 +568,3 @@ Yes to both. Downbeat is free software under the GNU AGPL-3.0 (Settings →
 License has the full text), which lets you use, study, share and change it.
 The full source code is on GitHub, and the installed plugin's files are
 plain, readable code.
-
-### Metronome audio
-
-After analysis, **Add metronome track** creates a mono 44.1 kHz WAV from the
-current beat grid, with an accent on each downbeat. It uses the detected
-beat times, the chosen phase and grid adjustments, with the selected clip's
-trim and constant speed. It starts with the selected music, not the playhead.
-In After Effects it goes on a new layer directly below the music. In Premiere
-it uses an unlocked audio track below the music with room for the entire WAV;
-add a track if none is free. The original music remains audible. If insertion
-fails, the status shows the saved WAV's path. The limit is 30 minutes.
-
-**Settings → Finished audio** chooses Documents/Downbeat/processed,
-Downbeat/processed beside the saved project, or a custom folder. Save the
-project before using the project option. This changes only newly generated
-WAVs; existing files are not moved or overwritten. Libraries, settings and
-temporary files stay in Documents/Downbeat. Delete my data keeps the WAVs.
-Pitch and Reverse use host clip parameters and do not render audio copies.
-
-Logs include local file paths. Review the log before sharing it publicly.
-
-Saved track entries with invalid tempo or beat data keep usable key metadata, but their beat grid must be analyzed again.
-
-Tempo correction belongs to the analysis that started it. If you select another clip or start a new analysis while a correction is running, its delayed result will not replace the current grid.
-
-Cached results are checked against file size and modification time. Replacing the file invalidates its results; results saved by an earlier version are kept and take the file's size and date on first use. Changes during analysis are rejected.
-
-### Analysis scope and source override
-
-In Key, choose **Whole file** or **Selected clip**. Selected clip analyzes only
-its source in/out interval; changing the trim uses a separate result. This does
-not change beat analysis or the preview. Speed is shown separately. Very short
-or musically mixed intervals can give unreliable keys.
-
-Key overrides are saved for the chosen file/interval. **Use detected key**
-restores the latest automatic answer. Replacing audio resets its analysis and
-key overrides; size/mtime checks cannot detect changes that preserve both
-attributes.
-
-For Music of at least two minutes, chord analysis runs only when the profile
-vote and S-KEY differ. Agreement guarantees the same final key under the voting
-rule, so that extra pass is skipped. The confidence line then describes two
-opinions, never three. Short clips and sound effects retain the full pass. A
-missing S-KEY or failed extra worker falls back to the full pass. This saves work
-on agreeing tracks; disagreeing tracks can take longer. Identical constrained BPM passes reuse their result only on
-the same decoded samples and tempo limits; failures are retried.
-
-**Pitch the clip** sits beside the semitone/cents/speed readout and wraps below
-it in a narrow panel.
-
-### Tour and support log
-
-Replay the tour includes metronome tracks, key scope and saved values, Pitch the clip, output folders and release-page updates. To report a problem, reproduce it in the current session, then use Settings → Diagnostics → Copy log and send it with the steps and a screenshot. The log contains plugin/host versions and runtime errors; it is not an automatic test and nothing is sent online. Local file paths may appear: review them before sharing.
-
-### Source key and timeline pitch
-
-Detect key measures the source file or its selected source interval. Pitch the clip changes playback speed without rewriting that file: an A-minor source remains 8A, while +2 semitones plays as B minor, 10A. The Source key result stays unchanged; Timeline key (calculated) shows the timeline key at the selected clip speed. Speed changes refresh that view. Audio effects and pitch-preserving stretch are not measured from the file.
-
-After Pitch the clip succeeds, the new clip/layer is selected automatically, so another Detect key uses its playback speed. If the host cannot confirm selection, the panel asks you to select it manually. Copy log records the selected clip speed; detector messages still describe source audio.
-
-The main result is Timeline key (calculated). Its wheel, compatible keys, Match clip and In key follow the selected clip's current speed. Source key and source overrides keep the file's original key. Pitch the clip composes each shift with the existing speed: +2 followed by another +2 gives 125.99%, and shifting back restores 100%. The speed shown in the calculator is the final clip speed; BPM goes from current playback to the new playback. If selection or speed changes before insertion, review the updated plan and click again. Between-semitone speeds have no exact key for matching or automatic pitch. Maintain audio pitch and pitch effects are outside this calculation.
-
-Pitched copies discard inherited Downbeat clip/layer markers. Premiere uses a separate project item so clearing the copy cannot clear the original. Editor markers on the original and sequence/composition markers remain unchanged. Analyze and place fresh markers for the new playback speed.
-
-Library Add sets the selected region directly on the inserted Premiere clip with Time values, then checks the source start and duration before applying fades, pitch or reverse. This avoids frame-rounded project-item In/Out boundaries. A refused trim still removes the insertion.

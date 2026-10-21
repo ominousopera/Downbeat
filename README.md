@@ -375,6 +375,18 @@ browser after a confirmation.
 </details>
 
 <details>
+<summary><b>A security tool (BlockBlock, Little Snitch…) asks about <code>node</code>. What is it?</b></summary>
+
+That is Downbeat's own analysis. Analyze, Detect key and the Library scan run
+in a copy of Node.js that comes inside the plugin (signed by the Node.js
+Foundation): it starts <code>analyze-worker.js</code>,
+<code>beatthis-worker.js</code> or <code>skey-worker.js</code> from the
+plugin's <code>worker</code> folder. It works on your computer only and does
+not connect to the internet. Allow it permanently (not "once" or
+"temporarily") and the questions stop.
+</details>
+
+<details>
 <summary><b>Does it change my audio files?</b></summary>
 
 No. Your files are never modified, and no processed copy of them is written.
