@@ -84,6 +84,8 @@ Release notes and packages for every version are on the
   them.
 - macOS 13.5 or newer (Apple Silicon and Intel) and Windows 10 or 11 (x64),
   as the bundled Node.js requires. Windows on Arm is not supported yet.
+- The bundled Node.js, which runs the analysis on your computer, is 24.22.1,
+  the security release of October 2026.
 
 ### Saved data
 

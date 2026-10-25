@@ -13,14 +13,14 @@ set -eu
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 OUT_DIR="$HERE/runtime/node"
 
-NODE_VERSION="24.18.0"
+NODE_VERSION="24.22.1"
 DIST_BASE="https://nodejs.org/dist/v${NODE_VERSION}"
 
 # platform-arch:archive-suffix:sha256
 TARGETS="
-darwin-arm64:tar.gz:e1a97e14c99c803e96c7339403282ea05a499c32f8d83defe9ef5ec66f979ed1
-darwin-x64:tar.gz:dfd0dbd3e721503434df7b7205e719f61b3a3a31b2bcf9729b8b91fea240f080
-win-x64:zip:0ae68406b42d7725661da979b1403ec9926da205c6770827f33aac9d8f26e821
+darwin-arm64:tar.gz:89c682593d76cd44233fa53b1563264e7de9cbb189cad169135c5b4fadfbc0a7
+darwin-x64:tar.gz:d132557e7ee2b85af08b0c8c34338e65c6430f2238d01f727728ef42dc83b035
+win-x64:zip:d2046d28c2c3dcd211ac5145c0bf30e2047ef9dfb306693c8c6e2eccd8b95fa5
 "
 
 WORKDIR="$(mktemp -d)"

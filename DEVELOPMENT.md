@@ -60,7 +60,7 @@ so work in a git clone, not an unzipped archive.
 From a fresh clone, once:
 
 ```sh
-scripts/fetch-node-runtime.sh       # Node.js 24.18.0 for macOS (arm64, x64) and Windows x64, SHA-256 checked
+scripts/fetch-node-runtime.sh       # Node.js 24.22.1 for macOS (arm64, x64) and Windows x64, SHA-256 checked
 scripts/fetch-beatthis-runtime.sh   # onnxruntime-web 1.27.0 by its committed lockfile (models/ is in the repository)
 ```
 

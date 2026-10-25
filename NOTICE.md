@@ -65,13 +65,19 @@ Re-verify (diff and rehash) before any change.
 
 (Not in the repository; created by `scripts/fetch-node-runtime.sh`.)
 
-- Source: the official `nodejs.org/dist/` builds of v24.18.0, fetched by
-  `scripts/fetch-node-runtime.sh` (hashes hardcoded in that script; compare
-  with `https://nodejs.org/dist/v24.18.0/SHASUMS256.txt` before updating it).
+- Source: the official `nodejs.org/dist/` builds of v24.22.1 (the 24.x
+  security release of 2026-10-21), fetched by `scripts/fetch-node-runtime.sh`
+  (hashes hardcoded in that script; compare with
+  `https://nodejs.org/dist/v24.22.1/SHASUMS256.txt` before updating it).
+  Checked 2026-10-25: the signature on SHASUMS256.txt is valid for the
+  release key `5BE8A3F6C8A5C01D106C0AD820B1A390B168D356` (listed in the
+  Node.js README and in `github.com/nodejs/release-keys`); the release post
+  for v24.22.1 gives the same hashes; each archive was downloaded twice with
+  identical bytes.
 - sha256 of the official archives (only the bare executable is extracted):
-  - `node-v24.18.0-darwin-arm64.tar.gz`: `e1a97e14c99c803e96c7339403282ea05a499c32f8d83defe9ef5ec66f979ed1`
-  - `node-v24.18.0-darwin-x64.tar.gz`: `dfd0dbd3e721503434df7b7205e719f61b3a3a31b2bcf9729b8b91fea240f080`
-  - `node-v24.18.0-win-x64.zip`: `0ae68406b42d7725661da979b1403ec9926da205c6770827f33aac9d8f26e821`
+  - `node-v24.22.1-darwin-arm64.tar.gz`: `89c682593d76cd44233fa53b1563264e7de9cbb189cad169135c5b4fadfbc0a7`
+  - `node-v24.22.1-darwin-x64.tar.gz`: `d132557e7ee2b85af08b0c8c34338e65c6430f2238d01f727728ef42dc83b035`
+  - `node-v24.22.1-win-x64.zip`: `d2046d28c2c3dcd211ac5145c0bf30e2047ef9dfb306693c8c6e2eccd8b95fa5`
 - License: MIT (Node.js itself; it bundles other permissive components such
   as V8, libuv and OpenSSL, listed in Node's own `LICENSE`).
 - Why bundled: the panel starts the analysis workers as real Node
@@ -79,7 +85,10 @@ Re-verify (diff and rehash) before any change.
   Each release package carries only its own platform's executable (macOS
   arm64 and x64 together, or Windows x64).
 - The macOS executables are signed by the Node.js Foundation (Apple
-  Developer ID) and keep that signature inside the package.
+  Developer ID, team HX7739G8FX) and keep that signature inside the package;
+  they run with a quarantine flag set, with no Gatekeeper warning. The
+  Windows `node.exe` is signed by the OpenJS Foundation (Authenticode,
+  Microsoft ID Verified code signing).
 
 ## runtime/onnxruntime-web/node_modules/{onnxruntime-web,onnxruntime-common,protobufjs,flatbuffers,@protobufjs,long,platform,guid-typescript}/
 
@@ -269,7 +278,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### Node.js v24.18.0 (MIT)
+### Node.js v24.22.1 (MIT)
 
 Only the bare `node` / `node.exe` executable is bundled. Node.js's own
 license, as published in its `LICENSE` file:
@@ -303,8 +312,10 @@ SOFTWARE.
 The executable also contains third-party components (V8, libuv, OpenSSL,
 ICU, zlib, and others) under their own permissive licenses. Their notices
 are listed in full in the `LICENSE` file at the root of the official
-release: `https://github.com/nodejs/node/blob/v24.18.0/LICENSE` (the same
-file ships inside every `node-v24.18.0-*` archive from nodejs.org).
+release: `https://github.com/nodejs/node/blob/v24.22.1/LICENSE` (the same
+file ships inside every `node-v24.22.1-*` archive from nodejs.org). Against
+v24.18.0 only the zlib entry changed (its version and copyright years; the
+zlib license itself is the same).
 
 ### guid-typescript 1.0.9 (ISC)
 
