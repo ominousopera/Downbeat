@@ -8,8 +8,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const ROOT = path.resolve(__dirname, "..", "..");
-const HARNESS = path.join(ROOT, "com.downbeat.pro", "scripts", "panel-harness.js");
+const HARNESS = path.join(__dirname, "panel-harness.js");
 
 function rowStar(h, name) {
   const row = h.registry.libraryDisplay.children.find(function (x) {
