@@ -610,8 +610,8 @@ function dbAePasteMarkersData(dataJson, referenceJson) {
                     continue;
                 }
                 writes.push({ prop: props[g], time: time, value: value });
-                }
             }
+        }
         var applied = 0;
         _dbAeWithUndo("Downbeat: paste markers", function () {
             try {

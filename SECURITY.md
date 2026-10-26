@@ -29,8 +29,8 @@ Generated metronome WAVs are written only to the finished-audio destination
 chosen in Settings: Documents/Downbeat/processed, Downbeat/processed next to
 a saved project, or a custom folder. Exclusive file creation prevents
 overwriting an existing file. Delete my data preserves generated audio.
-Imported library metadata is data only; duration and beat phase are validated
-before use in host calls or beat-grid loops.
+Library data read from disk is treated as data only; durations and beat
+positions are checked before they are used in the host.
 
 Diagnostics can contain local file paths. Review logs before posting them
 publicly. The analysis workers execute bundled local scripts under the
@@ -38,6 +38,7 @@ bundled Node runtime; endpoint-security tools may ask about these executions.
 A valid ZXP signature does not guarantee that every runtime action will be
 accepted by third-party security software.
 
-Confirmed Key/BPM and source-interval results are stored only with local library
-data and explicit library backups. They do not edit original media or send
-analysis data online. Cache identity uses size/mtime rather than content hashes.
+Confirmed keys and tempos live only in Documents/Downbeat and in library
+backups you make yourself. They do not edit original media or send analysis
+data online. Analysis results are tied to a file's size and modification
+date, so a replaced file is analyzed again.

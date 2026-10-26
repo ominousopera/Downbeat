@@ -136,7 +136,8 @@
     return out;
   }
 
-  // File metadata stays source-based; playback metadata is a transient view.
+  // The stored key and BPM always describe the source file; the key and BPM
+  // at playback speed are computed on the fly and never saved.
   function playback(speed, bpm, camelot) {
     var s = Number(speed);
     if (!(s > 0) || !isFinite(s)) { return null; }
@@ -148,7 +149,8 @@
       heard: heard };
   }
 
-  // Insertions use the original file, so the host needs the composed absolute rate.
+  // An insert places the original file, so the host receives the final
+  // absolute speed (the clip's current speed combined with the requested shift).
   function playbackPlan(speed, from, to, sourceBpm) {
     var view = playback(speed, sourceBpm, from);
     var p = view ? plan(from, to, view.bpm) : null;

@@ -644,9 +644,11 @@
       throw new Error(I18n.t("analysis.fileChanged"));
     }
   }
-  // Music combines profile and S-KEY results. Long agreeing inputs omit
-  // chords; disagreement requests that witness before the same vote rule.
-  // Worker errors recover through the full detector.
+  // Music keys combine the profile vote with S-KEY. On a long track whose
+  // profile vote and S-KEY agree, the chord pass is skipped; when they
+  // disagree, the chord pass runs and the three results go through the same
+  // vote. If the S-KEY worker fails, the full detector (profile + chords) is
+  // used instead. Short audio and sound effects keep their complete analysis.
   function _detectKey(samples44100, material, adaptive) {
 
     var conditional = material === "music" && adaptive !== false && samples44100.length >= 120 * 44100;
@@ -2608,7 +2610,7 @@
         log("Copied " + data.sequenceMarkers.length + " sequence marker(s) + " + data.clipMarkers.length +
             " clip marker(s) from \"" + data.clipName + "\".");
         _flashCopyMarkersStatus(I18n.t("analyze.copyMarkersDone", { count: String(total) }));
-          return Promise.resolve();
+        return Promise.resolve();
       })
       .catch(function (err) {
         log("Copy markers failed: " + (err && err.message ? err.message : err));

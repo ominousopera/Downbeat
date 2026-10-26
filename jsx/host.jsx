@@ -171,7 +171,8 @@ function _pad2(n) {
     return (n < 10 ? "0" : "") + n;
 }
 
-// References remain inside the host; the panel carries only a bounded token.
+// Host objects never cross the bridge: the panel receives a short token and
+// passes it back to find the same object again.
 var _dbSelectionRefs = {};
 var _dbSelectionSerial = 0;
 function _dbRememberSelection(owner, item, media) {
@@ -292,8 +293,9 @@ var LABEL_COMMENT = {
 // Whether a marker is one Downbeat placed. It must carry every mark Downbeat
 // gives its markers: the name D or b, the explanation Downbeat writes into
 // the comment in any of the panel's languages (js/i18n.js marker.downbeat /
-// marker.beat, kept equal by scripts/test-marker-ownership.js; also an
-// older Russian beat text), and no duration. A marker named D or b with an
+// marker.beat, kept equal by scripts/test-marker-ownership.js, or a second
+// Russian wording of the beat text, so markers that carry it are still
+// recognized as Downbeat's), and no duration. A marker named D or b with an
 // editor's own comment or a length stays the editor's, and so does one of
 // Downbeat's whose comment the editor rewrote. The color is not checked.
 var OWN_MARKER_COMMENTS = {

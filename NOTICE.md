@@ -69,11 +69,10 @@ Re-verify (diff and rehash) before any change.
   security release of 2026-10-21), fetched by `scripts/fetch-node-runtime.sh`
   (hashes hardcoded in that script; compare with
   `https://nodejs.org/dist/v24.22.1/SHASUMS256.txt` before updating it).
-  Checked 2026-10-25: the signature on SHASUMS256.txt is valid for the
-  release key `5BE8A3F6C8A5C01D106C0AD820B1A390B168D356` (listed in the
-  Node.js README and in `github.com/nodejs/release-keys`); the release post
-  for v24.22.1 gives the same hashes; each archive was downloaded twice with
-  identical bytes.
+  The signature on SHASUMS256.txt was verified against the Node.js release
+  key `5BE8A3F6C8A5C01D106C0AD820B1A390B168D356` (listed in the Node.js
+  README and in `github.com/nodejs/release-keys`); the release post for
+  v24.22.1 gives the same hashes.
 - sha256 of the official archives (only the bare executable is extracted):
   - `node-v24.22.1-darwin-arm64.tar.gz`: `89c682593d76cd44233fa53b1563264e7de9cbb189cad169135c5b4fadfbc0a7`
   - `node-v24.22.1-darwin-x64.tar.gz`: `d132557e7ee2b85af08b0c8c34338e65c6430f2238d01f727728ef42dc83b035`
@@ -313,9 +312,7 @@ The executable also contains third-party components (V8, libuv, OpenSSL,
 ICU, zlib, and others) under their own permissive licenses. Their notices
 are listed in full in the `LICENSE` file at the root of the official
 release: `https://github.com/nodejs/node/blob/v24.22.1/LICENSE` (the same
-file ships inside every `node-v24.22.1-*` archive from nodejs.org). Against
-v24.18.0 only the zlib entry changed (its version and copyright years; the
-zlib license itself is the same).
+file ships inside every `node-v24.22.1-*` archive from nodejs.org).
 
 ### guid-typescript 1.0.9 (ISC)
 
@@ -368,7 +365,3 @@ public-domain initiative (see its entry above).
 The metronome synthesizer uses the detected beat grid and built-in arithmetic;
 it adds no third-party library or audio asset. Its WAV files are local and
 written to the finished-audio destination selected in Settings.
-
-User-confirmed analysis metadata and source-interval key caches are local library
-data. Identical constrained BPM passes can reuse an in-memory worker result;
-conditional chord checking adds no model, dependency or network service.
