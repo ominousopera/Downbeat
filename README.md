@@ -138,7 +138,7 @@ next to it. Pick the song you are cutting, press **Match clip**, and the list
 shrinks to the sounds that fit it.
 
 <p align="center">
-  <img src="docs/images/library-match.png" alt="The Library with Match clip on: only sounds in the song's key or a neighbouring one" width="400">
+  <img src="docs/images/library-match.png" alt="The Library with Match clip on: only sounds in the song's key or a neighboring one" width="400">
   <img src="docs/images/library-preview.png" alt="The Library preview: pitch a sound into the song's key, trim it, add fades" width="400">
 </p>
 
@@ -156,7 +156,7 @@ shrinks to the sounds that fit it.
   or rain are noise, not notes: they show "no clear pitch" and a key search
   skips them. Only tonal sounds (risers, drones, stingers, pads, bass hits)
   get a key, and even then it is a hint to check by ear.
-- **Match clip** shows only the sounds in the same or a neighbouring key (and
+- **Match clip** shows only the sounds in the same or a neighboring key (and
   the same tempo for music), so you stop auditioning files that clash.
 - **Search by sound type.** Type "swoosh" and it finds your whooshes, because
   it knows the sound-effect categories and their synonyms.
@@ -257,7 +257,7 @@ shortlist to audition, not a promise that two sounds will blend.
 
 A cut off the beat feels wrong even when you can't say why; on the beat, the
 clip just feels right. The notes have to fit too: pieces in the same or a
-neighbouring key sound like one track. Downbeat marks the beat and shows the
+neighboring key sound like one track. Downbeat marks the beat and shows the
 key, so you can pick both.
 </details>
 
@@ -282,7 +282,7 @@ join music in an edit: Downbeat shows the tempo, the bar markers and the key.
 <summary><b>How do I join two different songs?</b></summary>
 
 Check the tempo and the key: close tempos keep the pulse, and the same or a
-neighbouring key on the Camelot wheel blends. Analyze and Detect key give you
+neighboring key on the Camelot wheel blends. Analyze and Detect key give you
 both; for your own music, **Library → Match clip** lists the tracks that fit.
 Phrases and mood still matter.
 </details>

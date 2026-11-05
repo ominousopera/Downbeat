@@ -1,7 +1,8 @@
 // ExtendScript host side for Premiere Pro (After Effects calls are forwarded
 // to host-ae.jsx). It picks files and folders, reads the selected clip,
-// places and clears markers, razors clips and inserts library audio. Every
-// public function returns a JSON string { ok, error, data }.
+// places and clears markers, makes the developer Test cut and inserts
+// library audio. Every public function returns a JSON string
+// { ok, error, data }.
 // ES3 engine: no array .filter/.map/.forEach/.some/.every/.find/.includes,
 // no spread, no nested ternaries. Plain for-loops and explicit object
 // literals only.

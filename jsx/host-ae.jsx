@@ -29,9 +29,9 @@ var AE_OWN_MARKER_PARAM = "Downbeat";
 // Whether a marker value is one Downbeat placed: the text D or b, the
 // Downbeat parameter with that text, Downbeat's label color for it, no
 // duration and none of a chapter, web link, cue point name or protected
-// region. Any other "D" stays the editor's, and so do markers placed
-// before the parameter existed: they are removed by hand. eventCuePoint is
-// not read: its default for a new marker is not confirmed.
+// region. Any other "D" stays the editor's, including a D or b without the
+// Downbeat parameter; such markers are removed by hand. eventCuePoint is
+// not read, since its default value for a new marker is not documented.
 function _dbAeIsOwnMarker(v) {
     if (!v || !AE_LABEL_COLOR_INDEX.hasOwnProperty(v.comment)) {
         return false;

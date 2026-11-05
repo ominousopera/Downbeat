@@ -1204,8 +1204,8 @@
     markerTimingRadios[mtt].addEventListener("change", _updateAudioUnitsTip);
   }
   _updateAudioUnitsTip();
-  // The track Place markers (and Cut) use: downbeats, or every beat labeled D
-  // / b. The markers' times are evened out along the local tempo line: Beat
+  // The track Place markers uses: downbeats, or every beat labeled D / b.
+  // The markers' times are evened out along the local tempo line: Beat
   // This! times sit on a 20 ms grid, up to 10 ms off the beat each. A typed
   // BPM's grid is even already.
   var _lastEvenOut = null;

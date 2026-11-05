@@ -340,10 +340,9 @@ and stays in view while the list scrolls:
   back to 0. A new file starts at 0, forwards. For a sound with a key or
   note, a line under it says what the pitch turns it into ("Key: 8A A
   minor → 10A B minor");
-- **In key** — pitches every sound you listen to into the key of the music
-  selected clip (calculated from its saved source key and playback speed), so every sound
-  you listen to is already in key; **Add** then places the file itself at
-  that pitch. A sound goes the shortest way to the clip's key; a major sound
+- **In key** — pitches every sound you listen to into the key of the
+  selected music clip (calculated from its saved source key and playback
+  speed); **Add** then places the file itself at that pitch. A sound goes the shortest way to the clip's key; a major sound
   on a minor song goes to the song's relative major (the same Camelot number,
   which mixes with it) — no pitch shift can turn major into minor. Sounds with
   no clear key play as they are. Click it again to switch it off;

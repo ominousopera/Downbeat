@@ -2198,7 +2198,9 @@ button.settings-full-btn.is-failed { color: var(--danger); }
 
 /* LIBRARY FILTER LINE, in one place. Two groups: the dropdowns
    (.g-filter-picks) and the on / off filters with Match clip / Reset
-   (.g-filter-checks). - Wide panel: both on one line. */
+   (.g-filter-checks). In a wide panel both sit on one line; in a narrow
+   one the second group moves to its own line, whole, so no checkbox is
+   left alone on a line. */
 .g-filters { flex-wrap: wrap; align-items: center; column-gap: 14px; row-gap: 8px; }
 .g-filter-picks,
 .g-filter-checks { display: flex; align-items: center; min-width: 0; }

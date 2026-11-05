@@ -160,8 +160,8 @@
             });
           }).then(function () {
             // A step below (razorTestBtn) cuts the selected clip, which
-            // changes Premiere's selection. The
-            // background pollSelection() (every 1.5 s) can then call
+            // changes Premiere's selection. The background pollSelection()
+            // (every 1.5 s) can then call
             // _applyCachedEntry(), which replaces lastKeyResult with the
             // thinner library-persisted version (without the perProfile and
             // witness diagnostic fields, which are never persisted). The

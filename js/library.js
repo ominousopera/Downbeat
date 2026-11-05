@@ -278,8 +278,8 @@
       entry.beatsArray = entry.bpm ? validTimes(entry.beatsArray) : null;
       entry.downbeatTimes = entry.beatsArray ? validTimes(entry.downbeatTimes) : null;
       entry.barsUnsure = entry.downbeatTimes && typeof entry.barsUnsure === "boolean" ? entry.barsUnsure : null;
-      // Entries saved before this field existed kept "1" markers only from
-      // Beat This!, so those are Refined.
+      // An entry without a saved grid name: its "1" markers can only come
+      // from Beat This!, so it counts as Refined.
       entry.beatGrid = !entry.beatsArray ? null
         : (raw.beatGrid === undefined ? (entry.downbeatTimes ? "refined" : null) : validBeatGrid(raw.beatGrid));
       entry.confidence = typeof entry.confidence === "number" && isFinite(entry.confidence) ? entry.confidence : null;

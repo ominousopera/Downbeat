@@ -18,8 +18,8 @@
 # comments (see the strip step below).
 #
 # Only the files that ship are staged (CSXS/, assets/, index.html, css/, js/,
-# jsx/, worker/, runtime/, models/, plus LICENSE, NOTICE.md and GUIDE.md for
-# the Settings buttons) into a clean temp folder before signing. worker/ holds
+# jsx/, worker/, runtime/, models/, plus LICENSE, NOTICE.md and the three
+# GUIDE*.md files for the Settings buttons) into a clean temp folder before signing. worker/ holds
 # the essentia.js subprocess and the Beat This! subprocess
 # (worker/beatthis-worker.js); js/bridge.js spawns them by full path rather
 # than through a <script> tag, but they are runtime dependencies. runtime/ is

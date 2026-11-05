@@ -239,7 +239,7 @@ tono y Maintain Audio Pitch de Premiere no entran en este cálculo.
 
 ## Pestaña Biblioteca: Música y SFX
 
-Añade carpetas de audio, o una unidad entera, una tarjeta de memoria o una carpeta de red; solo el disco del sistema no se puede añadir entero. Las carpetas Music y SFX no deben solaparse. Un escaneo cuenta hasta 50.000 archivos; si hay más, añade carpetas más pequeñas. El siguiente Iniciar escaneo vuelve a intentar los archivos con errores, y una carpeta que no se pudo leer conserva los registros que ya tenía. Si sustituyes un archivo en la misma ruta, su vista previa se vuelve a leer antes de insertarlo.
+Añade carpetas de audio, o una unidad entera, una tarjeta de memoria o una carpeta de red; solo el disco del sistema no se puede añadir entero. Las carpetas de Música y SFX no deben solaparse. Un escaneo cuenta hasta 50.000 archivos; si hay más, añade carpetas más pequeñas. El siguiente Iniciar análisis vuelve a intentar los archivos con errores, y una carpeta que no se pudo leer conserva los registros que ya tenía. Si sustituyes un archivo en la misma ruta, su vista previa se vuelve a leer antes de insertarlo.
 
 Dos secciones, **Música** y **SFX**, cada una construida a partir de
 carpetas de tu equipo.
@@ -309,8 +309,8 @@ Para encontrar algo:
   nombres coinciden mejor van primero. Escribir el nombre de una carpeta
   encuentra los archivos que contiene (y los de sus subcarpetas). A la
   derecha del campo **Buscar**, el panel muestra las otras palabras que
-  también busca («+ uplifter, swell»); la **✕** tras ellos busca solo las
-  palabras que escribiste, y **+ sinónimos** los vuelve a activar (se
+  también busca («+ uplifter, swell»); la **✕** tras ellas busca solo las
+  palabras que escribiste, y **+ sinónimos** las vuelve a activar (se
   recuerda).
 - Muchas bibliotecas comerciales nombran los archivos según el Universal
   Category System (UCS), por ejemplo «DSGNWhsh_Airy Pass_Example
@@ -479,7 +479,7 @@ El icono del engranaje, arriba a la derecha:
   elijas. El cambio solo afecta a archivos nuevos: no se mueve ni se
   sobrescribe nada. Los ajustes, las bibliotecas y los archivos temporales
   siguen en Documentos/Downbeat, y Eliminar mis datos conserva estos WAV.
-  Cambiar el tono y Reverse nunca generan audio procesado.
+  Cambiar el tono y Reverso nunca generan audio procesado.
 - **Actualizaciones**: **Comprobar ahora** aparece primero y consulta una
   sola vez aunque los avisos estén desactivados. **Avisarme de una versión
   nueva** activa una comprobación cada tres días, sin descargas ni instalación

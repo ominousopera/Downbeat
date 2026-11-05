@@ -29,9 +29,9 @@
     });
   }
   // Shared by placeCuesheetMarkers(), placeClipMarkers() and
-  // placeSequenceMarkers(): maps one impulse
-  // track's events with `mapFn`, then calls the named jsx function with the
-  // JSON times and labels (plus extraArgs). Returns a Promise resolving to
+  // placeSequenceMarkers(): maps one impulse track's events with `mapFn`,
+  // then calls the named jsx function with the JSON times and labels (plus
+  // extraArgs). Returns a Promise resolving to
   // { ok, error, data } (data has droppedCount and framesMerged merged in on
   // success). options.snapToFrame snaps the times to frame starts;
   // options.sourceTimes says the times are source-file time (clip markers),

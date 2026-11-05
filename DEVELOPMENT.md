@@ -100,7 +100,7 @@ Before packaging, the script refuses to build if any of these fail
 
 The full self-test in mock Premiere and After Effects
 (`scripts/test-self-test.js`) is slow; run it by hand after
-touching marker placement, cutting or the host scripts.
+touching marker placement, the Test cut or the host scripts.
 
 After signing, it verifies the signature of each finished `.zxp` and of
 an unpacked copy with `ZXPSignCmd -verify`, and compares the package with
