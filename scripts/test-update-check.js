@@ -27,7 +27,8 @@ check("v1.0.1 and 1.0.1 are read", JSON.stringify(UC.parseVersion("v1.0.1")) ===
 check("a pre-release or a half version is not a version", UC.parseVersion("v1.0.1-beta") === null && UC.parseVersion("1.0") === null && UC.parseVersion("") === null && UC.parseVersion(null) === null);
 check("1.0.2 is newer than 1.0.1, 1.10.0 than 1.9.9, 2.0.0 than 1.99.99", UC.isNewer("1.0.2", "1.0.1") && UC.isNewer("1.10.0", "1.9.9") && UC.isNewer("2.0.0", "1.99.99"));
 check("the same or an older version is not newer", !UC.isNewer("1.0.1", "1.0.1") && !UC.isNewer("1.0.0", "1.0.1") && !UC.isNewer("garbage", "1.0.1") && !UC.isNewer("1.0.2", "unknown (x)"));
-check("release module has no package operations", Object.keys(UC).sort().join() === "RELEASES_URL,fetchLatest,isDue,isNewer,pageFor,parseVersion");
+check("release module has no package operations", Object.keys(UC).sort().join() === "RELEASES_URL,fetchLatest,isDue,isNewer,isOffline,pageFor,parseVersion");
+check("no connection is told apart from other failures", UC.isOffline(Object.assign(new Error("getaddrinfo ENOTFOUND api.github.com"), { code: "ENOTFOUND" })) && UC.isOffline(new Error("connect ECONNREFUSED 1.2.3.4:443")) && !UC.isOffline(new Error("GitHub answered 500")) && !UC.isOffline(null));
 
 // Rhythm
 const DAY = 24 * 3600 * 1000;

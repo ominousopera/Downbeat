@@ -50,6 +50,21 @@ UC.fetchLatest = function (cb) { requests++; answer = cb; };
     });
     assert.deepStrictEqual(settings().downloadedUpdate, oldReceipt);
     assert.strictEqual(fs.readFileSync(oldFile, "utf8"), "existing package");
-    console.log("ok - manual checks, disabled in-flight notices, release confirmation, unknown settings entries left alone");
+
+    // No connection: said in words; "try again later" only while the
+    // background check is on. Another failure keeps its own message.
+    const offline = Object.assign(new Error("getaddrinfo ENOTFOUND api.github.com"), { code: "ENOTFOUND" });
+    assert.strictEqual(r.updateCheckCheckbox.checked, false);
+    r.updateCheckNowBtn._fire("click"); answer(offline, null);
+    assert.strictEqual(r.updateStatus.textContent, "Could not check: no internet connection.");
+    r.updateCheckNowBtn._fire("click"); answer(new Error("GitHub answered 500"), null);
+    assert.strictEqual(r.updateStatus.textContent, "Could not check (GitHub answered 500).");
+    r.updateCheckCheckbox.checked = true;
+    r.updateCheckCheckbox._fire("change"); answer(offline, null);
+    assert.strictEqual(r.updateStatus.textContent, "Could not check: no internet connection. It will try again later.");
+    r.updateCheckCheckbox.checked = false;
+    r.updateCheckCheckbox._fire("change");
+    assert.strictEqual(UC.isOffline(new Error("no answer from GitHub in 10 s")), false);
+    console.log("ok - manual checks, disabled in-flight notices, release confirmation, unknown settings entries left alone, failure texts");
   } finally { fs.rmSync(work, { recursive: true, force: true }); }
 })().catch(function (err) { console.error(err); process.exitCode = 1; });

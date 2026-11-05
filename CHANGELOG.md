@@ -74,7 +74,8 @@ Release notes and packages for every version are on the
   switching it there works: when the other grid is not at hand, the clip
   is analyzed again first. A track analyzed in an earlier session
   shows no grid warning and no Beat grid switch until it is analyzed.
-- Check now with background checks off says only that the check failed.
+- Check now with background checks off says only that the check failed,
+  and with no internet connection it says so in words.
 - Delete my data describes the other items in Documents/Downbeat
   (finished audio in processed/ among them) as left as they are.
 

@@ -357,7 +357,9 @@
           log("Update check: " + err.message);
           // "It will try again later" only while the background check is
           // on; after Check now with it off nothing retries.
-          setTranslatedText(updateStatus, updateCheckCheckbox.checked ? "settings.updateFailedRetry" : "settings.updateFailed", { error: err.message });
+          // No connection at all is said in words; the code stays in the log.
+          var failedKey = UC.isOffline(err) ? "settings.updateOffline" : "settings.updateFailed";
+          setTranslatedText(updateStatus, updateCheckCheckbox.checked ? failedKey + "Retry" : failedKey, { error: err.message });
           return;
         }
         persistSettings({ lastUpdateCheck: Date.now(), latestRelease: latest });

@@ -167,7 +167,16 @@
       done(e, null);
     }
   }
+
+  // The computer has no way to GitHub at all (no network, no name lookup):
+  // the panel then says so in words instead of the system's error code.
+  function isOffline(err) {
+    var text = err ? String(err.code || "") + " " + String(err.message || "") : "";
+    return /\b(ENOTFOUND|EAI_AGAIN|ENETUNREACH|ENETDOWN|EHOSTUNREACH|ECONNREFUSED)\b/.test(text);
+  }
+
   global.BeatMarkerUpdateCheck = {
+    isOffline: isOffline,
     parseVersion: parseVersion,
     isNewer: isNewer,
     isDue: isDue,
