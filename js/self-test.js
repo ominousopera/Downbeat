@@ -48,7 +48,6 @@
       var _selfTestManualBpmResult = null, _selfTestManualBpmDetail = "";
       var _selfTestRetempoResult = null, _selfTestRetempoDetail = "";
       var _selfTestKeyOverrideResult = null, _selfTestKeyOverrideDetail = "";
-      var _selfTestCutDownbeatsResult = null, _selfTestCutDownbeatsDetail = "";
       var _selfTestCopyPasteResult = null, _selfTestCopyPasteDetail = "";
       var _selfTestKeyMultiNotationResult = null, _selfTestKeyMultiNotationDetail = "";
       var _selfTestBeatThisResult = null; // set by the Beat This! block below, read by the summary
@@ -160,8 +159,8 @@
               return _clickAndWaitForButton(ctx.detectKeyBtn(), "Detect key (restoring detector data)");
             });
           }).then(function () {
-            // Several steps below (razorTestBtn, cutDownbeatsBtn) cut the
-            // selected clip, which changes Premiere's selection. The
+            // A step below (razorTestBtn) cuts the selected clip, which
+            // changes Premiere's selection. The
             // background pollSelection() (every 1.5 s) can then call
             // _applyCachedEntry(), which replaces lastKeyResult with the
             // thinner library-persisted version (without the perProfile and
@@ -188,20 +187,6 @@
               (confidenceShown ? "" : ", confidence line NOT shown") +
               (ctx.lastKeyResult().skeyCamelot ? ", S-KEY " + ctx.lastKeyResult().skeyCamelot + " (" + ctx.lastKeyResult().agreement3 + " agree)"
                 : (skeyAnswered ? "" : ", S-KEY did NOT answer in Music mode - see the log"));
-          });
-        })
-        .then(function () {
-          // Cut at downbeats: razors at every downbeat of the current
-          // analysis (many cuts on a typical track, unlike razorTestBtn's
-          // single test cut below).
-          return _clickAndWaitForButton(ctx.cutDownbeatsBtn(), "Cut at downbeats (real, repeated razor cuts on the selected, still-whole clip)").then(function () {
-            var r = ctx._lastCutDownbeatsResult();
-            _selfTestCutDownbeatsResult = r && r.ok ? "ok" : "fail";
-            _selfTestCutDownbeatsDetail = !r
-              ? "handler never set a result - check the log above."
-              : r.ok
-                ? "requested " + r.requested + ", cut " + r.cut + (r.droppedCount ? ", " + r.droppedCount + " dropped" : "") + "."
-                : "FAILED - " + (r.error || "0 of " + (r.requested || "?") + " cuts succeeded") + " - check the \"Cut at downbeats\" line above.";
           });
         })
         .then(function () { return _clickAndWaitForButton(ctx.razorTestBtn(), "Test cut (run once - cuts the selected clip's track)"); })
@@ -257,7 +242,6 @@
             _summaryLine("skip", "Marker colors",
               "check them on the timeline by eye.");
             _summaryFromResult("½x/2x retempo (tempo-octave correction)", _selfTestRetempoResult, _selfTestRetempoDetail);
-            _summaryFromResult("Cut at downbeats (real razor cuts, not just the single test cut)", _selfTestCutDownbeatsResult, _selfTestCutDownbeatsDetail);
             _summaryFromResult("Copy + Paste markers", _selfTestCopyPasteResult, _selfTestCopyPasteDetail);
           } else {
             _summaryLine("fail", "Analyze", "lastAnalysis is empty after the test ran - check the detailed log above for the actual error.");

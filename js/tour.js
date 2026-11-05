@@ -11,16 +11,11 @@
   // `tab`: the tab (js/main.js's window.BeatMarkerTabs) that must be active
   // for the target to be visible; null for targets outside the tab system
   // (the settings gear) and for steps with no target.
-  // `hiddenFeature`: the target's whole panel has the `hidden` attribute, so
-  // the step is skipped. Otherwise the .panel fallback would resolve to that
-  // same zero-size hidden panel and the spotlight would collapse into a tiny
-  // box in the top-left corner.
   var STEPS = [
     { target: null, tab: null, titleKey: "tour.welcomeTitle", bodyKey: "tour.welcomeBody" },
     { target: "#analyzeBtn", tab: "analyze", titleKey: "tour.analyzeTitle", bodyKey: "tour.analyzeBody" },
     { target: "#phaseCells", tab: "analyze", titleKey: "tour.phaseTitle", bodyKey: "tour.phaseBody" },
     { target: "#placeMarkersBtn", tab: "analyze", titleKey: "tour.placeTitle", bodyKey: "tour.placeBody" },
-    { target: "#cutDownbeatsBtn", tab: "analyze", hiddenFeature: true, titleKey: "tour.cutTitle", bodyKey: "tour.cutBody" },
     { target: "#metronomeBtn", tab: "analyze", titleKey: "tour.metronomeTitle", bodyKey: "tour.metronomeBody" },
     { target: "#clearMarkersBtn", tab: "analyze", titleKey: "tour.clearMarkersTitle", bodyKey: "tour.clearMarkersBody" },
     { target: "#detectKeyBtn", tab: "key", titleKey: "tour.keyTitle", bodyKey: "tour.keyBody" },
@@ -123,15 +118,7 @@
     _els();
     var step = STEPS[currentStepIndex];
     var I18n = global.BeatMarkerI18n;
-    // Numbered among the steps actually shown: a hidden-feature step is
-    // skipped, so it must not count.
-    var shown = 0, total = 0;
-    for (var s = 0; s < STEPS.length; s++) {
-      if (shouldSkip(s)) { continue; }
-      total++;
-      if (s <= currentStepIndex) { shown++; }
-    }
-    stepIndicator.textContent = I18n.t("tour.stepOf", { n: shown, total: total });
+    stepIndicator.textContent = I18n.t("tour.stepOf", { n: currentStepIndex + 1, total: STEPS.length });
     calloutTitle.textContent = I18n.t(step.titleKey);
     calloutBody.textContent = I18n.t(step.bodyKey);
     // Gone on the first step, so Next takes the whole row there.
@@ -145,12 +132,6 @@
 
     var targetEl = resolveVisibleTarget(step.target);
     positionCallout(targetEl);
-  }
-  // True if this step should be skipped (its target's whole panel is hidden,
-  // see hiddenFeature in STEPS above).
-  function shouldSkip(index) {
-    var step = STEPS[index];
-    return !!step.hiddenFeature;
   }
 
   function start(finishCallback) {
@@ -172,9 +153,6 @@
 
   function next() {
     var nextIndex = currentStepIndex + 1;
-    while (nextIndex < STEPS.length && shouldSkip(nextIndex)) {
-      nextIndex++;
-    }
     if (nextIndex >= STEPS.length) {
       finish();
       return;
@@ -185,9 +163,6 @@
 
   function back() {
     var prevIndex = currentStepIndex - 1;
-    while (prevIndex >= 0 && shouldSkip(prevIndex)) {
-      prevIndex--;
-    }
     if (prevIndex < 0) {
       return;
     }

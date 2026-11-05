@@ -399,36 +399,6 @@ function _dbAeReselect(layer) {
     // same as above
     }
 }
-function dbAeRazorAtManySeconds(secondsJsonArray, referenceJson) {
-    return _dbAeResult(function () {
-        _dbValidateSelection(referenceJson);
-        var comp = _dbAeActiveCompOrThrow();
-        var layer = _dbAeSelectedAudioLayerOrThrow(comp);
-        var times = _dbAeParseArray(secondsJsonArray, "razorAtManySeconds");
-        var sorted = [];
-        for (var i = 0; i < times.length; i++) {
-            sorted.push(times[i]);
-        }
-        sorted.sort(function (a, b) { return a - b; });
-        var cut = 0;
-        var failures = [];
-        _dbAeWithUndo("Downbeat: split at beats", function () {
-            var current = layer;
-            for (var j = 0; j < sorted.length; j++) {
-                // Frame-snapped, as Premiere's razor takes a timecode.
-                var t = _dbAeFrameSnap(sorted[j], comp.frameRate);
-                try {
-                    current = _dbAeSplitLayerAt(current, t);
-                    cut++;
-                } catch (cutErr) {
-                    failures.push({ seconds: sorted[j], reason: cutErr.message ? cutErr.message : cutErr.toString() });
-                }
-            }
-            _dbAeReselect(layer);
-        });
-        return { requested: times.length, cut: cut, failures: failures };
-    });
-}
 function dbAeTestRazorAtSeconds(secondsValue) {
     return _dbAeResult(function () {
         var targetSeconds = Number(secondsValue);

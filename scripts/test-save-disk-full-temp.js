@@ -60,7 +60,7 @@ try {
   console.log("temp files after the failed save: " + JSON.stringify(tempsAfterFail));
   console.log("log says could not save: " + /could not save the folder library/.test(logText));
   if (afterFail !== before || injected !== 1) {
-    console.log("DEFECT A02: the data file changed or the write was not injected as planned");
+    console.log("FAIL: the data file changed or the write was not injected as planned");
     exitCode = 1;
   }
 
@@ -75,10 +75,10 @@ try {
   console.log("start-up sweep now: " + JSON.stringify(sweep));
   const left = fs.readdirSync(dir).filter(function (n) { return /\.tmp-/.test(n); });
   if (left.length) {
-    console.log("DEFECT A02: the cut-short temp file of the failed save stays in Documents/Downbeat after the next good save and the start-up sweep: " + left.join(", "));
+    console.log("FAIL: the cut-short temp file of the failed save stays in Documents/Downbeat after the next good save and the start-up sweep: " + left.join(", "));
     exitCode = 1;
   } else {
-    console.log("ok A02");
+    console.log("ok: no temp file is left after a failed save");
   }
 } finally {
   fs.rmSync(work, { recursive: true, force: true });

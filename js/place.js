@@ -1,7 +1,7 @@
-// Cuesheet -> marker placement and cutting in Premiere Pro and After
-// Effects. Runs in the panel's Chromium context. The offset math lives in js/cuesheet.js; this file maps a cuesheet
-// track to times and hands them to the thin loops in jsx/host.jsx
-// (createMarkers, createClipMarkers, razorAtManySeconds).
+// Cuesheet -> marker placement in Premiere Pro and After Effects. Runs in
+// the panel's Chromium context. The offset math lives in js/cuesheet.js;
+// this file maps a cuesheet track to times and hands them to the thin
+// loops in jsx/host.jsx (createMarkers, createClipMarkers).
 (function (global) {
   "use strict";
   // Marker type code (see js/cuesheet.js) -> translation key of the marker's
@@ -28,8 +28,8 @@
       return "\\u" + ("0000" + c.charCodeAt(0).toString(16)).slice(-4);
     });
   }
-  // Shared by placeCuesheetMarkers(), placeClipMarkers(),
-  // placeSequenceMarkers() and cutAtCuesheetEvents(): maps one impulse
+  // Shared by placeCuesheetMarkers(), placeClipMarkers() and
+  // placeSequenceMarkers(): maps one impulse
   // track's events with `mapFn`, then calls the named jsx function with the
   // JSON times and labels (plus extraArgs). Returns a Promise resolving to
   // { ok, error, data } (data has droppedCount and framesMerged merged in on
@@ -56,8 +56,7 @@
       }
       // Labels (short marker names "D" / "b", see js/cuesheet.js)
       // are always passed as a second argument, parallel to times.
-      // createMarkers()/createClipMarkers() use them to name each marker;
-      // razorAtManySeconds() ignores them.
+      // createMarkers()/createClipMarkers() use them to name each marker.
       var framesMerged = 0;
       if (options && options.snapToFrame) {
         var snapped = global.BeatMarkerCuesheet.snapToFrameStart(mapped.times, mapped.labels || [], clipInfo, !!options.sourceTimes);
@@ -118,14 +117,6 @@
       { snapToFrame: !!(options && options.snapToFrame), sourceTimes: true, knownPlaced: options && options.knownPlaced }
     );
   }
-  // Cuts the given clip's track at every event in one impulse track of a
-  // cuesheet.
-  function cutAtCuesheetEvents(csInterface, cuesheet, clipInfo, trackId) {
-    return _mapAndCallJsx(
-      csInterface, cuesheet, clipInfo, trackId, "razorAtManySeconds",
-      global.BeatMarkerCuesheet.mapEventsToSequenceSeconds
-    );
-  }
   // Places sequence markers, optionally snapped to frame starts.
   function placeSequenceMarkers(csInterface, cuesheet, clipInfo, trackId, options) {
     return _mapAndCallJsx(
@@ -138,7 +129,6 @@
   global.BeatMarkerPlace = {
     placeCuesheetMarkers: placeCuesheetMarkers,
     placeSequenceMarkers: placeSequenceMarkers,
-    placeClipMarkers: placeClipMarkers,
-    cutAtCuesheetEvents: cutAtCuesheetEvents
+    placeClipMarkers: placeClipMarkers
   };
 })(window);

@@ -53,9 +53,10 @@ Release notes and packages for every version are on the
 
 ### Library
 
-- A star is saved at once, so closing the panel right after it keeps it. A star set in the other program shows here after the next save
-  and comes off with one click. A star here keeps what the other program
-  did to that sound meanwhile (its analysis, a confirmed key).
+- A star is saved at once, so closing the panel right after it keeps it. A
+  star set in the other program shows here after the next save and comes
+  off with one click. A star here keeps what the other program did to that
+  sound meanwhile (its analysis, a confirmed key).
 - The search finds names in any letters (Polish, Czech, Greek, Ukrainian,
   Japanese, Arabic and others), one-letter words, and folder names at any
   depth below the folder you added. Before, the first letter typed did not
@@ -67,7 +68,7 @@ Release notes and packages for every version are on the
 
 - The in-panel Guide shows the sub-points of a numbered step under that
   step, not as steps of their own.
-- The tour counts only the steps it shows. Its buttons are two even rows
+- The tour numbers its steps with no gap. Its buttons are two even rows
   in every language: Back and Next, and Skip under them; nothing sticks
   out past the edge.
 - **Beat grid** shows the right word on a clip selected again, and

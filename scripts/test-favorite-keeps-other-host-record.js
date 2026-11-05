@@ -91,9 +91,9 @@ for (const variant of ["scan", "confirm"]) {
     const what = variant === "scan" ? "the other host's scan result (status done, 128 BPM)" : "the other host's confirmed key 8A";
     if (lost) {
       defects++;
-      console.log("DEFECT A01 (" + variant + "): a star clicked here dropped " + what + " from sound-library.json: " + JSON.stringify(r.disk));
+      console.log("FAIL (" + variant + "): a star clicked here dropped " + what + " from sound-library.json: " + JSON.stringify(r.disk));
     } else {
-      console.log("ok A01 (" + variant + "): " + what + " survived the star: " + JSON.stringify(r.disk));
+      console.log("ok (" + variant + "): " + what + " survived the star: " + JSON.stringify(r.disk));
     }
     // Contrast: the same click after this panel took the other host's save
     // in (a save of its own first) keeps the other host's change.
@@ -105,4 +105,4 @@ for (const variant of ["scan", "confirm"]) {
   }
 }
 if (defects) { process.exit(1); }
-console.log("ok A01");
+console.log("ok: a star keeps what the other host saved");

@@ -140,17 +140,20 @@ r = call("clearMarkersForSelectedClip()");
 check("clear removes the layer's markers and only comp markers inside the layer",
   r.ok && r.data.clipMarkersRemoved === 2 && r.data.sequenceMarkersRemoved === 1 && song.markers.numKeys === 0 &&
   comp.markerProperty.numKeys === 1 && comp.markerProperty.keyTime(1) === 50, JSON.stringify(r.data));
-// Split at beats: frame-snapped, pieces tile the original range.
-r = call("razorAtManySeconds(" + js([15, 20.013, 5, 45]) + ")");
+// The Test cut: frame-snapped, the pieces tile the original range, a time
+// outside the layer is refused.
+r = call("testRazorAtSeconds(20.013)");
 const pieces = comp.layers.filter(function (l) { return l.source === audioFile; })
   .map(function (l) { return [l.inPoint, l.outPoint]; }).sort(function (a, b) { return a[0] - b[0]; });
-check("splitting makes pieces at the (frame-snapped) times, outside ones reported",
-  r.ok && r.data.cut === 2 && r.data.failures.length === 2 && JSON.stringify(pieces) === "[[12,15],[15,20],[20,40]]",
-  JSON.stringify(pieces) + ", failures at " + (r.data ? r.data.failures.map(function (f) { return f.seconds; }).join(", ") : r.error));
+check("the test cut splits the layer at the frame-snapped time",
+  r.ok && r.data.clipCountOnTrackAfter === 2 && JSON.stringify(pieces) === "[[12,20],[20,40]]",
+  JSON.stringify(pieces) + (r.ok ? "" : ", " + r.error));
+r = call("testRazorAtSeconds(45)");
+check("a test cut outside the layer is refused", !r.ok && /outside the layer/.test(r.error), r.error);
 check("the undo group is closed after splitting", undoDepth === 0);
 const selectedAudio = comp.layers.filter(function (l) { return l.selected && l.hasAudio; });
 check("after splitting only the earliest piece stays selected, as in Premiere",
-  selectedAudio.length === 1 && selectedAudio[0].inPoint === 12 && selectedAudio[0].outPoint === 15,
+  selectedAudio.length === 1 && selectedAudio[0].inPoint === 12 && selectedAudio[0].outPoint === 20,
   selectedAudio.length + " selected: " + selectedAudio.map(function (l) { return l.inPoint + "-" + l.outPoint; }).join(", "));
 check("no undo group left open anywhere", undoDepth === 0, "depth " + undoDepth);
 // Premiere still goes its own way.

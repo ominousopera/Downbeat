@@ -1,8 +1,7 @@
 "use strict";
-// The tour numbers only the steps it shows: a hidden-feature step (the Cut
-// panel's) is skipped, so "Step 4 of N" is followed by "Step 5 of N". Real
-// panel (scripts/panel-harness.js) with a saved language, so the tour
-// starts on its own.
+// The tour numbers its steps 1..N with no gap, N being the number of steps
+// it shows. Real panel (scripts/panel-harness.js) with a saved language, so
+// the tour starts on its own.
 // Run: node scripts/test-tour-step-count.js
 const fs = require("fs");
 const os = require("os");
@@ -45,6 +44,6 @@ const $ = panel.registry;
     console.error("\n" + failures + " tour check(s) failed");
     process.exit(1);
   }
-  console.log("\nthe tour counts only the steps it shows");
+  console.log("\nthe tour numbers its steps 1..N with no gap");
   process.exit(0);
 })();

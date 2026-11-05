@@ -2542,64 +2542,9 @@
     cell.addEventListener("click", function () { _choosePhaseBeat(k); });
   });
   _updatePhaseShiftUi();
-  var cutDownbeatsBtn = document.getElementById("cutDownbeatsBtn");
-  // Exposes the outcome for the self-test to grade; the handler itself only
-  // logs it.
-  var _lastCutDownbeatsResult = null; // { ok, requested, cut, droppedCount } or { ok:false, error }
-  cutDownbeatsBtn.addEventListener("click", function () {
-    if (!lastAnalysis) {
-      log("Cut at downbeats: run Analyze selected audio first.");
-      _flashSelectionError(I18n.t("selection.needAnalyze"));
-      return;
-    }
-    cutDownbeatsBtn.disabled = true;
-    showBusy("busy.cut");
-    // The clip selected now, checked against the analysis and again by the
-    // host, as Place markers does.
-    getClipInfo()
-      .then(function (fresh) {
-        if (!lastAnalysis || fresh.mediaPath !== lastAnalysis.audioPath) {
-          throw new Error(I18n.t("selection.sourceChanged"));
-        }
-        _assertAudioUnchanged(lastAnalysis.clipInfo);
-        fresh.fileIdentity = lastAnalysis.clipInfo.fileIdentity;
-        lastAnalysis.clipInfo = fresh;
-        var cuesheet = buildDownbeatsCuesheet(lastAnalysis.phase);
-        log("Cutting selected clip at " + cuesheet.tracks[0].events.length + " downbeats (phase " + lastAnalysis.phase + ")...");
-        return window.BeatMarkerPlace.cutAtCuesheetEvents(csInterface, cuesheet, fresh, "downbeats");
-      })
-      .then(function (result) {
-        if (!result.ok) {
-          log("Cutting failed: " + result.error);
-          _lastCutDownbeatsResult = { ok: false, error: result.error };
-          return;
-        }
-        log("Done: requested " + result.data.requested + " cuts, " + result.data.cut + " succeeded" +
-            (result.data.droppedCount ? ", " + result.data.droppedCount + " dropped (outside clip range)" : "") + ".");
-        warnIfMostlyDropped(result.data.requested, result.data.droppedCount || 0);
-        if (result.data.failures && result.data.failures.length > 0) {
-          log("WARNING: " + result.data.failures.length + " cut(s) failed - verify against the real timeline:");
-          for (var i = 0; i < result.data.failures.length; i++) {
-            log("  at " + result.data.failures[i].seconds.toFixed(3) + "s: " + result.data.failures[i].reason);
-          }
-        }
-        log("Check Premiere's timeline now.");
-        _lastCutDownbeatsResult = { ok: result.data.cut > 0, requested: result.data.requested, cut: result.data.cut, droppedCount: result.data.droppedCount || 0 };
-      })
-      .catch(function (err) {
-        log("Cutting failed: " + err);
-        _flashSelectionError(err && err.message ? err.message : err);
-        _lastCutDownbeatsResult = { ok: false, error: err && err.message ? err.message : String(err) };
-      })
-      .then(function () {
-        cutDownbeatsBtn.disabled = false;
-        hideBusy();
-      });
-  });
-  // Cleanup companion to Place markers / Cut: removes the markers this plugin
+  // Cleanup companion to Place markers: removes the markers this plugin
   // placed on and around the selected clip (both sequence and clip markers;
-  // see jsx/host.jsx clearMarkersForSelectedClip() for the exact scope). To
-  // undo an actual cut, use Premiere's Edit > Undo.
+  // see jsx/host.jsx clearMarkersForSelectedClip() for the exact scope).
   var clearMarkersBtn = document.getElementById("clearMarkersBtn");
   clearMarkersBtn.addEventListener("click", function () {
     clearMarkersBtn.disabled = true;
@@ -3182,14 +3127,12 @@
     PHASE_MARGIN_UNCERTAIN_THRESHOLD: function () { return PHASE_MARGIN_UNCERTAIN_THRESHOLD; },
     _bridge: function () { return _bridge; },
     _copiedMarkers: function () { return _copiedMarkers; },
-    _lastCutDownbeatsResult: function () { return _lastCutDownbeatsResult; },
     analyzeBtn: function () { return analyzeBtn; },
     beatThisBtn: function () { return beatThisBtn; },
     bpmDisplay: function () { return bpmDisplay; },
     clearMarkersBtn: function () { return clearMarkersBtn; },
     copyMarkersBtn: function () { return copyMarkersBtn; },
     csInterface: function () { return csInterface; },
-    cutDownbeatsBtn: function () { return cutDownbeatsBtn; },
     detectKeyBtn: function () { return detectKeyBtn; },
     getInfoBtn: function () { return getInfoBtn; },
     keyAgreementDisplay: function () { return keyAgreementDisplay; },

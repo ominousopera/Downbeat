@@ -116,7 +116,7 @@ function report(log) {
     const comp = fake.comp;
     const pieces = comp.layers.filter(function (l) { return l.source === fake.audioSource; });
     const selected = pieces.filter(function (l) { return l.selected; });
-    check("the real cuts split the layer", pieces.length > 10, pieces.length + " pieces");
+    check("the test cut split the layer", pieces.length === 2, pieces.length + " pieces");
     check("exactly one piece is still selected", selected.length === 1, selected.length + " selected");
     check("test and pasted markers were cleaned off the selected piece and the comp",
       selected.length === 1 && selected[0].markers.numKeys === 0 && comp.markerProperty.numKeys === 0,
@@ -125,7 +125,7 @@ function report(log) {
   } else {
     const clips = fake.audioTrack.clips;
     const selected = clips.filter(function (c) { return c.selected; });
-    check("the real cuts split the clip", clips.length > 10, clips.length + " pieces");
+    check("the test cut split the clip", clips.length === 2, clips.length + " pieces");
     check("exactly one piece is still selected", selected.length === 1, selected.length + " selected");
     check("test and pasted markers were cleaned up", fake.sequence.markers.numMarkers === 0 && fake.clipMarkers.numMarkers === 0,
       fake.sequence.markers.numMarkers + " sequence markers, " + fake.clipMarkers.numMarkers + " clip markers left");

@@ -668,7 +668,7 @@ function createClipMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, refere
     }
     return JSON.stringify(result);
 }
-// Shared by testRazorAtSeconds() and razorAtManySeconds().
+// Shared by testRazorAtSeconds(), the edge fades and clip speed.
 function _getQeAudioTrackOrThrow(trackIndex) {
     if (typeof app.enableQE === "function") {
         app.enableQE();
@@ -728,56 +728,6 @@ function testRazorAtSeconds(secondsValue) {
             razorReturnValue: String(razorReturn),
             clipCountOnTrackAfter: clipCount,
             nearbyClipsAfterCut: nearbyClips
-        };
-    } catch (e) {
-        result.ok = false;
-        result.error = e.message ? e.message : e.toString();
-    }
-    return JSON.stringify(result);
-}
-// Cuts the selected clip's track at every absolute sequence time in the
-// given JSON array (already offset-mapped by the panel, see js/cuesheet.js
-// and js/place.js).
-function razorAtManySeconds(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJson) {
-    if (_dbIsAe()) {
-        return dbAeRazorAtManySeconds(secondsJsonArray, referenceJson);
-    }
-    var result = { ok: false, error: null, data: null };
-    try {
-        _dbValidateSelection(referenceJson);
-        var times = JSON.parse(secondsJsonArray);
-        if (!times || times.length === undefined) {
-            throw new Error("razorAtManySeconds expected a JSON array of numbers.");
-        }
-        var sequence = _getActiveSequenceOrThrow();
-        var found = _findSelectedAudioClipOrThrow(sequence);
-        var trackIndex = found.trackIndex;
-        var frameRate = _getFrameRate(sequence);
-        var qeTrack = _getQeAudioTrackOrThrow(trackIndex);
-        var cutCount = 0;
-        var failures = [];
-        for (var i = 0; i < times.length; i++) {
-            var targetSeconds = times[i];
-            try {
-                var timecode = _secondsToTimecode(targetSeconds, frameRate);
-                var razorReturn = qeTrack.razor(timecode);
-                if (razorReturn) {
-                    cutCount++;
-                } else {
-                    failures.push({ seconds: targetSeconds, reason: "razor() returned a falsy value" });
-                }
-            } catch (cutError) {
-                failures.push({
-                    seconds: targetSeconds,
-                    reason: cutError.message ? cutError.message : cutError.toString()
-                });
-            }
-        }
-        result.ok = true;
-        result.data = {
-            requested: times.length,
-            cut: cutCount,
-            failures: failures
         };
     } catch (e) {
         result.ok = false;

@@ -33,11 +33,9 @@ Windows 10 or 11 (x64). Windows on Arm is not supported yet.
    earlier markers instead of adding a second set. Markers you added
    yourself are never touched, even ones named D or b. A Downbeat marker
    whose comment or length you change becomes yours too (in After Effects
-   also its color). In After Effects, D and b markers placed by Downbeat
-   1.0.4 or earlier count as yours: delete them by hand once. After
-   Effects holds one marker per moment,
-   so a beat that falls exactly on one of your markers is left out there
-   (the log counts it). To start over, **Clear** removes
+   also its color). After Effects holds one marker per moment, so a beat
+   that falls exactly on one of your markers is left out there (the log
+   counts it). To start over, **Clear** removes
    Downbeat's markers from the clip — from every piece of it after a cut —
    and leaves yours.
 5. Cut at the markers in Premiere: with snapping on (S), the Razor tool (C)
