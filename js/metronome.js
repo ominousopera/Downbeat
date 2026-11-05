@@ -73,7 +73,8 @@
       }).catch(function (err) {
         var message = err && err.message ? err.message : String(err);
         if (/^(metronome|output)\./.test(message)) { message = ctx.I18n.t(message); }
-        ctx.setText(status, savedPath ? "metronome.savedNotPlaced" : "metronome.failed", { error: message, path: savedPath || "" });
+        var shown = ctx.translateHostReason(message) || message;
+        ctx.setText(status, savedPath ? "metronome.savedNotPlaced" : "metronome.failed", { error: shown, path: savedPath || "" });
         ctx.log("Metronome: " + message + (savedPath ? "; file kept at " + savedPath : ""));
       }).then(function () { button.disabled = false; ctx.hideBusy(); });
     });

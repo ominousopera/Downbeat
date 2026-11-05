@@ -63,6 +63,16 @@ async function pitch(to) {
     assert.ok(Math.abs(info().speed - 1) < 1e-9);
     assert.strictEqual(wheel(), "6A");
     assert.strictEqual(window.BeatMarkerLibrary.getKey(media, "music").camelot, "6A");
+    // Three pitches, one shared "Pitched audio" bin, a project item of its own for each.
+    const downbeatBin = fake.rootItem.children.filter(function (c) { return c.name === "Downbeat"; })[0];
+    const pitchedBins = downbeatBin.children.filter(function (c) { return c.name === "Pitched audio"; });
+    assert.strictEqual(pitchedBins.length, 1, "One shared Pitched audio bin");
+    assert.strictEqual(pitchedBins[0].children.length, 3, "One project item per pitch");
+    const placedItems = [];
+    for (let t = 0; t < fake.sequence.audioTracks.numTracks; t++) {
+      fake.sequence.audioTracks[t].clips.forEach(function (c) { if (c.projectItem !== originalItem && placedItems.indexOf(c.projectItem) === -1) { placedItems.push(c.projectItem); } });
+    }
+    assert.strictEqual(placedItems.length, 3, "Each pitched copy on the timeline uses its own item");
     const clip = info(), selected = fake.sequence.audioTracks[clip.trackIndex].clips[0];
     $.pitchToSelect.value = "8A"; $.pitchToSelect._fire("change");
     selected._speed = 1.07;

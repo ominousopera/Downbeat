@@ -60,15 +60,14 @@ Secciones numeradas, de arriba abajo:
   La canción en sí se analiza como cualquier pista, y los vídeos con
   letra y las subidas «Official Audio» no reciben la nota.
 - **02 / Tempo**: de arriba abajo, una línea por etiqueta:
-  - el **BPM** que encontró el análisis, en letra grande;
+  - el **BPM** que encontró el análisis, en letra grande; si el clip se
+    reproduce a una velocidad distinta del 100 %, una línea bajo él da el
+    tempo tal como suena en la línea de tiempo (BPM × velocidad);
   - **BPM propio**: escribe un tempo y pulsa **Usar** para colocar en su
     lugar una cuadrícula exactamente regular (**Deshacer** devuelve el
     análisis);
   - **Mitad / doble**: **½×** o **2×** cuando el tempo salió a la mitad
     o al doble del real;
-  - si el clip se reproduce a una velocidad distinta del 100 %, una línea
-    bajo el BPM da el tempo tal como suena en la línea de tiempo
-    (BPM × velocidad);
   - **Cuadrícula: Afinada / Básica**: aparece cuando se ejecutó el
     segundo detector o podría ayudar; ver «Segundo detector de tiempos»
     más abajo;
@@ -91,7 +90,7 @@ Secciones numeradas, de arriba abajo:
   partir de la cuadrícula actual: un WAV mono de 44,1 kHz con todos los
   tiempos y un acento en cada «uno», según tu «uno», los ajustes de la
   cuadrícula y el recorte y la velocidad del clip. Empieza con la música, no
-  en el cabezal, y va debajo de ella: en Premiere, en una pista de audio
+  en el cursor, y va debajo de ella: en Premiere, en una pista de audio
   desbloqueada bajo la música con sitio para todo el WAV (añade una pista si
   no hay ninguna libre); en After Effects, en una capa nueva justo debajo de
   la capa de la música. La música se sigue oyendo. Dónde se guarda el WAV se
@@ -198,7 +197,7 @@ de audio borra su análisis y la tonalidad fijada a mano.
 
 **Cambio de tono** (bajo el resultado): elige la tonalidad en la que está
 un sonido y la tonalidad que quieres, y te da los números para tu propio
-cambiador de tono —semitonos, cents y porcentaje de velocidad— y avisa
+plugin de cambio de tono —semitonos, cents y porcentaje de velocidad— y avisa
 cuando un destino no se puede alcanzar, por ejemplo de menor a mayor.
 **Cambiar el tono del clip** lo hace por ti,
 igual que cambia el tono la vista previa de la biblioteca (como un
@@ -264,7 +263,7 @@ carpetas de tu equipo.
   cuentan en un sitio inequívoco («_Am_», «(Am)», o junto a un BPM),
   porque en texto normal suelen ser palabras.
 - **Cuánta seguridad tiene una tonalidad de música.** La tonalidad sale de tres
-  métodos. La fila dice «tonalidad acordada» si al menos dos la dieron, y
+  métodos. La fila dice «tonalidad confirmada» si al menos dos la dieron, y
   «tonalidad incierta» (en rojo) si los tres difieren; esas conviene
   comprobarlas de oído. Una tonalidad tomada del nombre del archivo y los
   efectos de sonido no muestran esa palabra.
@@ -302,9 +301,10 @@ Para encontrar algo:
 - **Buscar**: busca en los nombres de archivos y de carpetas, al inicio
   de las palabras («hit» encuentra «Big Hit», no «white»; «trac» encuentra
   «Tractor»). Cada palabra que escribas debe coincidir. También conoce
-  sinónimos de efectos de sonido: **swoosh** también
+  sinónimos de efectos de sonido y categorías de sonido: **swoosh** también
   encuentra archivos whoosh, swish y fly-by, **hit** también impact, punch
-  y thud, **riser** también uplifter y build-up. Pon un signo menos delante
+  y thud (y las categorías de impactos de UCS), **riser** también uplifter
+  y build-up. Pon un signo menos delante
   de una palabra para excluirla: **whoosh -fire**. Los archivos cuyos
   nombres coinciden mejor van primero. Escribir el nombre de una carpeta
   encuentra los archivos que contiene (y los de sus subcarpetas). A la
@@ -317,7 +317,7 @@ Para encontrar algo:
   Audio_Airy Pack.wav»: categoría DESIGNED / WHOOSH, del pack Airy Pack
   de Example Audio. La búsqueda encuentra esos archivos también por su
   categoría, aunque la parte del nombre no la diga, y por creador o pack
-  («example audio», «steps pack»). Con el panel en ruso o en español, una
+  («example audio», «airy pack»). Con el panel en ruso o en español, una
   búsqueda en ese idioma encuentra los archivos con nombre en inglés
   (gracias a las traducciones propias de UCS).
 - **Tonalidad**: la tonalidad Camelot, exacta o **+ compatibles** (la
@@ -378,8 +378,8 @@ y se queda a la vista mientras la lista se desplaza:
   menor»);
 - **En tono**: transpone cada sonido que escuchas a la tonalidad del clip
   de música seleccionado (según la tonalidad guardada del original
-  y la velocidad actual), así que cada sonido que escuchas
-  ya suena en tono; **Añadir** coloca entonces el propio archivo con ese tono. Un sonido va
+  y la velocidad actual); **Añadir** coloca entonces el propio archivo con
+  ese tono. Un sonido va
   por el camino más corto a la tonalidad del clip; un sonido mayor sobre
   una canción menor va a la relativa mayor de la canción (el mismo
   número Camelot, que combina con ella): ningún cambio de tono convierte
@@ -582,6 +582,13 @@ quedar unos ms antes o después: haz zoom en un marcador y usa
 Sí: no hay detección de compás. En una pista que no está en 4/4, la
 elección del tiempo fuerte puede parecer equivocada con seguridad en vez
 de dudosa; ahí es más seguro Tipo: Compases + tiempos.
+
+**¿Hay un límite de duración para Analizar?**
+Analizar lee el archivo entero, y el análisis de tiempos llega a unos 30
+minutos de audio. Un archivo más largo (una sesión de DJ, un concierto
+grabado) se detiene con un mensaje que lo dice: guarda la parte que
+necesitas como un archivo aparte y analízala. Detectar tonalidad y el
+escaneo de la Biblioteca no tienen ese límite.
 
 **¿Se sube alguna vez mi audio o los datos del proyecto?**
 No. El análisis y la Biblioteca se ejecutan por completo en tu equipo. La

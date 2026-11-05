@@ -236,6 +236,9 @@ shortlist to audition, not a promise that two sounds will blend.
   MP4 / MOV; other formats need converting first. Files your host cannot import
   (for example FLAC and OGG in Premiere Pro) can be scanned and previewed in the
   Library, but not inserted.
+- **Long files.** Analyze reads the whole file and manages about 30 minutes
+  of audio; for a longer one (a DJ mix, a concert) save the part you need as
+  a file of its own. Detect key and the Library scan have no such limit.
 - **After Effects.** Downbeat is built around Premiere Pro, where every feature
   is available. After Effects has a smaller set:
   - Markers go on whole video frames only: no sample-accurate **Exact** timing
@@ -398,12 +401,12 @@ the <b>Finished audio</b> destination and are kept by Delete my data.
 </details>
 
 <details>
-<summary><b>Which key does Pitch, Match clip or In key use?</b></summary>
+<summary><b>Which key do Pitch the clip, Match clip and In key use?</b></summary>
 
 They use the selected clip's calculated playback key. Detect key measures the
 source file or selected source interval; source overrides stay attached to that
 source. Speed changes pitch like a sampler, so two +2-semitone shifts combine
-into +4. Maintain audio pitch and audio effects are outside this calculation.
+into +4. Maintain Audio Pitch and audio effects are outside this calculation.
 At speeds between whole semitones there is no exact Camelot target.
 </details>
 

@@ -800,6 +800,18 @@ function clearMarkersForSelectedClip(unused, knownPlacedJson) {
     }
     return JSON.stringify(result);
 }
+// A WebLink marker's address and frame target, read with Adobe's
+// documented Marker.getWebLinkURL() / getWebLinkFrameTarget(); the url and
+// frameTarget properties are a fallback for a host without the getters.
+function _dbWebLinkOf(marker) {
+    var url = null;
+    var target = null;
+    try { url = typeof marker.getWebLinkURL === "function" ? marker.getWebLinkURL() : null; } catch (urlErr) { url = null; }
+    try { target = typeof marker.getWebLinkFrameTarget === "function" ? marker.getWebLinkFrameTarget() : null; } catch (targetErr) { target = null; }
+    if (url === null || url === undefined || url === "") { url = marker.url; }
+    if (target === null || target === undefined || target === "") { target = marker.frameTarget; }
+    return { url: url ? String(url) : "", frameTarget: target ? String(target) : "" };
+}
 // Read-only companion to clearMarkersForSelectedClip() above, for js/main.js's
 // "Copy markers" / "Paste markers here". Same scoping as the clear function,
 // but it returns the marker data instead of deleting it. Times are returned
@@ -818,7 +830,7 @@ function _dbPremiereMarkerData(marker, offset, duration) {
         throw new Error("This marker type cannot be transferred safely.");
     }
     if (marker.getColorByIndex) { data.color = marker.getColorByIndex(); }
-    if (data.type === "WebLink") { data.url = marker.url; data.frameTarget = marker.frameTarget; }
+    if (data.type === "WebLink") { var link = _dbWebLinkOf(marker); data.url = link.url; data.frameTarget = link.frameTarget; }
     return data;
 }
 // Copy only reads: nothing is ever removed here. Premiere cannot undo a
@@ -998,6 +1010,60 @@ function _findOrCreateDownbeatBin() {
         }
     }
     return root.createBin(DOWNBEAT_BIN_NAME);
+}
+
+// PITCHED COPIES (Pitch the clip). Each pitch needs a project item of its
+// own, so markers of one pitched copy never land on another. They share one
+// "Pitched audio" bin inside the Downbeat bin. The new item is the one that
+// was not in the bin before the import, so an earlier pitched copy of the
+// same file is never taken for it (a lookup by path alone would).
+var PITCHED_BIN_NAME = "Pitched audio";
+
+function _dbFindChildBin(parent, name) {
+    var binType = (typeof ProjectItemType !== "undefined" && ProjectItemType.BIN !== undefined) ? ProjectItemType.BIN : 2;
+    for (var i = 0; i < parent.children.numItems; i++) {
+        var child = parent.children[i];
+        if (child.type === binType && child.name === name) {
+            return child;
+        }
+    }
+    return null;
+}
+
+function _dbChildList(bin) {
+    var list = [];
+    for (var i = 0; i < bin.children.numItems; i++) {
+        list.push(bin.children[i]);
+    }
+    return list;
+}
+
+function _dbWasInList(item, list) {
+    for (var i = 0; i < list.length; i++) {
+        if (list[i] === item) { return true; }
+        if (item.nodeId !== undefined && list[i].nodeId !== undefined && list[i].nodeId === item.nodeId) { return true; }
+    }
+    return false;
+}
+
+// Imports the file once more for a pitched copy and returns the new item.
+function _dbImportPitchedCopy(downbeatBin, file, mediaPath) {
+    var bin = _dbFindChildBin(downbeatBin, PITCHED_BIN_NAME) || downbeatBin.createBin(PITCHED_BIN_NAME);
+    var before = _dbChildList(bin);
+    app.project.importFiles([file.fsName], true, bin, false);
+    for (var i = bin.children.numItems - 1; i >= 0; i--) {
+        var child = bin.children[i];
+        var childPath = null;
+        try { childPath = child.getMediaPath(); } catch (pathErr) { childPath = null; }
+        if (childPath && _dbSamePath(childPath, mediaPath) && !_dbItemOffline(child) && !_dbWasInList(child, before)) {
+            return child;
+        }
+    }
+    // When this Premiere adds no second item for the same file to that bin,
+    // the copy is imported into a new bin of the same name instead.
+    var own = downbeatBin.createBin(PITCHED_BIN_NAME);
+    app.project.importFiles([file.fsName], true, own, false);
+    return _findItemInBinByPath(own, mediaPath);
 }
 // True only when Premiere says the item's media is offline. A host without
 // ProjectItem.isOffline() counts it as online.
@@ -1551,7 +1617,7 @@ function _dbPreparePitchMarkers(item, original) {
                 if (m.getColorByIndex && copy.setColorByIndex) { copy.setColorByIndex(m.getColorByIndex()); }
                 if (m.type === "Chapter" && copy.setTypeAsChapter) { copy.setTypeAsChapter(); }
                 if (m.type === "Segmentation" && copy.setTypeAsSegmentation) { copy.setTypeAsSegmentation(); }
-                if (m.type === "WebLink" && copy.setTypeAsWebLink) { copy.setTypeAsWebLink(m.url, m.frameTarget); }
+                if (m.type === "WebLink" && copy.setTypeAsWebLink) { var mLink = _dbWebLinkOf(m); copy.setTypeAsWebLink(mLink.url, mLink.frameTarget); }
             }
         }
         m = source.getNextMarker(m);
@@ -1602,6 +1668,16 @@ function _dbItemMediaEnd(item) {
         // unknown below
     }
     return null;
+}
+
+// The refusal when no audio track is free: an insert at the clip's own
+// place (Pitch the clip, the metronome) cannot be helped by moving the
+// playhead, so it does not say so.
+function _dbNoFreeTrackText(length, opts) {
+    if (opts && typeof opts.atSeconds === "number") {
+        return "No free audio track at the clip's place for this " + length.toFixed(1) + " s sound. Add an audio track.";
+    }
+    return "No free audio track at the playhead for this " + length.toFixed(1) + " s sound. Add an audio track or move the playhead.";
 }
 
 // optsJson: { inSec, outSec, fadeInSec, fadeOutSec, transitionIn,
@@ -1668,13 +1744,15 @@ function insertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
         var firstTrack = opts && typeof opts.underTrack === "number" ? Math.max(0, Math.floor(opts.underTrack)) : 0;
         var target = _dbFreeAudioTrack(sequence, firstTrack, startSeconds, Math.max(length, sourceLength));
         if (target === -1) {
-            throw new Error("No free audio track at the playhead for this " + length.toFixed(1) + " s sound. Add an audio track or move the playhead.");
+            throw new Error(_dbNoFreeTrackText(length, opts));
         }
         var bin = _findOrCreateDownbeatBin();
         var cleanPitch = !!(opts && opts.pitchReference);
-        if (cleanPitch) { bin = bin.createBin("Pitched audio"); }
-        var item = cleanPitch ? null : _findItemInBinByPath(bin, mediaPath);
-        var imported = false;
+        var item = cleanPitch ? _dbImportPitchedCopy(bin, file, mediaPath) : _findItemInBinByPath(bin, mediaPath);
+        var imported = cleanPitch;
+        if (cleanPitch && !item) {
+            throw new Error("Premiere did not import the file.");
+        }
         var offlineCopy = !cleanPitch && !item && !!_findItemInBinByPath(bin, mediaPath, true);
         if (!item) {
             app.project.importFiles([file.fsName], true, bin, false);
@@ -1702,7 +1780,7 @@ function insertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
                 length = sourceLength / speed;
                 target = _dbFreeAudioTrack(sequence, firstTrack, startSeconds, Math.max(length, sourceLength));
                 if (target === -1) {
-                    throw new Error("No free audio track at the playhead for this " + length.toFixed(1) + " s sound. Add an audio track or move the playhead.");
+                    throw new Error(_dbNoFreeTrackText(length, opts));
                 }
             } else if (mediaEnd === null && !(Number(durationSeconds) > 0)) {
                 throw new Error("Downbeat could not read how long this sound is, so it did not insert it. Nothing on the timeline was changed.");

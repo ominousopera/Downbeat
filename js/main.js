@@ -178,7 +178,8 @@
     initialSettings: function () { return initialSettings; },
     selectedPlayback: _selectedPlayback,
     tempFileStarted: function () { _bridge.tempFileStarted(); },
-    tempFileDone: function () { _bridge.tempFileDone(); }
+    tempFileDone: function () { _bridge.tempFileDone(); },
+    translateHostReason: function (message) { return _translateHostReason(message); }
   });
   var SL = window.BeatMarkerSoundLibrary;
   var LP = window.BeatMarkerLibPreview;
@@ -914,8 +915,7 @@
     if (heard.camelot && heard.key) {
       setTranslatedText(heardKeyHint, "key.heardKey", {
         key: heard.camelot + " - " + _localKeyName(heard.key.key, heard.key.scale),
-        sign: sign,
-        semitones: String(Math.abs(heard.semitones)),
+        shift: _formatSemitones((heard.exactSemitones > 0 ? 1 : -1) * Math.abs(heard.semitones)),
         pct: pct
       });
     } else {
@@ -1285,7 +1285,8 @@
     I18n: I18n, log: log, setText: setTranslatedText, showBusy: showBusy, hideBusy: hideBusy,
     analysis: function () { return lastAnalysis; }, settings: function () { return initialSettings; },
     getClipInfo: getClipInfo, evalJson: evalJson, jsxJsonArg: _jsxJsonArg,
-    csInterface: csInterface, cuesheet: buildDownbeatsCuesheet
+    csInterface: csInterface, cuesheet: buildDownbeatsCuesheet,
+    translateHostReason: function (message) { return _translateHostReason(message); }
   });
   // Where the host put the first markers, next to what was asked - shows
   // whether marker times are rounded to video frames.
@@ -1488,6 +1489,7 @@
     var myGeneration = ++_activeOperationGeneration;
     var clipInfoForPlacement = null;
     var monoSamplesForOnsets = null;
+    var decodedSeconds = 0;
     return getClipInfo()
       .then(function (clipInfo) {
         clipInfoForPlacement = clipInfo;
@@ -1499,6 +1501,7 @@
         });
       })
       .then(function (decoded) {
+        decodedSeconds = decoded.original.durationSec || 0;
         log("Decoded: " + decoded.original.durationSec.toFixed(2) + "s, " +
             decoded.original.sampleRate + "Hz, " + decoded.original.channels + "ch (source) -> " +
             decoded.samples.length + " mono samples at 44100Hz.");
@@ -1621,7 +1624,12 @@
       .catch(function (err) {
         var message = err && err.message ? err.message : err;
         log("Analyze pipeline failed: " + message);
-        _flashSelectionError(message);
+        // essentia's beat tracker runs out of room on a file longer than
+        // about 33 minutes and aborts with a stack trace; the editor gets
+        // a plain message instead (key detection has no such limit). Any
+        // other abort, on a shorter file, keeps its own text.
+        var tooLong = /^abort\(/.test(String(message)) && decodedSeconds > 25 * 60;
+        _flashSelectionError(tooLong ? I18n.t("analyze.tooLong") : message);
       })
       .then(function () {
         analyzeBtn.disabled = false;
@@ -2807,7 +2815,7 @@
       })
       .catch(function (err) {
         var msg = err && err.message ? err.message : String(err);
-        setTranslatedText(pitchApplyStatus, "key.pitchApplyFailed", { error: msg });
+        setTranslatedText(pitchApplyStatus, "key.pitchApplyFailed", { error: _translateHostReason(msg) || msg });
         log("Key: could not pitch the clip: " + msg);
       })
       .then(function () {
@@ -3220,12 +3228,31 @@
     ["The selected layer uses Time Remapping. Downbeat supports constant positive Time Stretch - turn Time Remap off first.", "selection.hostTimeRemap"],
     ["The selected layer has a reversed or invalid Time Stretch. Analysis supports positive constant Stretch values.", "selection.hostBadStretch"]
   ];
+  // The insert refusals (Library, Pitch the clip, the metronome) carry a
+  // length, a track or a path, so they are matched by pattern.
+  var _insertReasonKeys = [
+    [/^No free audio track at the playhead for this ([0-9.]+) s sound\./, "library.insertNoFreeTrack", "seconds"],
+    [/^No free audio track at the clip's place for this ([0-9.]+) s sound\./, "library.insertNoFreeTrackHere", "seconds"],
+    [/^Premiere keeps this file offline in the project\./, "library.insertOffline", null],
+    [/^The file is not there any more: (.*)$/, "library.insertGone", "path"],
+    [/^Premiere did not import the file\./, "library.insertNotImported", null],
+    [/^Premiere did not place the clip on (A[0-9]+)\./, "library.insertNotPlaced", "track"],
+    [/^Downbeat could not read how long this sound is/, "library.insertNoLength", null]
+  ];
   function _translateHostReason(message) {
     var text = String(message || "");
     for (var i = 0; i < _hostReasonKeys.length; i++) {
       if (text.indexOf(_hostReasonKeys[i][0]) === 0) {
         var count = /\((\d+)\)/.exec(text);
         return I18n.t(_hostReasonKeys[i][1], { count: count ? count[1] : "" });
+      }
+    }
+    for (var k = 0; k < _insertReasonKeys.length; k++) {
+      var m = _insertReasonKeys[k][0].exec(text);
+      if (m) {
+        var params = {};
+        if (_insertReasonKeys[k][2]) { params[_insertReasonKeys[k][2]] = m[1]; }
+        return I18n.t(_insertReasonKeys[k][1], params);
       }
     }
     return null;

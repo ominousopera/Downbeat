@@ -156,8 +156,13 @@ function listWith(countName, items) {
 }
 function MarkerCollection() { this.list = []; }
 MarkerCollection.prototype.createMarker = function (seconds) {
+  // A WebLink's address is read through the documented getters only, as in
+  // Premiere (there is no url property).
   const m = { start: T(seconds), end: T(seconds), name: "", comments: "", colorIndex: -1,
-    setColorByIndex: function (i) { this.colorIndex = i; } };
+    setColorByIndex: function (i) { this.colorIndex = i; },
+    setTypeAsWebLink: function (url, target) { this.type = "WebLink"; this._url = url; this._target = target; },
+    getWebLinkURL: function () { return this._url || ""; },
+    getWebLinkFrameTarget: function () { return this._target || ""; } };
   let markerEnd = m.end;
   Object.defineProperty(m, "end", { get: function () { return markerEnd; },
     set: function (value) { markerEnd = typeof value === "number" ? T(value) : value; } });

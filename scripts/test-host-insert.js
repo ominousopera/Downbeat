@@ -68,6 +68,12 @@ try {
   check("Premiere: a locked track is skipped", !r.ok && /No free audio track/.test(r.error), r.error);
   r = JSON.parse(ph.run("insertAudioAtPlayhead(" + js(path.join(dir, "gone.wav")) + ", 5)"));
   check("Premiere: a file that is gone is a clear error", !r.ok && /not there any more/.test(r.error), r.error);
+  // At the clip's own place (Pitch the clip, the metronome) the refusal
+  // does not suggest moving the playhead.
+  const pAt = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60, clipStart: 3, playheadSeconds: 20, audioTrackCount: 1, insertDurationSec: 5 });
+  r = JSON.parse(mocks.loadHost(pAt.context).run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + js(({ atSeconds: 3 })) + ")"));
+  check("Premiere: no free track at the clip's place says so, without the playhead advice",
+    !r.ok && /^No free audio track at the clip's place for this 5\.0 s sound\. Add an audio track\.$/.test(r.error), r.error);
   const rounded = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60,
     playheadSeconds: 150, audioTrackCount: 2, insertDurationSec: 10.33, quantizeImportedTrim: true });
   const roundedHost = mocks.loadHost(rounded.context);

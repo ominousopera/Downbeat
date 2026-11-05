@@ -25,6 +25,7 @@
     var _jsxJsonArg = ctx.jsxJsonArg;
     var _jsxStringArg = ctx.jsxStringArg;
     var _resolveNodeExecutable = ctx.resolveNodeExecutable;
+    var _translateHostReason = ctx.translateHostReason;
     // LIBRARY TAB. Data and search: js/sound-library.js. Clips analyzed on
     // the timeline (js/library.js) are listed too, in the section their key
     // material says.
@@ -1193,7 +1194,7 @@
         })
         .catch(function (err) {
           var msg = err && err.message ? err.message : String(err);
-          setTranslatedText(libScanStatus, "library.insertFailed", { error: msg });
+          setTranslatedText(libScanStatus, "library.insertFailed", { error: _translateHostReason(msg) || msg });
           log("Library: could not insert " + item.name + ": " + msg);
         })
         .then(function () {

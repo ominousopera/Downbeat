@@ -50,6 +50,7 @@ Release notes and packages for every version are on the
   After Effects.
 - The reasons the host gives (nothing selected, a video clip, two clips, no
   sequence, Time Remap on a layer) are shown in the panel's language.
+- Copy and Paste keep the address of a Web Link marker in Premiere Pro.
 
 ### Library
 
@@ -67,6 +68,8 @@ Release notes and packages for every version are on the
   the project was open), Insert imports the file again and places a working
   clip, not a Media Offline one. If Premiere Pro still keeps it offline, the
   panel says so and places nothing.
+- Why an insert was refused (no free audio track, an offline or missing
+  file and the rest) is shown in the panel's language.
 
 ### Panel and texts
 
@@ -83,11 +86,16 @@ Release notes and packages for every version are on the
   and with no internet connection it says so in words.
 - Delete my data describes the other items in Documents/Downbeat
   (finished audio in processed/ among them) as left as they are.
+- A file too long for Analyze (it manages about 30 minutes) gets a message
+  that says so instead of a technical error.
 
 ### Key
 
 - **Use detected key** sits next to **Detect key** and shows only when the
   selected clip's key was set by hand, also right after the panel opens.
+- **Pitch the clip** in Premiere Pro puts the project items of pitched clips
+  into one "Pitched audio" bin inside the Downbeat bin instead of a new bin
+  for each.
 
 ### Requirements
 

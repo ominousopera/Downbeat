@@ -127,9 +127,11 @@ Re-verify (diff and rehash) before any change.
   exported with `scripts/skey-export/export_skey_onnx.py`, which checks the
   exported graph against the upstream PyTorch one (max abs difference
   < 1e-4, same argmax).
-- License: **MIT** (Copyright (c) Deezer), code and published model alike.
-  Only the export needs nnAudio 0.3.3 (MIT); the plugin runs just the ONNX
-  file, through the onnxruntime-web listed above.
+- License: **MIT** (Copyright (c) Deezer), the only license the repository
+  states; the checkpoint is published in the same repository and names no
+  separate license of its own. Only the export needs nnAudio 0.3.3 (MIT);
+  the plugin runs just the ONNX file, through the onnxruntime-web listed
+  above.
 
 ## models/mel_spectrogram.onnx, models/beat_this_own_export.onnx (Beat This!)
 

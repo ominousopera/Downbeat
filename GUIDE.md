@@ -150,7 +150,7 @@ placing or cutting anything. Scroll to pan, Alt (Option on Mac) + scroll to
 zoom, or use the +/−/Fit buttons. Track and Click have separate volume
 sliders.
 
-## Detect Key
+## Detect key
 
 Runs independently of Analyze. First pick **Music** or **Sound effect**:
 the two need different analysis settings. The result is shown on the
@@ -287,7 +287,7 @@ To find something:
   (UCS), for example "DSGNWhsh_Airy Pass_Example Audio_Airy Pack.wav":
   category DESIGNED / WHOOSH, from the pack Airy Pack by Example Audio.
   The search finds such files by their category too, even when the name
-  part does not say it, and by creator or pack ("example audio", "steps pack").
+  part does not say it, and by creator or pack ("example audio", "airy pack").
   With the panel in Russian or Spanish, a search in that language finds
   the English-named files (from UCS's own translations).
 - **Key** — the Camelot key, exact or **+ compatible** (the same key, its
@@ -387,9 +387,9 @@ shows. Most sound effects — footsteps, wind, rain, gunshots, most
 whooshes — have no pitch, so a key would mean nothing for them: they
 show **no clear pitch** instead, and a key search skips them. A key
 written in the file name always counts. Music keys are decided the way
-Detect Key's **Music** mode decides them (the classic profiles, the
+Detect key's **Music** mode decides them (the classic profiles, the
 chord progression and S-KEY; the last two together outvote the first).
-Clips you Analyze or Detect Key on the timeline are listed too, in the
+Clips you Analyze or Detect key on the timeline are listed too, in the
 section matching the Music / Sound effect switch you used.
 
 **Save a copy**, **Load a copy** and **Clear** are in Settings → Library (see
@@ -460,7 +460,7 @@ says so until you click **Got it** — and sound work is easier in Premiere
 Pro. Otherwise it works the same way, with a layer in place of a clip:
 
 - Select the audio layer in the composition's timeline (an audio file, or
-  a video with sound). Analyze and Detect Key read that layer's file.
+  a video with sound). Analyze and Detect key read that layer's file.
 - **Place markers** puts layer markers on it, so they move with the layer
   — or, with **Place on: Timeline**, composition markers.
   To cut there, **J** and **K** jump the playhead to the previous or next
@@ -522,6 +522,12 @@ marker and use **Shift − / +** to line that track up.
 Yes — there is no time-signature detection. On a track that is not in 4/4,
 the downbeat pick can look confidently wrong rather than uncertain;
 Type: Bars + beats is a safer choice there.
+
+**Is there a length limit for Analyze?**
+Analyze reads the whole file, and the beat analysis manages about 30
+minutes of audio. A longer file (a DJ mix, a concert recording) stops with
+a message saying so: save the part you need as a file of its own and
+analyze that. Detect key and the Library scan have no such limit.
 
 **Is my audio or project data ever uploaded anywhere?**
 No. Analysis and the Library run entirely on your machine. The only
