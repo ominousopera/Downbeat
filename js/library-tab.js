@@ -1165,7 +1165,8 @@
               setTranslatedText(libScanStatus, "library.inserted", { name: item.name, where: data.where });
             }
             log("Library: inserted " + item.name + " at " + data.startSeconds.toFixed(2) + " s on " + data.where +
-                (data.imported ? " (imported into the Downbeat bin)" : " (already in the project)") + ".");
+                (data.offlineCopy ? " (imported again: the copy already in the project is offline)" :
+                  data.imported ? " (imported into the Downbeat bin)" : " (already in the project)") + ".");
           };
           // A fade Premiere refused (the transition was found, the call
           // turned down) is asked for once more in a call of its own, half

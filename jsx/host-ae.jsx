@@ -654,10 +654,17 @@ function dbAeInsertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
         }
         var item = null;
         var folder = null;
+        var offlineCopy = false;
         for (var i = 1; i <= app.project.numItems; i++) {
             var it = app.project.item(i);
             if (!item && it instanceof FootageItem && it.file && _dbSamePath(it.file.fsName, file.fsName)) {
-                item = it;
+                // Footage After Effects reports missing is passed over and the
+                // file imported again, as in Premiere (_findItemInBinByPath).
+                if (it.footageMissing === true) {
+                    offlineCopy = true;
+                } else {
+                    item = it;
+                }
             }
             if (!folder && it instanceof FolderItem && it.name === DOWNBEAT_BIN_NAME) {
                 folder = it;
@@ -840,7 +847,7 @@ function dbAeInsertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
         }
         // `where` is the composition: the panel says "Inserted {name} on
         // {where}", and the layer's own name is the file's.
-        return { where: comp.name, layerName: layer.name, startSeconds: startSeconds, imported: imported,
+        return { where: comp.name, layerName: layer.name, startSeconds: startSeconds, imported: imported, offlineCopy: offlineCopy,
             trimmed: !!opts && (Number(opts.inSec) > 0 || Number(opts.outSec) > 0), inPoint: layer.inPoint, outPoint: layer.outPoint,
             stretch: layer.stretch, muted: !!toMute && toMute.audioEnabled === false, selected: selected,
             reverseLayout: reverseLayout && reverseLayout.known ? reverseLayout.tried + "; " + reverseLayout.seen : null };

@@ -998,7 +998,19 @@ function _findOrCreateDownbeatBin() {
     }
     return root.createBin(DOWNBEAT_BIN_NAME);
 }
-function _findItemInBinByPath(bin, mediaPath) {
+// True only when Premiere says the item's media is offline. A host without
+// ProjectItem.isOffline() counts it as online.
+function _dbItemOffline(item) {
+    try {
+        return typeof item.isOffline === "function" && item.isOffline() === true;
+    } catch (e) {
+        return false;
+    }
+}
+// An item Premiere holds offline is passed over unless includeOffline is
+// set, so the file is imported again rather than placed as a Media Offline
+// clip.
+function _findItemInBinByPath(bin, mediaPath, includeOffline) {
     for (var i = 0; i < bin.children.numItems; i++) {
         var child = bin.children[i];
         var childPath = null;
@@ -1007,7 +1019,7 @@ function _findItemInBinByPath(bin, mediaPath) {
         } catch (e) {
             childPath = null; // bins and other items without media
         }
-        if (childPath && _dbSamePath(childPath, mediaPath)) {
+        if (childPath && _dbSamePath(childPath, mediaPath) && (includeOffline || !_dbItemOffline(child))) {
             return child;
         }
     }
@@ -1662,10 +1674,14 @@ function insertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
         if (cleanPitch) { bin = bin.createBin("Pitched audio"); }
         var item = cleanPitch ? null : _findItemInBinByPath(bin, mediaPath);
         var imported = false;
+        var offlineCopy = !cleanPitch && !item && !!_findItemInBinByPath(bin, mediaPath, true);
         if (!item) {
             app.project.importFiles([file.fsName], true, bin, false);
             item = _findItemInBinByPath(bin, mediaPath);
             if (!item) {
+                if (_findItemInBinByPath(bin, mediaPath, true)) {
+                    throw new Error("Premiere keeps this file offline in the project. Relink it in the Downbeat bin (Link Media) and try again.");
+                }
                 throw new Error("Premiere did not import the file.");
             }
             imported = true;
@@ -1804,7 +1820,7 @@ function insertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
         var placedNow = _findClipStartingAt(targetTrack, startSeconds);
         var placedToken = placedNow ? _dbRememberSelection(sequence, placedNow, placedNow.projectItem) : null;
         result.ok = true;
-        result.data = { where: "A" + (target + 1), target: target, startSeconds: startSeconds, imported: imported, trimmed: !!opts && (inSec > 0 || outSec !== null), fades: fades, muted: muted, speed: speedResult, selected: selected, placedToken: placedToken };
+        result.data = { where: "A" + (target + 1), target: target, startSeconds: startSeconds, imported: imported, offlineCopy: offlineCopy, trimmed: !!opts && (inSec > 0 || outSec !== null), fades: fades, muted: muted, speed: speedResult, selected: selected, placedToken: placedToken };
     } catch (e) {
         result.ok = false;
         result.error = e.message ? e.message : e.toString();

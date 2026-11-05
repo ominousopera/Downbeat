@@ -39,6 +39,29 @@ try {
   r = JSON.parse(ph.run("insertAudioAtPlayhead(" + js(sound) + ", 5)"));
   check("Premiere: the second insert reuses the imported item",
     r.ok && r.data.where === "A2" && r.data.imported === false && bin.children.length === 1 && a2.length === 2, JSON.stringify(r.data || r.error));
+  // An item Premiere holds offline (its drive was away while the project
+  // was open) is passed over: the file is imported again and the new item
+  // placed, never a Media Offline clip.
+  bin.children[0].isOffline = function () { return true; };
+  p.playhead.seconds = 38;
+  r = JSON.parse(ph.run("insertAudioAtPlayhead(" + js(sound) + ", 5)"));
+  check("Premiere: an offline copy in the Downbeat bin is passed over and the file imported again",
+    r.ok && r.data.imported === true && r.data.offlineCopy === true && bin.children.length === 2 && a2.length === 3 &&
+    a2.some(function (c) { return c.start.seconds === 38 && c.projectItem === bin.children[1]; }), JSON.stringify(r.data || r.error));
+  // A Premiere that keeps even the new import offline: refused, nothing placed.
+  const realImport = p.context.app.project.importFiles;
+  bin.children[1].isOffline = function () { return true; };
+  p.context.app.project.importFiles = function (paths, suppressUI, into) {
+    const before = into.children.length;
+    realImport.apply(this, arguments);
+    for (let k = before; k < into.children.length; k++) { into.children[k].isOffline = function () { return true; }; }
+    return true;
+  };
+  p.playhead.seconds = 50;
+  r = JSON.parse(ph.run("insertAudioAtPlayhead(" + js(sound) + ", 5)"));
+  check("Premiere: a file Premiere keeps offline is refused with a clear message, nothing placed",
+    !r.ok && /offline in the project/.test(r.error) && a2.length === 3, r.error);
+  p.context.app.project.importFiles = realImport;
   p.sequence.audioTracks[1].locked = true;
   p.playhead.seconds = 45;
   r = JSON.parse(ph.run("insertAudioAtPlayhead(" + js(sound) + ", 5)"));
@@ -263,6 +286,14 @@ try {
   check("After Effects: the second insert reuses the footage",
     r.ok && r.data.imported === false && a.items.filter(function (i) { return i instanceof mocks.FootageItem; }).length === 1 &&
     a.comp.layers[0].startTime === 20, JSON.stringify(r.data || r.error));
+  // Footage After Effects reports missing is passed over and imported again.
+  footage[0].footageMissing = true;
+  a.comp.time = 28;
+  r = JSON.parse(ah.run("insertAudioAtPlayhead(" + js(sound) + ", 5)"));
+  const footageNow = a.items.filter(function (i) { return i instanceof mocks.FootageItem; });
+  check("After Effects: missing footage is passed over and the file imported again",
+    r.ok && r.data.imported === true && r.data.offlineCopy === true && footageNow.length === 2 &&
+    a.comp.layers[0].startTime === 28 && a.comp.layers[0].source === footageNow[1], JSON.stringify(r.data || r.error));
   check("After Effects: no undo group left open", a.state.undoDepth === 0);
   // The preview pane's part with fades: the original trimmed, fades as Audio
   // Levels keyframes along the pane's curve.

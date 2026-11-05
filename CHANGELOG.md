@@ -63,6 +63,10 @@ Release notes and packages for every version are on the
   update the list, and only the last three folders of a path were searched.
 - A held Space leaves the preview alone; one press starts or stops it.
 - A scan that reaches its limit of 50,000 files says so.
+- When the project's copy of a sound is offline (its drive was away while
+  the project was open), Insert imports the file again and places a working
+  clip, not a Media Offline one. If Premiere Pro still keeps it offline, the
+  panel says so and places nothing.
 
 ### Panel and texts
 
