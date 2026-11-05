@@ -1532,6 +1532,7 @@
             beatsArray: analysis.beatsArray,
             confidence: analysis.confidence,
             phase: analysis.phase,
+            beatGrid: "basic", // Beat This! comes next and renames it
             clipInfo: clipInfoForPlacement
           }
         );
@@ -1696,11 +1697,19 @@
         phase: lastAnalysis.phase,
         downbeatTimes: lastAnalysis.downbeatTimes,
         barsUnsure: lastAnalysis.barsUnsure,
+        beatGrid: _beatGridOf(lastAnalysis),
         clipInfo: clipInfo
       }
     );
     renderLibrary();
     persistLibrary();
+  }
+
+  // The name of the grid on screen, saved with the entry so that selecting
+  // the clip again shows the same Beat grid line (_applyCachedEntry).
+  function _beatGridOf(analysis) {
+    if (analysis.beatThisApplied) { return "refined"; }
+    return analysis.beatThisRejected ? "kept" : "basic";
   }
   // Runs Beat This! on the current analysis and, if every guard passes,
   // applies its grid and native downbeats, snapshotting the essentia result
@@ -1845,6 +1854,8 @@
           // A guard rejection is deterministic for this grid - offering the
           // same button again would only reject again.
           analysis.beatThisRejected = true;
+          window.BeatMarkerLibrary.setBeatGrid(audioPath, "kept");
+          persistLibrary();
           _updateGridConfidenceHint(analysis.confidence);
           if (err && err.gridBars) {
             _applyBarsOnKeptGrid(err.gridBars, originalBeatsArray, audioPath, clipInfo);
@@ -1903,8 +1914,16 @@
     }
   }
   beatThisBtn.addEventListener("click", function () {
-    if (!lastAnalysis || !lastDecodedSamples || lastDecodedSamplesPath !== lastAnalysis.audioPath) {
-      log("Try alternative analysis: no current decoded audio for this clip (re-run Analyze first).");
+    if (!lastAnalysis) {
+      return;
+    }
+    // A grid opened from the saved list has neither the other grid nor the
+    // decoded audio in memory: the switch analyzes the clip again, then
+    // takes the grid asked for.
+    var canRevert = lastAnalysis.beatThisApplied && lastAnalysis._preBeatThisSnapshot;
+    var haveAudio = lastDecodedSamples && lastDecodedSamplesPath === lastAnalysis.audioPath;
+    if (!canRevert && (lastAnalysis.beatThisApplied || !haveAudio)) {
+      _reanalyzeForBeatGrid(!lastAnalysis.beatThisApplied);
       return;
     }
     var audioPath = lastAnalysis.audioPath;
@@ -1934,6 +1953,24 @@
       hideBusy();
     });
   });
+
+  // Analyze applies Refined by itself; for Basic its result is switched
+  // back right after. Not when another clip took over meanwhile.
+  function _reanalyzeForBeatGrid(refined) {
+    var audioPath = lastAnalysis.audioPath;
+    log("Beat grid: analyzing the clip again to switch to " + (refined ? "Refined" : "Basic") + ".");
+    beatThisBtn.disabled = true;
+    gridRefinedBtn.disabled = gridBasicBtn.disabled = true;
+    return _analyzeSelectedClip().then(function () {
+      beatThisBtn.disabled = false;
+      gridRefinedBtn.disabled = gridBasicBtn.disabled = false;
+      if (!refined && lastAnalysis && lastAnalysis.audioPath === audioPath &&
+          lastAnalysis.beatThisApplied && lastAnalysis._preBeatThisSnapshot) {
+        beatThisBtn.click();
+      }
+    });
+  }
+
   // Beat grid: Refined / Basic. Choosing the word that is not lit clicks the
   // hidden #beatThisBtn: from Refined to Basic it reverts (instant), from
   // Basic to Refined it runs the second detector (a few seconds).
@@ -2028,6 +2065,7 @@
             phase: libraryEntryBefore.phase,
             downbeatTimes: libraryEntryBefore.downbeatTimes,
             barsUnsure: libraryEntryBefore.barsUnsure,
+            beatGrid: libraryEntryBefore.beatGrid || null,
             clipInfo: libraryEntryBefore.clipInfo
           } : null,
           libraryHadOtherData: !!(libraryEntryBefore && libraryEntryBefore.camelot)
@@ -2066,7 +2104,7 @@
             "\"one\" doesn't line up, then Place markers when ready. Click \"" + window.BeatMarkerI18n.t("analyze.revertManualBpmBtn") + "\" above to undo.");
         var upsertResult = window.BeatMarkerLibrary.upsertAnalysis(
           clipInfo.mediaPath, basename(clipInfo.mediaPath),
-          { bpm: bpm, beatsArray: beatsArray, confidence: 1.0, phase: 0, clipInfo: clipInfo }
+          { bpm: bpm, beatsArray: beatsArray, confidence: 1.0, phase: 0, beatGrid: null, clipInfo: clipInfo }
         );
         if (upsertResult.clipInfoChanged) {
           log("Note: " + basename(clipInfo.mediaPath) + " was previously analyzed on a different track/position " +
@@ -3310,7 +3348,13 @@
           : null,
         // The saved warning flag of decoded bars; null for older entries,
         // which then get the uneven test (see _updatePhaseUncertainHint).
-        barsUnsure: typeof entry.barsUnsure === "boolean" ? entry.barsUnsure : null
+        barsUnsure: typeof entry.barsUnsure === "boolean" ? entry.barsUnsure : null,
+        // Which grid this is (_beatGridOf), so the Beat grid line lights the
+        // same word as after Analyze. The other grid is not saved: switching
+        // analyzes the clip again (beatThisBtn).
+        beatThisApplied: entry.beatGrid === "refined",
+        beatThisRejected: entry.beatGrid === "kept",
+        beatThisReverted: entry.beatGrid === "basic"
       };
       _updatePhaseShiftUi();
       _setBpmText(entry.bpm.toFixed(2));
@@ -3323,8 +3367,12 @@
       _setBpmText("-");
       beatCountDisplay.textContent = "-";
     }
+    // The saved confidence shows the warning only while that grid is on
+    // screen: an entry from an earlier session is not reopened (it needs a
+    // new Analyze), and its warning and Beat grid line would offer a switch
+    // with no grid behind it.
     _updatePhaseUncertainHint(null);
-    _updateGridConfidenceHint(entry && entry.beatsArray ? entry.confidence : null);
+    _updateGridConfidenceHint(lastAnalysis ? entry.confidence : null);
     _updateRetempoLikelyHint(null, null);
     _refreshBeatClickPreview();
 

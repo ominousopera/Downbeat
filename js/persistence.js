@@ -999,6 +999,7 @@
           phase: e.phase,
           downbeatTimes: e.downbeatTimes || null,
           barsUnsure: typeof e.barsUnsure === "boolean" ? e.barsUnsure : null,
+          beatGrid: e.beatGrid || null,
           fileIdentity: e.fileIdentity || null,
           detectedKey: e.detectedKey || null,
           confirmedKey: e.confirmedKey || null,

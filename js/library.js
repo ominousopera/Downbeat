@@ -122,6 +122,11 @@
     // them, so the warning row comes back with the saved grid. null = no
     // decoded bars (an essentia grid, or an older saved entry).
     entry.barsUnsure = entry.downbeatTimes && typeof analysisData.barsUnsure === "boolean" ? analysisData.barsUnsure : null;
+    // Which grid beatsArray is (see validBeatGrid); a caller that does not
+    // pass it leaves the saved value as it was.
+    if (Object.prototype.hasOwnProperty.call(analysisData, "beatGrid")) {
+      entry.beatGrid = validBeatGrid(analysisData.beatGrid);
+    }
 
     var clipInfoChanged = false;
     if (previousClipInfo && analysisData.clipInfo &&
@@ -273,6 +278,10 @@
       entry.beatsArray = entry.bpm ? validTimes(entry.beatsArray) : null;
       entry.downbeatTimes = entry.beatsArray ? validTimes(entry.downbeatTimes) : null;
       entry.barsUnsure = entry.downbeatTimes && typeof entry.barsUnsure === "boolean" ? entry.barsUnsure : null;
+      // Entries saved before this field existed kept "1" markers only from
+      // Beat This!, so those are Refined.
+      entry.beatGrid = !entry.beatsArray ? null
+        : (raw.beatGrid === undefined ? (entry.downbeatTimes ? "refined" : null) : validBeatGrid(raw.beatGrid));
       entry.confidence = typeof entry.confidence === "number" && isFinite(entry.confidence) ? entry.confidence : null;
       entry.phase = Number.isInteger(entry.phase) && entry.phase >= 0 && entry.phase <= 3 ? entry.phase : 0;
       var slots = [entry].concat(Array.isArray(entry.intervalKeys) ? entry.intervalKeys.slice(-12) : []);
@@ -301,6 +310,23 @@
     return times.slice();
   }
 
+  // The grid an entry holds: "refined" (Beat This! applied), "basic" (the
+  // first detector's: Beat This! switched off or not run yet), "kept" (Beat
+  // This! turned this grid away). null = not known (Set BPM's even grid).
+  function validBeatGrid(value) {
+    return value === "refined" || value === "basic" || value === "kept" ? value : null;
+  }
+
+  // For a Beat This! run that changes no beats (turned away): only the
+  // grid's name is saved.
+  function setBeatGrid(mediaPath, value) {
+    var entry = get(mediaPath);
+    if (entry && entry.beatsArray) {
+      entry.beatGrid = validBeatGrid(value);
+      _touch(entry);
+    }
+  }
+
   global.BeatMarkerLibrary = {
     fileIdentity: fileIdentity,
     sameIdentity: sameIdentity,
@@ -312,6 +338,7 @@
     clearConfirmedKey: clearConfirmedKey,
     upsertKey: upsertKey,
     upsertAnalysis: upsertAnalysis,
+    setBeatGrid: setBeatGrid,
     get: get,
     getAll: getAll,
     remove: remove,

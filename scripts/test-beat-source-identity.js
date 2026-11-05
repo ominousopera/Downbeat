@@ -14,12 +14,12 @@ function fixture() {
     Promise, lastAnalysis: { audioPath: media, clipInfo, beatsArray: [0,1,2,3,4,5,6,7] }, lastDecodedSamples: new Float32Array(8),
     BEATTHIS_COUNT_RATIO_GUARD: 1.75, BEATTHIS_MIN_MEAN_PEAK_LOGIT: 0,
     BEATTHIS_DENSITY_RATIO_HALF_MIN: 0.45, BEATTHIS_DENSITY_RATIO_HALF_MAX: 0.55,
-    window: { BeatMarkerLibrary: { fileIdentity: identity, sameIdentity: function (a, b) { return a.size === b.size && a.mtimeMs === b.mtimeMs; } },
+    window: { BeatMarkerLibrary: { fileIdentity: identity, sameIdentity: function (a, b) { return a.size === b.size && a.mtimeMs === b.mtimeMs; }, setBeatGrid: function () {} },
       BeatMarkerAudio: { TARGET_SAMPLE_RATE: 44100, resampleMono: async function (s) { return s; } },
       BeatMarkerCuesheet: { computeGridDensityRatio: function () { return 1; }, computeNativeDownbeatPhase: function () { return 0; }, computeDownbeatRegularity: function () { return null; }, thinCloseDownbeats: function (b, d) { return { times: d, dropped: 0 }; }, downbeatsLookUneven: function () { return false; } } },
     I18n: { t: function () { return "file changed"; } }, log: function (s) { logs.push(s); },
     _snapshotBeatFields: function () { return {}; }, _applyBeatFieldsAndRefreshUI: function (f) { applied.push(f); },
-    _updateGridConfidenceHint: function () {},
+    _updateGridConfidenceHint: function () {}, persistLibrary: function () {},
     runBeatThisWorker: function () { launched++; return new Promise(function (resolve) { pending = resolve; }); }
   };
   vm.createContext(c); vm.runInContext(body("_assertAudioUnchanged") + "\n" + body("_runBeatThisOnCurrentAnalysis") + "\n" + body("_restoreManualBpmSnapshot"), c);

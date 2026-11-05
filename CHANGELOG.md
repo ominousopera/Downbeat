@@ -67,7 +67,13 @@ Release notes and packages for every version are on the
 
 - The in-panel Guide shows the sub-points of a numbered step under that
   step, not as steps of their own.
-- The tour counts only the steps it shows.
+- The tour counts only the steps it shows. Its Skip, Back and Next buttons
+  keep one line and the same height; when they do not fit side by side,
+  Skip moves under the other two instead of pushing Next past the edge.
+- **Beat grid** shows the right word on a clip selected again, and
+  switching it there works: when the other grid is not at hand, the clip
+  is analyzed again first. A track analyzed in an earlier session
+  shows no grid warning and no Beat grid switch until it is analyzed.
 - Check now with background checks off says only that the check failed.
 - Delete my data describes the other items in Documents/Downbeat
   (finished audio in processed/ among them) as left as they are.
