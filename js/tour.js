@@ -134,7 +134,8 @@
     stepIndicator.textContent = I18n.t("tour.stepOf", { n: shown, total: total });
     calloutTitle.textContent = I18n.t(step.titleKey);
     calloutBody.textContent = I18n.t(step.bodyKey);
-    backBtn.style.visibility = currentStepIndex === 0 ? "hidden" : "visible";
+    // Gone on the first step, so Next takes the whole row there.
+    backBtn.hidden = currentStepIndex === 0;
     nextBtn.textContent = currentStepIndex === STEPS.length - 1 ? I18n.t("tour.done") : I18n.t("tour.next");
     // Switch to this step's tab before measuring: a target inside an inactive
     // tab has zero size.

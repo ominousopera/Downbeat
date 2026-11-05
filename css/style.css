@@ -939,23 +939,22 @@ hr {
   color: var(--text);
   margin: 0 0 10px;
 }
-/* Buttons keep one line, so all three are the same height. When Skip and
-   Back / Next do not fit side by side (Russian, Spanish), Skip moves to its
-   own line under them instead of wrapping or pushing Next past the edge. */
+/* Two rows of the callout's full width, the same on every step and in
+   every language: Back and Next share the first (Next alone on the first
+   step), Skip the second. Skip comes first in the markup, so the column
+   is reversed. */
 .tour-callout-actions {
   display: flex;
-  flex-wrap: wrap-reverse;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-.tour-callout-actions button {
-  white-space: nowrap;
+  flex-direction: column-reverse;
+  gap: 6px;
 }
 .tour-callout-nav {
   display: flex;
   gap: 6px;
-  margin-left: auto;
+}
+.tour-callout-nav button {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 /* .ghost's default border and text (--border / --text-dim) are tuned for the

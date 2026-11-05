@@ -67,9 +67,9 @@ Release notes and packages for every version are on the
 
 - The in-panel Guide shows the sub-points of a numbered step under that
   step, not as steps of their own.
-- The tour counts only the steps it shows. Its Skip, Back and Next buttons
-  keep one line and the same height; when they do not fit side by side,
-  Skip moves under the other two instead of pushing Next past the edge.
+- The tour counts only the steps it shows. Its buttons are two even rows
+  in every language: Back and Next, and Skip under them; nothing sticks
+  out past the edge.
 - **Beat grid** shows the right word on a clip selected again, and
   switching it there works: when the other grid is not at hand, the clip
   is analyzed again first. A track analyzed in an earlier session
