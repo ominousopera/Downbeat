@@ -20,6 +20,9 @@
 // same contract as every jsx/host.jsx function.
 "use strict";
 
+// Ends this process if the panel is gone or the time limit has passed.
+require("./lifeline.js").watch();
+
 const pathMod = require("path");
 const fsMod = require("fs");
 // The vendored essentia WASM glue writes its own diagnostic lines. They are

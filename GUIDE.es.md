@@ -32,14 +32,18 @@ Windows 10 u 11 (x64). Windows en ARM aún no es compatible.
 
    Colocar de nuevo —o elegir otro tiempo como «uno» después de colocar,
    o cambiar entre el clip y la línea de tiempo— sustituye los marcadores
-   anteriores de Downbeat en vez de añadir un segundo juego. Los
+   anteriores de Downbeat en vez de añadir un segundo juego. Solo se
+   sustituye el juego colocado para este clip: los marcadores de Downbeat de
+   otro clip se quedan, también donde los dos clips se solapan, después de
+   mover, recortar o cortar un clip, y después de Edición → Deshacer. Los
    marcadores que añadiste tú nunca se tocan, aunque se llamen D o b. Un
    marcador de Downbeat al que le cambias el comentario o la duración (en
    After Effects, también el color) pasa a ser tuyo. After Effects admite
    un solo marcador por instante, así que un tiempo que cae justo sobre
    uno de tus marcadores se omite allí (el registro lo cuenta). Para
    empezar de cero, **Borrar** quita los marcadores de Downbeat del clip
-   —de cada trozo después de un corte— y deja los tuyos.
+   —de cada trozo después de un corte, sea cual sea el trozo seleccionado— y
+   deja los tuyos y los de otros clips.
 5. Corta en los marcadores en Premiere: con el ajuste activado (S), la
    herramienta Cuchilla (C) se ajusta a los marcadores. Cada marcador está
    al inicio del fotograma de vídeo en el que empieza su tiempo, así que
@@ -58,23 +62,39 @@ Secciones numeradas, de arriba abajo:
   «MV»…), una nota bajo el clip pide revisar los marcadores de la intro y
   del final: los videoclips suelen tener diálogos o efectos de sonido ahí.
   La canción en sí se analiza como cualquier pista, y los vídeos con
-  letra y las subidas «Official Audio» no reciben la nota.
+  letra y las subidas «Official Audio» no reciben la nota. Cuando algo no
+  se puede hacer, la línea con el nombre del clip dice por qué, completo,
+  hasta tu siguiente clic, tecla o selección: por ejemplo, cuando
+  **Colocar marcadores** no tiene ningún tiempo dentro del clip, o el clip
+  no tiene un archivo de audio propio (una secuencia anidada, una
+  multicámara o un clip combinado). El audio de menos de 2 segundos, o en
+  silencio, también se rechaza ahí en vez de recibir una cuadrícula
+  inventada. Los detalles técnicos van al registro (Ajustes → Diagnóstico →
+  Copiar registro).
 - **02 / Tempo**: de arriba abajo, una línea por etiqueta:
   - el **BPM** que encontró el análisis, en letra grande; si el clip se
     reproduce a una velocidad distinta del 100 %, una línea bajo él da el
     tempo tal como suena en la línea de tiempo (BPM × velocidad);
   - **BPM propio**: escribe un tempo y pulsa **Usar** para colocar en su
     lugar una cuadrícula exactamente regular (**Deshacer** devuelve el
-    análisis);
+    análisis). La cuadrícula se cuenta desde el inicio del clip: ahí caen
+    un tiempo y un «uno». También llega hacia atrás hasta el inicio del
+    archivo, y cuando alargas el clip sigue al mismo tempo, así que un
+    recorte posterior mantiene la misma cuadrícula. La línea del clip
+    muestra entonces ese BPM;
   - **Mitad / doble**: **½×** o **2×** cuando el tempo salió a la mitad
-    o al doble del real;
+    o al doble del real. Sobre una cuadrícula **Afinada** el resultado es
+    una **Básica** (la línea **Cuadrícula** marca Básica); el clic contrario
+    devuelve la Afinada. El BPM mostrado y guardado sigue el cambio;
   - **Cuadrícula: Afinada / Básica**: aparece cuando se ejecutó el
     segundo detector o podría ayudar; ver «Segundo detector de tiempos»
     más abajo;
   - **El «uno» es el tiempo 1 2 3 4** elige qué tiempo cuenta como el
     primero del compás cuando el análisis eligió mal: 1 es donde lo puso
     el análisis (y lo devuelve ahí); 2, 3 o 4 mueven el «uno» a ese
-    tiempo.
+    tiempo. Un clic aquí o en **Desplazar** justo cuando se selecciona otro
+    clip se rechaza («El clip seleccionado cambió»): selecciona el clip y
+    pulsa otra vez.
 - **03 / Marcadores**: **Tipo**: **Compases** pone un marcador en el
   «uno» de cada compás; **Compases + tiempos** añade también los demás
   tiempos del compás, y el «uno» de cada compás sigue siendo tiempo
@@ -91,7 +111,8 @@ Secciones numeradas, de arriba abajo:
   tiempos y un acento en cada «uno», según tu «uno», los ajustes de la
   cuadrícula y el recorte y la velocidad del clip. Empieza con la música, no
   en el cursor, y va debajo de ella: en Premiere, en una pista de audio
-  desbloqueada bajo la música con sitio para todo el WAV (añade una pista si
+  bajo la música que no esté bloqueada ni silenciada y tenga sitio para
+  todo el WAV (añade una pista si
   no hay ninguna libre); en After Effects, en una capa nueva justo debajo de
   la capa de la música. La música se sigue oyendo. Dónde se guarda el WAV se
   elige en **Ajustes → Audio terminado**; si no se puede insertar, la línea
@@ -104,6 +125,11 @@ cuyos datos de tiempos no sirven conserva su tonalidad, y su cuadrícula
 necesita un nuevo Analizar. Una corrección de tempo (**½×**, **2×**,
 **Afinada**) que sigue en marcha cuando eliges otro clip o empiezas otro
 análisis se descarta, así que nunca sustituye a la cuadrícula más nueva.
+Si en la misma sesión vuelves a seleccionar un clip del mismo archivo —tras
+un recorte o después de otro clip—, vuelve la cuadrícula que tenías: el
+«uno» elegido, **BPM propio** con su **Deshacer**, y **Básica** o
+**Afinada** (Básica al instante, sin un análisis nuevo). El panel lo
+recuerda para los últimos 12 archivos.
 
 ## Segundo detector de tiempos (Beat This!)
 
@@ -120,7 +146,8 @@ ellos; cambiar la **Cuadrícula** puede moverlo unas décimas.
 aplicó el segundo detector) o **Básica** (solo el resultado habitual).
 Escucha los marcadores: si no caen en los tiempos, pulsa la otra palabra.
 Básica vuelve al instante; Afinada ejecuta de nuevo el segundo detector
-(unos segundos).
+(unos segundos). Si el segundo detector no termina, se queda Básica, la
+línea **Cuadrícula** lo indica y un clic en **Afinada** lo intenta otra vez.
 
 En una pista difícil de leer, la línea bajo **Cuadrícula** lo indica y
 sugiere **Afinada**, que ahí suele ser más precisa.
@@ -162,18 +189,22 @@ un botón de reproducción y un clic en cada tiempo fuerte, para comprobar
 la detección de oído antes de colocar o cortar nada. Desplaza para mover
 la vista, Alt (Opción en Mac) + desplazamiento para hacer zoom, o usa los
 botones +/−/Ajustar. Pista y Clic tienen controles de volumen separados.
+Elegir un «uno», **Desplazar** o recortar el clip no detiene la reproducción
+ni cambia el zoom.
 
 ## Detectar tonalidad
 
 Funciona independientemente del análisis. Primero elige **Música** o
-**Efecto de sonido**: necesitan ajustes de análisis distintos. El
+**Efecto de sonido**: necesitan ajustes de análisis distintos, y cada uno
+guarda su propio resultado para un archivo. El
 resultado se muestra en la rueda Camelot y en notación tradicional, con
 las tonalidades que combinan bien con él.
 
 **Analizar: Archivo completo / Clip seleccionado** elige qué se mide: todo el
 archivo o solo la parte que usa el clip seleccionado (entre su entrada y su
-salida). Otro recorte tiene su propio resultado. El análisis de tiempos y la
-vista previa no cambian. Una parte muy corta, o una en la que la música cambia
+salida). Otro recorte tiene su propio resultado (se guardan las últimas 12
+partes de un archivo; una tonalidad fijada a mano para una parte se guarda
+siempre). El análisis de tiempos y la vista previa no cambian. Una parte muy corta, o una en la que la música cambia
 de tonalidad, puede dar una tonalidad poco fiable.
 
 Bajo el resultado, una línea indica cuánto fiarse. En modo **Música**
@@ -190,8 +221,9 @@ análisis más larga que oye mejor las notas graves, y sin modelo de IA
 (está entrenado con música y aquí funciona peor). La segunda opinión es
 la progresión de acordes. Los sonidos de menos de 10 segundos reciben una
 nota que lo indica: con tan poco audio la tonalidad es menos fiable. Si
-ya conoces la tonalidad, puedes fijarla a mano (**Ajustar tonalidad del original**).
-Se guarda para ese archivo y esa parte; **Usar tonalidad detectada**, junto a
+ya conoces la tonalidad, puedes fijarla a mano (**Ajustar tonalidad del original**):
+escribe su código Camelot, como 8A u 11B (cualquier otra cosa muestra una
+breve pista). Se guarda para ese archivo y esa parte; **Usar tonalidad detectada**, junto a
 **Detectar tonalidad**, recupera la tonalidad detectada. Sustituir el archivo
 de audio borra su análisis y la tonalidad fijada a mano.
 
@@ -203,11 +235,17 @@ cuando un destino no se puede alcanzar, por ejemplo de menor a mayor.
 igual que cambia el tono la vista previa de la biblioteca (como un
 sampler: más agudo también suena más rápido y más corto): coloca el
 propio archivo del clip seleccionado, la parte que usa la línea de
-tiempo, en una pista libre en el lugar del clip, a la velocidad que da
+tiempo, en una pista libre (nunca una bloqueada o silenciada) en el lugar
+del clip, a la velocidad que da
 ese cambio; no se crea ninguna copia, sigue siendo tu archivo donde
 está. El original se queda donde estaba, desactivado (Desactivar en
 Premiere, sin sonido en After Effects): vuelve a activarlo para
-deshacerlo.
+deshacerlo. Un clip que ya está desactivado se rechaza: puede que aún suene
+una copia anterior con el tono cambiado, así que selecciona el clip que
+suena. En Premiere solo entra el sonido, nunca la imagen del archivo; un
+archivo con varios canales mono necesita una pista libre para cada uno,
+cada parte recibe la nueva velocidad, y los demás canales del original se
+desactivan con él (nunca se eliminan).
 
 **Cambiar el tono del clip** está junto a los números de semitonos / cents /
 velocidad (debajo de ellos en un panel estrecho). Cada cambio se suma a la
@@ -215,13 +253,20 @@ velocidad actual del clip: +2 y luego otros +2 dan 125,99 %, y volver a la
 tonalidad original devuelve el 100 %. Se muestra la velocidad final del
 clip, y la línea de BPM va del tempo actual al nuevo. Si la selección o la
 velocidad cambian antes de pulsar, revisa los números nuevos y pulsa otra
-vez. Después queda seleccionado el clip (capa) nuevo, así que el siguiente
+vez (mover el clip, o añadir una capa encima, no cuenta como cambio).
+Después queda seleccionado el clip (capa) nuevo, así que el siguiente
 **Detectar tonalidad** oye su velocidad; si la aplicación no puede
-seleccionarlo, el panel te pide que lo hagas. El clip nuevo empieza sin
+seleccionarlo, el panel te pide que lo hagas. Con **Analizar: Clip
+seleccionado**, conserva la tonalidad de esa parte. El clip nuevo empieza sin
 marcadores de Downbeat: colócalos de nuevo para su velocidad. Tus
-marcadores, el clip original y los marcadores de la línea de tiempo se
-quedan como estaban; en Premiere el clip nuevo tiene su propio elemento de
-proyecto, así que borrar sus marcadores no toca el original.
+marcadores pasan a él, en el mismo punto del sonido; el clip original
+conserva los suyos. Los marcadores de línea de tiempo de Downbeat colocados
+para el original pasan a ser del clip nuevo: **Colocar marcadores** o
+**Borrar** en él sustituye todo ese juego, incluso los marcadores que quedan
+después del final del clip nuevo si es más corto. En Premiere el clip nuevo
+tiene su propio elemento de proyecto, así que borrar sus marcadores no toca
+el original. Un cambio de tono rechazado no deja ningún elemento sin usar en
+el proyecto.
 
 **Tonalidad del original** es lo que Detectar tonalidad midió en el propio
 archivo (o en la parte elegida); no cambia con la velocidad: un archivo en
@@ -238,7 +283,7 @@ tono y Maintain Audio Pitch de Premiere no entran en este cálculo.
 
 ## Pestaña Biblioteca: Música y SFX
 
-Añade carpetas de audio, o una unidad entera, una tarjeta de memoria o una carpeta de red; solo el disco del sistema no se puede añadir entero. Las carpetas de Música y SFX no deben solaparse. Un escaneo cuenta hasta 50.000 archivos; si hay más, añade carpetas más pequeñas. El siguiente Iniciar análisis vuelve a intentar los archivos con errores, y una carpeta que no se pudo leer conserva los registros que ya tenía. Si sustituyes un archivo en la misma ruta, su vista previa se vuelve a leer antes de insertarlo.
+Añade carpetas de audio, o una unidad entera, una tarjeta de memoria o una carpeta de red; solo el disco del sistema no se puede añadir entero. Las carpetas de Música y SFX no deben solaparse; si una carpeta está en las dos de todos modos, sus archivos aparecen en una sola sección y el panel lo indica (no se elimina nada). Un escaneo se salta las carpetas de papelera y de instantáneas del sistema y de las unidades de red (`$RECYCLE.BIN`, `System Volume Information`, `#recycle`, `@Recycle`, `@eaDir`, `#snapshot` y similares), así que un sonido eliminado no vuelve como sonido de la Biblioteca. Un escaneo cuenta hasta 50.000 archivos; si hay más, añade carpetas más pequeñas. El siguiente Iniciar análisis vuelve a intentar los archivos con errores, y una carpeta que no se pudo leer conserva los registros que ya tenía. Si sustituyes un archivo en la misma ruta, su vista previa se vuelve a leer antes de insertarlo.
 
 Dos secciones, **Música** y **SFX**, cada una construida a partir de
 carpetas de tu equipo.
@@ -257,11 +302,18 @@ carpetas de tu equipo.
   128 - …», tonalidad Camelot y tempo). Lo que dice el nombre gana a la detección, y
   un archivo cuyo nombre da todo lo necesario (la tonalidad, y para la
   música también el tempo) no se analiza en absoluto. Un nombre que solo
-  da la nota base («Ping G», o una carpeta llamada «G») conserva esa nota
-  y toma mayor/menor del análisis. Esos valores aparecen marcados «del
-  nombre del archivo» en la lista. Las formas cortas como «Am» solo
-  cuentan en un sitio inequívoco («_Am_», «(Am)», o junto a un BPM),
-  porque en texto normal suelen ser palabras.
+  da la nota base justo al lado de su marca de BPM («Loopable D_90 bpm»), o
+  una carpeta con el nombre de una nota, conserva esa nota y toma
+  mayor/menor del análisis. Una carpeta llamada solo «A» a «G» cuenta solo
+  cuando las carpetas de al lado también son notas y alguna lleva
+  sostenido, bemol o modo (A, A#, B, C…), como en un pack ordenado por
+  notas y no en una biblioteca ordenada por la primera letra. La nota de
+  una carpeta nunca da tonalidad a un sonido sin tono definido. Esos
+  valores aparecen marcados «del nombre del archivo» en la lista. Las
+  formas cortas como «Am» solo cuentan en un sitio inequívoco («_Am_»,
+  «(Am)», o justo al lado de la marca de BPM: «Loop 120bpm Am»), porque en
+  texto normal suelen ser palabras: un título como «Am I Ready Yet 120 BPM» se
+  analiza.
 - **Cuánta seguridad tiene una tonalidad de música.** La tonalidad sale de tres
   métodos. La fila dice «tonalidad confirmada» si al menos dos la dieron, y
   «tonalidad incierta» (en rojo) si los tres difieren; esas conviene
@@ -289,18 +341,29 @@ carpetas de tu equipo.
   sonido en tu equipo; nunca lo copia. Un archivo que se movió, se
   renombró o se eliminó, o que está en un disco no conectado, aparece como
   **archivo no encontrado** (atenuado, sin Escuchar ni Insertar), y una
-  carpeta añadida que no está muestra «— no encontrada» en el árbol. No se
-  olvida nada: cuando el disco vuelve a estar conectado, todo regresa
-  solo, con su análisis y sus favoritos. Iniciar análisis nunca quita los
-  sonidos de una carpeta que falta; solo quita los archivos que ya no
-  están en una carpeta disponible. Para quitar una carpeta del todo, usa
-  su ×.
+  carpeta añadida que no está muestra «— no encontrada» en el árbol.
+  Cuando el disco vuelve a estar conectado, todo regresa solo, con su
+  análisis y sus favoritos; el panel lo nota cuando vuelves a hacer clic en
+  el panel o en una fila atenuada. Iniciar análisis nunca quita los
+  sonidos de una carpeta que falta: sus archivos esperan, y el panel dice
+  cuántos. Solo quita los archivos que ya no están en una carpeta
+  disponible, e incluso entonces conserva un sonido con estrella o con una
+  tonalidad fijada a mano (mostrado como **archivo no encontrado**) hasta
+  que le quites la estrella (uno con tonalidad fijada a mano, hasta que
+  quites su carpeta con ×). Un archivo movido a otro sitio de la misma
+  sección, con el mismo nombre, tamaño y fecha, conserva su análisis y su
+  estrella. Para quitar una carpeta del todo, usa su ×.
 
 Para encontrar algo:
 
 - **Buscar**: busca en los nombres de archivos y de carpetas, al inicio
   de las palabras («hit» encuentra «Big Hit», no «white»; «trac» encuentra
-  «Tractor»). Cada palabra que escribas debe coincidir. También conoce
+  «Tractor»). Cada palabra que escribas debe coincidir. Las palabras con
+  guion o apóstrofo («sci-fi», «sub-drop», «don't») y los nombres con
+  tildes se encuentran tal como los escribes. Una búsqueda por nombre
+  también muestra los sonidos que aún esperan análisis o que no se
+  pudieron leer (un filtro de tonalidad o de BPM necesita un análisis).
+  También conoce
   sinónimos de efectos de sonido y categorías de sonido: **swoosh** también
   encuentra archivos whoosh, swish y fly-by, **hit** también impact, punch
   y thud (y las categorías de impactos de UCS), **riser** también uplifter
@@ -327,7 +390,9 @@ Para encontrar algo:
   suelen montarse bien juntos.
 - **Como el clip** (un botón) rellena la tonalidad
   y el BPM del clip seleccionado, calculados a partir del análisis guardado
-  del original y la velocidad actual, para encontrar sonidos compatibles. **Restablecer** quita todos los
+  del original y la velocidad actual, para encontrar sonidos compatibles.
+  Cuando el clip seleccionado no tiene tonalidad ni tempo (otro clip, o
+  ninguno), Como el clip se desactiva y dice por qué. **Restablecer** quita todos los
   filtros.
 - **Orden**: mejor coincidencia, nombre, duración o tempo (Música).
 - **★** en una fila lo marca como favorito; **Favoritos** muestra solo tus
@@ -337,14 +402,20 @@ Para encontrar algo:
 Las mejores coincidencias van primero. La lista muestra los primeros 300
 archivos, y **Mostrar 300 más** abajo añade los siguientes; cuando eliges
 una tonalidad, muestra todas las coincidencias (hasta 3.000). Un clic en
-una fila elige el archivo; **Espacio** lo escucha e **Intro** lo inserta.
+una fila elige el archivo; **Espacio** lo escucha e **Intro** lo inserta,
+en cualquier fila mostrada, como **Insertar**.
 Pulsa ▶ para escuchar. **Insertar** (o
 un doble clic en la fila) pone el archivo en la línea de tiempo en el
-cursor: en Premiere, en la primera pista de audio que esté libre durante
-todo el sonido —no se sobrescribe nada; si no hay una pista así, lo
+cursor, una vez por doble clic; un doble clic en ▶ o ★ nunca inserta. En
+Premiere va a la primera pista de audio que esté libre durante todo el
+sonido y no esté bloqueada ni silenciada —no se sobrescribe nada; si no
+hay una pista así, lo
 dice—, y en After Effects como una capa nueva en el tiempo actual. El
 archivo se importa una vez a una bandeja «Downbeat» (carpeta, en After
-Effects) y después se reutiliza. Si el panel de vista previa de abajo muestra
+Effects) y después se reutiliza. En Premiere, los puntos de entrada y salida
+que pusiste a ese sonido en la bandeja quedan como estaban después de una
+inserción, y una inserción del sonido entero coloca el sonido entero, no
+solo de tu entrada a tu salida. Si el panel de vista previa de abajo muestra
 ese mismo sonido y has puesto allí fundidos, una parte, un tono o Reverso,
 **Insertar**, el doble clic e **Intro** lo ponen en la línea de tiempo con
 todo eso, igual que el botón **Añadir** del propio panel.
@@ -372,8 +443,8 @@ y se queda a la vista mientras la lista se desplaza:
 - **Bucle**, **Reverso** y el volumen (**Vol**, se recuerda);
 - **Tono − / +** en semitonos, hasta 12 en cada sentido, como un sampler:
   más agudo también suena más rápido y más corto, más grave más lento y
-  más largo. **Restablecer** vuelve a 0. Un archivo nuevo empieza en 0,
-  hacia delante. Para un sonido con tonalidad o nota, una línea debajo
+  más largo. **Restablecer** vuelve a 0. Cada sonido nuevo empieza en 0,
+  hacia delante, sin parte seleccionada y sin fundidos. Para un sonido con tonalidad o nota, una línea debajo
   indica en qué lo convierte el cambio («Tonalidad: 8A A menor → 10A B
   menor»);
 - **En tono**: transpone cada sonido que escuchas a la tonalidad del clip
@@ -384,7 +455,10 @@ y se queda a la vista mientras la lista se desplaza:
   una canción menor va a la relativa mayor de la canción (el mismo
   número Camelot, que combina con ella): ningún cambio de tono convierte
   mayor en menor. Los sonidos sin una tonalidad clara suenan tal cual.
-  Pulsa de nuevo para desactivarlo;
+  **Insertar**, un doble clic e **Intro** en una fila también le dan ese
+  tono a un sonido, aunque el panel de escucha aún no lo haya cargado.
+  Cuando el clip seleccionado no tiene tonalidad, En tono se desactiva y
+  dice por qué. Pulsa de nuevo para desactivarlo;
 - **Añadir** lo pone en la línea de tiempo en el cursor, como Insertar.
   Con una parte seleccionada y / o fundidos (sin cambio de tono ni
   Reverso) inserta el **archivo original, recortado a esa parte, con
@@ -413,15 +487,19 @@ onda más alta.
 
 **El teclado** (Espacio, Intro) funciona después de un clic en una fila
 de la Biblioteca, pero no mientras escribes en los campos de búsqueda o
-de BPM.
+de BPM, ni mientras están abiertos los Ajustes, un cuadro de diálogo o una
+lista desplegable. Las demás teclas (J K L, Supr, atajos con Ctrl / Cmd)
+van a Premiere o After Effects como siempre.
 
 El panel reproduce WAV (de 8 a 32 bits, float de 32/64 bits) y AIFF /
 AIFF-C con el lector propio del plugin, en estéreo y a su propia
 frecuencia de muestreo. MP3, M4A / AAC, FLAC y OGG pasan por el
 decodificador del panel, a la frecuencia guardada en el archivo, así que
 nada se remuestrea. Un archivo demasiado largo para guardarlo aquí (más o menos
-más de 10 minutos de estéreo a 96 kHz) suena tal cual, sin cambio de tono
-ni reverso.
+más de 10 minutos de estéreo a 96 kHz ya decodificado; un MP3 decodificado
+ocupa muchas veces su tamaño) dice «Demasiado largo para cargarlo aquí» y
+suena tal cual, sin cambio de tono ni reverso. Un AIFF demasiado largo no se
+puede escuchar aquí, pero **Insertar** lo pone igual en la línea de tiempo.
 
 Por velocidad, el análisis lee parte de cada archivo: una pista de hasta
 100 segundos entera, una más larga durante 90 segundos desde el segundo 30
@@ -451,7 +529,7 @@ clip seleccionado. Selecciona otro clip —en la misma secuencia o en
 otra— y **Pegar marcadores aquí** los recrea en la posición correcta. Copiar
 nunca elimina nada; borra los marcadores que ya no necesites en la propia aplicación.
 
-Solo se transfieren los marcadores dentro del intervalo audible del clip seleccionado. Sus posiciones se miden desde el inicio audible y se adaptan al recorte y la velocidad del destino. Se conservan nombres, comentarios, duraciones y metadatos compatibles; se omiten los marcadores que empiezan fuera del destino; su duración puede superar el final. La transferencia funciona dentro de la misma aplicación.
+Solo se transfieren los marcadores dentro del intervalo audible del clip seleccionado. Sus posiciones se miden desde el inicio audible y se adaptan al recorte y la velocidad del destino. Se conservan nombres, comentarios, duraciones y metadatos compatibles; se omiten los marcadores que empiezan fuera del destino; su duración puede superar el final. La transferencia funciona dentro de la misma aplicación. En Premiere, los marcadores pegados en otro clip del mismo archivo conservan su lugar en la canción, sean cuales sean los dos recortes, así que los marcadores de tiempo siguen en el tiempo.
 
 ## Ajustes
 
@@ -468,8 +546,11 @@ El icono del engranaje, arriba a la derecha:
   - **Cargar copia…** la recupera sin analizar de nuevo. Añade a lo que ya
     hay y nunca quita nada, así que también sirve para pasar una
     biblioteca a un plugin reinstalado (en otro equipo, los archivos en
-    otras rutas se descartan en el siguiente Iniciar análisis).
-  - **Borrar** vacía la biblioteca (pulsa dos veces para confirmar): las
+    otras rutas se descartan en el siguiente Iniciar análisis). Las
+    estrellas y las tonalidades fijadas a mano también vuelven, incluso en
+    sonidos que la biblioteca ya tiene, y el panel dice en cuántos.
+  - **Borrar** vacía la biblioteca (púlsalo y vuelve a pulsar para
+    confirmar; un doble clic rápido no cuenta): las
     carpetas añadidas, todos los sonidos analizados, los favoritos y los
     clips analizados. Tus archivos y carpetas de audio en el disco nunca se
     tocan. Después, cierra y vuelve a abrir el panel de Downbeat.
@@ -477,8 +558,9 @@ El icono del engranaje, arriba a la derecha:
   metrónomo): Documentos/Downbeat/processed, una carpeta Downbeat/processed
   junto al proyecto guardado (guarda antes el proyecto) o una carpeta que
   elijas. El cambio solo afecta a archivos nuevos: no se mueve ni se
-  sobrescribe nada. Los ajustes, las bibliotecas y los archivos temporales
-  siguen en Documentos/Downbeat, y Eliminar mis datos conserva estos WAV.
+  sobrescribe nada. Los ajustes y las bibliotecas siguen en
+  Documentos/Downbeat, los archivos temporales en la carpeta temporal del
+  sistema, y Eliminar mis datos conserva estos WAV.
   Cambiar el tono y Reverso nunca generan audio procesado.
 - **Actualizaciones**: **Comprobar ahora** aparece primero y consulta una
   sola vez aunque los avisos estén desactivados. **Avisarme de una versión
@@ -490,9 +572,14 @@ El icono del engranaje, arriba a la derecha:
   no descarga paquetes ni abre el instalador.
 - **Eliminar mis datos**: quita los ajustes, las dos bibliotecas (los
   clips analizados, y Música / SFX con sus carpetas y resultados) y los
-  archivos temporales que hayan quedado y que Downbeat guardó en
-  Documentos/Downbeat, y nada más: tus archivos de audio nunca se tocan. Antes de
-  borrar nada, muestra la lista exacta de archivos.
+  archivos temporales que hayan quedado y que Downbeat guardó (ver «¿Dónde
+  guarda Downbeat sus datos…?» más abajo), y nada más: tus archivos de audio
+  nunca se tocan. Antes de borrar nada, muestra la lista exacta de archivos;
+  si es larga, desplázala para llegar a los botones. Después solo queda el
+  idioma del panel (y el recorrido no vuelve a mostrarse); todos los demás
+  ajustes vuelven a sus valores iniciales. Si algún archivo no se puede
+  eliminar, el panel lo dice: ciérralo y vuelve a abrirlo, y luego inténtalo
+  de nuevo.
 - **Diagnóstico**: **Copiar registro** pone todo el registro en el
   portapapeles: es lo que conviene enviar al informar de un problema.
   Primero reproduce el problema en la misma sesión, luego copia el registro
@@ -513,10 +600,18 @@ con una capa en lugar de un clip:
 
 - Selecciona la capa de audio en la línea de tiempo de la composición (un
   archivo de audio o un vídeo con sonido). Analizar y Detectar tonalidad
-  leen el archivo de esa capa.
+  leen el archivo de esa capa. La línea del clip nombra la composición que
+  se va a cambiar y el archivo («Comp > Song.wav»); tras un clic en el panel
+  Project puede ser otra composición distinta de la que está en pantalla.
+  Una capa que Downbeat no puede usar (Time Remap, invertida, un vídeo sin
+  sonido, una precomposición) recibe ahí su motivo.
 - **Colocar marcadores** pone marcadores de capa en ella, para que se
   muevan con la capa, o, con **Dónde: Línea de tiempo**, marcadores de
-  composición. Para cortar ahí, **J** y **K** llevan el cursor al
+  composición. Cada marcador de composición lleva también la capa para la
+  que se colocó (un segundo parámetro, «DownbeatLayer», visible solo en el
+  cuadro Marker), así que Colocar y Borrar en una capa nunca se llevan los
+  marcadores de otra. Tras **Split Layer**, **Borrar** en cualquier trozo
+  borra todos los trozos. Para cortar ahí, **J** y **K** llevan el cursor al
   marcador anterior o siguiente, y **Edit → Split Layer** (⌘⇧D en Mac,
   Ctrl+Mayús+D en Windows) divide la capa en el cursor.
 - Los marcadores siempre van al inicio del fotograma en el que empieza el
@@ -533,7 +628,8 @@ con una capa en lugar de un clip:
 - **Copiar / pegar marcadores** funciona entre capas, en la misma
   composición o en otra.
 - **Cambiar el tono del clip** pone la capa nueva justo encima de la capa de
-  la que sale y apaga el sonido de esa capa; un sonido de la Biblioteca entra
+  la que sale y apaga el sonido de esa capa; tus marcadores de capa pasan a
+  ella, los de Downbeat no. Un sonido de la Biblioteca entra
   como capa nueva arriba, en el tiempo actual.
 
 ## FAQ
@@ -588,7 +684,8 @@ Analizar lee el archivo entero, y el análisis de tiempos llega a unos 30
 minutos de audio. Un archivo más largo (una sesión de DJ, un concierto
 grabado) se detiene con un mensaje que lo dice: guarda la parte que
 necesitas como un archivo aparte y analízala. Detectar tonalidad y el
-escaneo de la Biblioteca no tienen ese límite.
+escaneo de la Biblioteca no tienen ese límite. En el otro extremo, el audio
+de menos de 2 segundos, o en silencio, no se analiza.
 
 **¿Se sube alguna vez mi audio o los datos del proyecto?**
 No. El análisis y la Biblioteca se ejecutan por completo en tu equipo. La
@@ -603,30 +700,45 @@ del plugin (firmada por la Node.js Foundation): inicia `analyze-worker.js`,
 `beatthis-worker.js` o `skey-worker.js` desde la carpeta `worker` del
 plugin. Todo ocurre en tu equipo y no se conecta a internet. Permítelo de
 forma permanente (no «una vez» ni «temporalmente») y las preguntas dejarán
-de aparecer.
+de aparecer. Si el sistema o un programa de seguridad lo bloquea, la línea
+del clip lo dice: permite Downbeat ahí e inténtalo de nuevo.
 
 **¿Dónde guarda Downbeat sus datos y cómo los quito?**
-En la carpeta Documentos/Downbeat: tus ajustes, la biblioteca (qué
-carpetas añadiste y qué resultado dio cada archivo, nunca el audio en sí)
-y archivos temporales de corta vida usados durante el análisis (cada uno
-se borra en cuanto termina su análisis). **Ajustes → Eliminar mis datos**
-quita exactamente esos archivos y nada más; si pusiste algo tuyo en esa
-carpeta, se queda. Desinstalar el plugin no toca la carpeta Documentos, así que pulsa
-Eliminar mis datos primero si quieres que no quede nada.
+En la carpeta Documentos/Downbeat: tus ajustes y la biblioteca (qué
+carpetas añadiste y qué resultado dio cada archivo, nunca el audio en sí).
+Los archivos temporales de corta vida usados durante el análisis van a una
+carpeta «Downbeat» dentro de la carpeta temporal del sistema, así que
+OneDrive e iCloud no los ofrecen para sincronizar (Documentos/Downbeat/tmp
+si la carpeta temporal del sistema no se puede usar). Cada uno se borra en
+cuanto termina su análisis, y también cuando se cierra o se recarga el
+panel durante un análisis; un análisis atascado termina solo al pasar su
+tiempo límite. Lo que quede de hace unas horas se limpia en un inicio posterior. **Ajustes →
+Eliminar mis datos** quita exactamente esos archivos y nada más; si pusiste
+algo tuyo en esas carpetas, se queda. Desinstalar el plugin no toca la
+carpeta Documentos, así que pulsa Eliminar mis datos primero si quieres que
+no quede nada.
 
 Cada archivo se guarda escribiendo una copia nueva y sustituyendo la
 anterior, así que un fallo o un disco lleno a mitad del guardado deja entera
 la versión previa. Si aun así un archivo guardado no se puede leer, Downbeat
 conserva su contenido al lado como `<nombre>.unreadable-<fecha>-<hora>.json`
 (nunca guarda encima de esa copia), lo indica en la pestaña Biblioteca y
-empieza esa parte vacía. Si Windows rechaza el guardado (otro programa, como
+empieza esa parte vacía. Unos ajustes ilegibles se indican en una línea bajo
+el encabezado, con el nombre de la copia conservada, y se usan los valores
+por defecto; si settings.json no se puede abrir en absoluto, esa línea dice
+que los ajustes no se guardan hasta reiniciar Premiere o After Effects, y
+las preguntas del primer inicio y el recorrido no empiezan. Cuando un
+guardado falla, una línea bajo el encabezado lo dice hasta que ese archivo
+se vuelva a guardar. Si Windows rechaza el guardado (otro programa, como
 OneDrive o un antivirus, tiene el archivo abierto), los datos nuevos quedan al
 lado como `<nombre>.unsaved-<fecha>-<hora>.json`; cada inicio incorpora esas
 copias, y Downbeat solo borra una cuando un guardado posterior ya ha escrito sus
 datos.
 Premiere Pro y After Effects pueden usar Downbeat a la vez: antes de guardar
 sus cambios, cada panel incorpora lo que guardó el otro, y un ajuste cambiado
-en los dos en el mismo momento no se pierde; tras Eliminar mis datos en uno, el panel del otro se vacía en lugar de volver a guardar los datos
+en los dos en el mismo momento no se pierde, ni tampoco las estrellas, las
+tonalidades fijadas a mano y los valores de **Desplazar** de ninguno de los
+dos; tras Eliminar mis datos en uno, el panel del otro se vacía en lugar de volver a guardar los datos
 antiguos. Los análisis de canciones en un disco desconectado se conservan hasta
 que vuelve.
 

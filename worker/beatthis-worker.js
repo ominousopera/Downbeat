@@ -17,6 +17,9 @@
 // gridBeatsFile, for the panel to use if it keeps that grid.
 "use strict";
 
+// Ends this process if the panel is gone or the time limit has passed.
+require("./lifeline.js").watch();
+
 const pathMod = require("path");
 const fsMod = require("fs");
 // Same reasoning as analyze-worker.js: onnxruntime-web or its dependencies

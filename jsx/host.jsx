@@ -262,6 +262,12 @@ function getSelectedAudioInfo() {
         }
         var inSeconds = clip.inPoint.seconds;
         var outSeconds = _dbClipSourceOut(clip);
+        var disabled = false;
+        try {
+            disabled = clip.disabled === true;
+        } catch (disabledErr) {
+            disabled = false;
+        }
         result.ok = true;
         result.data = {
             mediaPath: mediaPath,
@@ -272,7 +278,8 @@ function getSelectedAudioInfo() {
             speed: speed,
             reversed: reversed,
             frameRate: _getFrameRate(sequence),
-            trackIndex: found.trackIndex
+            trackIndex: found.trackIndex,
+            disabled: disabled
         };
     } catch (e) {
         result.ok = false;
@@ -391,11 +398,15 @@ function _applyMarkerLabel(marker, label) {
 // pass it.
 // Where Place last put timeline (sequence / composition) markers, per
 // sequence and clip instance, for this host session. Timeline markers stay
-// where they were when the clip moves, so re-placing also removes
-// Downbeat's own markers at exactly those times; only Downbeat's own
-// markers (_dbIsOwnMarker) at those exact times go. The key is the clip's own
-// ID, not its media, so another use of the same song keeps its markers.
-// No ID from the host means no key, so nothing is removed.
+// where they were when the clip moves, so re-placing also removes the set
+// Place put down last time, wherever it is; only Downbeat's own markers
+// (_dbIsOwnMarker) of that set go. The key is the clip's own ID, not its
+// media, so another use of the same song keeps its markers. No ID from the
+// host means no key, so nothing is removed.
+// Each value is { t: the markers' times, g: their marker GUIDs }. A set is
+// found by its GUIDs, so another clip's markers on the same frames are never
+// taken for it; a set saved with times only (an array) is still found by
+// those times.
 var _dbPlacedTimeline = {};
 function _dbPlacedKey(ownerId, itemId) {
     if (itemId === undefined || itemId === null || itemId === "") { return null; }
@@ -409,42 +420,198 @@ function _dbPlacedKey(ownerId, itemId) {
 // engine has not seen since it started is seeded from them, so a clip
 // moved after a restart still gets its old set replaced and Clear reaches
 // it. A key the engine holds is newer than the panel's copy and wins.
-function _dbSeedPlacedTimeline(knownJson) {
-    if (!knownJson) { return; }
-    var known = null;
-    try { known = JSON.parse(knownJson); } catch (parseErr) { known = null; }
+function _dbSeedPlacedTimeline(known) {
+    if (!known) { return; }
+    if (typeof known === "string") {
+        try { known = JSON.parse(known); } catch (parseErr) { known = null; }
+    }
     if (!known || typeof known !== "object") { return; }
     for (var key in known) {
-        if (known.hasOwnProperty(key) && !_dbPlacedTimeline.hasOwnProperty(key) &&
-                known[key] && known[key].length !== undefined) {
-            _dbPlacedTimeline[key] = known[key];
+        if (known.hasOwnProperty(key) && !_dbPlacedTimeline.hasOwnProperty(key)) {
+            var entry = _dbPlacedEntry(known[key]);
+            if (entry) { _dbPlacedTimeline[key] = entry; }
         }
     }
 }
-function _dbRemoveOwnAtTimes(markers, times) {
-    var doomed = [];
-    var m = markers.getFirstMarker();
+// One remembered set as { t, g }; g is null for a set kept by times only.
+function _dbPlacedEntry(value) {
+    if (!value || typeof value !== "object") { return null; }
+    if (value.length !== undefined) { return { t: value, g: null }; }
+    if (!value.t || value.t.length === undefined) { return null; }
+    return { t: value.t, g: value.g && value.g.length !== undefined ? value.g : null };
+}
+function _dbMarkerGuid(m) {
+    try { return m.guid ? String(m.guid) : null; } catch (guidErr) { return null; }
+}
+
+// Pieces of one clip: after a cut both pieces play the same media at the
+// same speed and direction, each moment of the song at the same timeline
+// time (a copy laid exactly over the clip counts too). A piece moved away,
+// or another use of the song, is another clip.
+function _dbSameClip(a, b) {
+    if (a && b && a.nodeId !== undefined && b.nodeId !== undefined) { return String(a.nodeId) === String(b.nodeId); }
+    return a === b;
+}
+function _dbClipReversed(clip) {
+    try { return typeof clip.isSpeedReversed === "function" && !!clip.isSpeedReversed(); } catch (revErr) { return false; }
+}
+function _dbClipOrigin(clip) {
+    var speed = _dbClipSpeed(clip);
+    return _dbClipReversed(clip) ? clip.start.seconds + _dbClipSourceOut(clip) / speed : clip.start.seconds - clip.inPoint.seconds / speed;
+}
+function _dbSameMedia(a, b) {
+    if (a.projectItem === b.projectItem) { return true; }
+    try {
+        if (a.projectItem.nodeId && a.projectItem.nodeId === b.projectItem.nodeId) { return true; }
+        return _dbSamePath(a.projectItem.getMediaPath(), b.projectItem.getMediaPath());
+    } catch (mediaErr) {
+        return false;
+    }
+}
+function _dbSamePiece(a, b) {
+    return !!a && !!b && !_dbSameClip(a, b) && Math.abs(_dbClipSpeed(a) - _dbClipSpeed(b)) < 1e-6 &&
+        _dbClipReversed(a) === _dbClipReversed(b) && Math.abs(_dbClipOrigin(a) - _dbClipOrigin(b)) < 0.0005 && _dbSameMedia(a, b);
+}
+function _dbClipCovers(clip, t) {
+    return t >= clip.start.seconds - 0.0005 && t <= clip.end.seconds + 0.0005;
+}
+// Whether a marker at t is over `owner`'s music. A marker on its end point
+// is the first frame of whatever follows: it goes with `clip` when `clip`
+// starts playing there.
+function _dbClipHolds(owner, t, clip) {
+    if (!_dbClipCovers(owner, t)) { return false; }
+    if (t < owner.end.seconds - 0.0005) { return true; }
+    return !(t >= clip.start.seconds - 0.0005 && t < clip.end.seconds - 0.0005);
+}
+function _dbAudioClipsById(sequence) {
+    var byId = {};
+    for (var t = 0; t < sequence.audioTracks.numTracks; t++) {
+        var clips = sequence.audioTracks[t].clips;
+        for (var c = 0; c < clips.numItems; c++) {
+            if (clips[c].nodeId !== undefined && clips[c].nodeId !== null) { byId[String(clips[c].nodeId)] = clips[c]; }
+        }
+    }
+    return byId;
+}
+
+// The Downbeat timeline markers Place (mode "place") or Clear ("clear") on
+// `clip` takes, and the remembered sets they came from:
+//   - the set Place last put down for this clip, wherever the clip sits now
+//     (after a move the old set would stay off the beat);
+//     on Place, its markers over another piece of the clip stay there;
+//   - on Clear also the sets of the clip's other pieces after a cut;
+//   - in the clip's own range, Downbeat markers no clip holds: of no
+//     remembered set, or of a clip that is gone or not under them any more.
+// A marker of another clip's set stays wherever that clip still plays,
+// even where the two clips overlap. Never anything _dbIsOwnMarker rejects.
+function _dbTimelinePlan(sequence, clip, mode) {
+    var seqId = sequence.sequenceID || sequence.name;
+    var prefix = "pr|" + String(seqId) + "|";
+    var myKey = _dbPlacedKey(seqId, clip.nodeId);
+    var clips = _dbAudioClipsById(sequence);
+    var mine = {};
+    if (myKey) { mine[myKey] = true; }
+    var present = {};
+    var m = sequence.markers.getFirstMarker();
     while (m) {
-        if (_dbIsOwnMarker(m)) {
-            for (var i = 0; i < times.length; i++) {
-                if (Math.abs(m.start.seconds - times[i]) < 0.0005) { doomed.push(m); break; }
+        var mGuid = _dbMarkerGuid(m);
+        if (mGuid !== null) { present[mGuid] = true; }
+        m = sequence.markers.getNextMarker(m);
+    }
+    // A set is found by its marker ids; by its times when none of them is
+    // there (a set saved by times only, or ids the host did not keep).
+    var byGuid = {};
+    var byTime = [];
+    for (var key in _dbPlacedTimeline) {
+        if (!_dbPlacedTimeline.hasOwnProperty(key)) { continue; }
+        var entry = _dbPlacedEntry(_dbPlacedTimeline[key]);
+        if (!entry) { continue; }
+        var here = key.indexOf(prefix) === 0;
+        var found = false;
+        for (var g = 0; entry.g && g < entry.g.length; g++) {
+            if (entry.g[g] && present.hasOwnProperty(String(entry.g[g]))) {
+                byGuid[String(entry.g[g])] = key;
+                found = true;
             }
         }
-        m = markers.getNextMarker(m);
+        if (!found && here) {
+            byTime.push({ key: key, times: entry.t });
+        }
+        if (mode === "clear" && here && key !== myKey && _dbSamePiece(clips[key.substring(prefix.length)], clip)) {
+            mine[key] = true;
+        }
     }
-    for (var d = 0; d < doomed.length; d++) { markers.deleteMarker(doomed[d]); }
-    return doomed.length;
+    var pieces = [];
+    for (var id in clips) {
+        if (clips.hasOwnProperty(id) && _dbSamePiece(clips[id], clip)) { pieces.push(clips[id]); }
+    }
+    var doomed = [];
+    m = sequence.markers.getFirstMarker();
+    while (m) {
+        if (_dbIsOwnMarker(m)) {
+            var t = m.start.seconds;
+            var inRange = _dbClipCovers(clip, t);
+            var keys = [];
+            var guid = _dbMarkerGuid(m);
+            if (guid !== null && byGuid.hasOwnProperty(guid)) {
+                keys.push(byGuid[guid]);
+            } else {
+                for (var b = 0; b < byTime.length; b++) {
+                    for (var i = 0; i < byTime[b].times.length; i++) {
+                        if (Math.abs(t - byTime[b].times[i]) < 0.0005) { keys.push(byTime[b].key); break; }
+                    }
+                }
+            }
+            var ours = false;
+            var held = false;
+            for (var k = 0; k < keys.length; k++) {
+                if (mine[keys[k]]) { ours = true; continue; }
+                var owner = keys[k].indexOf(prefix) === 0 ? clips[keys[k].substring(prefix.length)] : null;
+                if (owner && !_dbSameClip(owner, clip) && _dbClipHolds(owner, t, clip)) { held = true; }
+            }
+            var take = inRange;
+            if (held) {
+                take = false;
+            } else if (ours && !inRange && mode !== "clear") {
+                take = true;
+                for (var p = 0; p < pieces.length; p++) {
+                    if (_dbClipHolds(pieces[p], t, clip)) { take = false; break; }
+                }
+            } else if (ours) {
+                take = true;
+            }
+            if (take) { doomed.push(m); }
+        }
+        m = sequence.markers.getNextMarker(m);
+    }
+    var forget = [];
+    for (var f in mine) {
+        if (mine.hasOwnProperty(f)) { forget.push(f); }
+    }
+    return { markers: doomed, keys: forget };
 }
-// Removes Downbeat's own timeline markers at the times Place last put them
-// for this clip instance, wherever the clip sits now, and forgets those
-// times. Both placements call it, so after the clip moved, Place on the
-// clip does not leave the earlier timeline set where the music was.
-function _dbRemoveLastTimelineSet(sequence, clip) {
-    var key = _dbPlacedKey(sequence.sequenceID || sequence.name, clip.nodeId);
-    if (!key || !_dbPlacedTimeline[key]) { return 0; }
-    var removed = _dbRemoveOwnAtTimes(sequence.markers, _dbPlacedTimeline[key]);
-    delete _dbPlacedTimeline[key];
-    return removed;
+// Removes what _dbTimelinePlan names and forgets those sets.
+function _dbRemoveTimelinePlan(sequence, plan) {
+    for (var d = 0; d < plan.markers.length; d++) { sequence.markers.deleteMarker(plan.markers[d]); }
+    for (var k = 0; k < plan.keys.length; k++) { delete _dbPlacedTimeline[plan.keys[k]]; }
+    return plan.markers.length;
+}
+
+// Pitch the clip puts a new clip where the original plays: the timeline set
+// placed for the original now belongs to it, so Place or Clear on the
+// pitched clip replaces that whole set, also past its shorter end. Returns
+// what the panel keeps (as a placement's answer), or null.
+function _dbHandOverTimelineSet(sequence, fromClip, toClip, known) {
+    var seqId = sequence.sequenceID || sequence.name;
+    var fromKey = _dbPlacedKey(seqId, fromClip.nodeId);
+    var toKey = _dbPlacedKey(seqId, toClip.nodeId);
+    if (!fromKey || !toKey || fromKey === toKey) { return null; }
+    _dbSeedPlacedTimeline(known);
+    var entry = _dbPlacedEntry(_dbPlacedTimeline[fromKey]);
+    if (!entry || !entry.t.length) { return null; }
+    _dbPlacedTimeline[toKey] = entry;
+    delete _dbPlacedTimeline[fromKey];
+    return { placedKey: toKey, placedTimes: entry.t, placedIds: entry.g, forgetKeys: [fromKey] };
 }
 
 function createMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJson, knownPlacedJson) {
@@ -474,16 +641,20 @@ function createMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJ
             placedKey = _dbPlacedKey(sequence.sequenceID || sequence.name, ownClip.nodeId);
             _dbSeedPlacedTimeline(knownPlacedJson);
             replacedCount = _removeOwnMarkersAroundClip(sequence, ownClip);
-            replacedCount += _dbRemoveLastTimelineSet(sequence, ownClip);
         }
         var createdCount = 0;
         var stored = [];
         var placedTimes = [];
+        var placedIds = [];
         for (var i = 0; i < times.length; i++) {
             var marker = sequence.markers.createMarker(times[i]);
             if (marker) {
                 createdCount++;
                 try { placedTimes.push(marker.start.seconds); } catch (readErr) { placedTimes.push(times[i]); }
+                if (placedIds) {
+                    var guid = _dbMarkerGuid(marker);
+                    if (guid === null) { placedIds = null; } else { placedIds.push(guid); }
+                }
                 _noteStored(stored, marker, times[i]);
                 if (labels) {
                     _applyMarkerLabel(marker, labels[i]);
@@ -491,7 +662,7 @@ function createMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJ
             }
         }
         if (placedKey) {
-            _dbPlacedTimeline[placedKey] = placedTimes;
+            _dbPlacedTimeline[placedKey] = { t: placedTimes, g: placedIds };
         }
         result.ok = true;
         result.data = {
@@ -500,7 +671,8 @@ function createMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJ
             replaced: replacedCount,
             stored: stored,
             placedKey: placedKey,
-            placedTimes: placedKey ? placedTimes : null
+            placedTimes: placedKey ? placedTimes : null,
+            placedIds: placedKey ? placedIds : null
         };
     } catch (e) {
         result.ok = false;
@@ -542,19 +714,21 @@ function _countOwnMarkersInRange(markers, fromSeconds, toSeconds) {
     }
     return count;
 }
-// How many of Downbeat's own markers are around the selected clip - the same
-// set placing replaces (sequence markers in its timeline range, clip markers
-// in its source in/out). Shift and the "1" buttons ask before they put
-// markers down again.
-function countOwnMarkersForSelectedClip() {
+
+// How many of Downbeat's own markers are around the selected clip - the
+// same set placing replaces (its timeline set, see _dbTimelinePlan, and clip
+// markers in its source in/out). Shift and the "1" buttons ask before
+// they put markers down again.
+function countOwnMarkersForSelectedClip(knownPlacedJson) {
     if (_dbIsAe()) {
-        return dbAeCountOwnMarkersForSelectedClip();
+        return dbAeCountOwnMarkersForSelectedClip(knownPlacedJson);
     }
     var result = { ok: false, error: null, data: null };
     try {
         var sequence = _getActiveSequenceOrThrow();
         var clip = _findSelectedAudioClipOrThrow(sequence).clip;
-        var count = _countOwnMarkersInRange(sequence.markers, clip.start.seconds, clip.end.seconds);
+        _dbSeedPlacedTimeline(knownPlacedJson);
+        var count = _dbTimelinePlan(sequence, clip, "place").markers.length;
         var projectItem = clip.projectItem;
         if (projectItem && typeof projectItem.getMarkers === "function") {
             var clipMarkers = projectItem.getMarkers();
@@ -570,11 +744,13 @@ function countOwnMarkersForSelectedClip() {
     }
     return JSON.stringify(result);
 }
-// Removes both kinds of Downbeat marker around one selected clip: sequence
-// markers within its timeline range, clip markers within its source in/out
-// range.
+
+// Both kinds of Downbeat marker around one selected clip: its timeline set
+// (_dbTimelinePlan), clip markers within its source in/out range
+// (the clip / timeline choice). Placing replaces
+// the set wherever it went before, so switching targets never leaves two.
 function _removeOwnMarkersAroundClip(sequence, clip) {
-    var removed = _removeOwnMarkersInRange(sequence.markers, clip.start.seconds, clip.end.seconds);
+    var removed = _dbRemoveTimelinePlan(sequence, _dbTimelinePlan(sequence, clip, "place"));
     var projectItem = clip.projectItem;
     if (projectItem && typeof projectItem.getMarkers === "function") {
         var clipMarkers = projectItem.getMarkers();
@@ -640,7 +816,6 @@ function createClipMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, refere
             placedKey = _dbPlacedKey(sequence.sequenceID || sequence.name, found.clip.nodeId);
             _dbSeedPlacedTimeline(knownPlacedJson);
             replacedCount = _removeOwnMarkersAroundClip(sequence, found.clip);
-            replacedCount += _dbRemoveLastTimelineSet(sequence, found.clip);
         }
         var createdCount = 0;
         var stored = [];
@@ -736,12 +911,27 @@ function testRazorAtSeconds(secondsValue) {
     }
     return JSON.stringify(result);
 }
-// Cleanup for the two kinds of markers this plugin can create, scoped to the
-// selected clip. Only Downbeat's own markers - the ones _dbIsOwnMarker
-// recognizes - are ever removed; markers an editor placed by
-// hand always stay. Unlike createClipMarkers()'s replaceOwn, Clear is not
-// limited to this instance's in/out range: it means "start over", so every
-// Downbeat marker on the media goes, also on the other pieces after a cut.
+
+// Cleanup for the two kinds of markers this plugin can create - scoped to
+// the selected clip only, never every marker in the sequence (that would
+// also remove markers an editor placed by hand elsewhere in the project).
+// Markers are collected into a plain array before any deleteMarker() call,
+// since changing the collection while walking it with getNextMarker() is
+// unsafe.
+//   - Sequence markers: the sets placed for this clip and its other pieces
+//     after a cut, and Downbeat's markers in its range that no other clip
+//     holds (_dbTimelinePlan). Sequence markers are not track-scoped, so a
+//     set placed for a clip on another track that overlaps this one stays.
+//   - Clip/project-item markers: Downbeat's own on the selected clip's media
+//     item (see createClipMarkers() above for the caveat about it being
+//     shared across every sequence instance of that item).
+// Only Downbeat's own markers - named with one of our type codes
+// (LABEL_COLOR_INDEX) - ever go, as the hint and the tour say; no call can
+// clear an editor's markers.
+// Unlike createClipMarkers()'s replaceOwn, Clear is not limited to this
+// instance's in/out range: it means "start over", so every Downbeat marker
+// on the media goes - also on the other pieces after a cut (the self-test
+// clears that way). Copy markers never removes anything.
 function clearMarkersForSelectedClip(unused, knownPlacedJson) {
     if (_dbIsAe()) {
         return dbAeClearMarkersForSelectedClip(knownPlacedJson);
@@ -753,28 +943,17 @@ function clearMarkersForSelectedClip(unused, knownPlacedJson) {
         var clip = found.clip;
         var clipStart = clip.start.seconds;
         var clipEnd = clip.end.seconds;
-        var epsilon = 0.0005;
-        var sequenceMarkersRemoved = 0;
-        var seqMarkers = sequence.markers;
-        var seqToDelete = [];
-        var sm = seqMarkers.getFirstMarker();
-        while (sm) {
-            var markerSeconds = sm.start.seconds;
-            if (markerSeconds >= clipStart - epsilon && markerSeconds <= clipEnd + epsilon &&
-                    _dbIsOwnMarker(sm)) {
-                seqToDelete.push(sm);
-            }
-            sm = seqMarkers.getNextMarker(sm);
-        }
-        for (var i = 0; i < seqToDelete.length; i++) {
-            seqMarkers.deleteMarker(seqToDelete[i]);
-            sequenceMarkersRemoved++;
-        }
-        // And the set Place last put on the timeline for this clip, wherever
-        // the clip sat then.
+        // The timeline sets of this clip and of its other pieces after a
+        // cut, wherever they sit, and Downbeat
+        // markers in its range that no other clip holds (_dbTimelinePlan).
         var placedKey = _dbPlacedKey(sequence.sequenceID || sequence.name, clip.nodeId);
         _dbSeedPlacedTimeline(knownPlacedJson);
-        sequenceMarkersRemoved += _dbRemoveLastTimelineSet(sequence, clip);
+        var plan = _dbTimelinePlan(sequence, clip, "clear");
+        var sequenceMarkersRemoved = _dbRemoveTimelinePlan(sequence, plan);
+        var forgetKeys = [];
+        for (var i = 0; i < plan.keys.length; i++) {
+            if (plan.keys[i] !== placedKey) { forgetKeys.push(plan.keys[i]); }
+        }
         var clipMarkersRemoved = 0;
         var clipMarkersAttempted = false;
         var projectItem = clip.projectItem;
@@ -792,7 +971,8 @@ function clearMarkersForSelectedClip(unused, knownPlacedJson) {
             clipMarkersAttempted: clipMarkersAttempted,
             clipStartSeconds: clipStart,
             clipEndSeconds: clipEnd,
-            placedKey: placedKey
+            placedKey: placedKey,
+            forgetKeys: forgetKeys
         };
     } catch (e) {
         result.ok = false;
@@ -851,7 +1031,13 @@ function getMarkersDataForSelectedClip() {
         var marker = seq.getFirstMarker();
         while (marker) {
             if (marker.start.seconds >= clip.start.seconds - 0.0005 && marker.start.seconds <= clip.end.seconds + 0.0005) {
-                seqData.push(_dbPremiereMarkerData(marker, marker.start.seconds - clip.start.seconds, Math.max(0, marker.end.seconds - marker.start.seconds)));
+                var seqEntry = _dbPremiereMarkerData(marker, marker.start.seconds - clip.start.seconds, Math.max(0, marker.end.seconds - marker.start.seconds));
+                if (!info.reversed) {
+                    // Where it sits in the song, for a paste onto the same file.
+                    seqEntry.sourceSeconds = info.inPointSeconds + seqEntry.localSeconds * info.speed;
+                    seqEntry.sourceDuration = seqEntry.duration * info.speed;
+                }
+                seqData.push(seqEntry);
             }
             marker = seq.getNextMarker(marker);
         }
@@ -963,6 +1149,24 @@ function pasteMarkersData(dataJson, referenceJson) {
             }
             plan.skipped -= source.clipMarkers.length - plan.clipMarkers.length;
             plan.clipMarkers = own;
+            // Timeline markers keep their place in the song too: by their
+            // distance from the clip's start, beat markers would land off
+            // the beat wherever the two trims differ.
+            if (!info.reversed) {
+                var onSong = [];
+                var offSong = 0;
+                for (var q = 0; q < source.sequenceMarkers.length; q++) {
+                    var sq = source.sequenceMarkers[q];
+                    if (typeof sq.sourceSeconds !== "number" || !isFinite(sq.sourceSeconds)) { onSong = null; break; }
+                    if (sq.sourceSeconds < info.inPointSeconds - 0.0005 || sq.sourceSeconds > info.outPointSeconds + 0.0005) { offSong++; continue; }
+                    onSong.push({ time: info.clipStartSeconds + (sq.sourceSeconds - info.inPointSeconds) / info.speed,
+                        duration: typeof sq.sourceDuration === "number" ? sq.sourceDuration / info.speed : sq.duration, data: sq });
+                }
+                if (onSong) {
+                    plan.skipped += offSong - (source.sequenceMarkers.length - plan.sequenceMarkers.length);
+                    plan.sequenceMarkers = onSong;
+                }
+            }
         }
         var groups = [plan.sequenceMarkers, plan.clipMarkers];
         for (var g = 0; g < groups.length; g++) {
@@ -1047,8 +1251,14 @@ function _dbWasInList(item, list) {
 }
 
 // Imports the file once more for a pitched copy and returns the new item.
-function _dbImportPitchedCopy(downbeatBin, file, mediaPath) {
-    var bin = _dbFindChildBin(downbeatBin, PITCHED_BIN_NAME) || downbeatBin.createBin(PITCHED_BIN_NAME);
+// `made` collects the item and any bin made here, so a refused pitch can
+// take them away again (_dbDiscardMade).
+function _dbImportPitchedCopy(downbeatBin, file, mediaPath, made) {
+    var bin = _dbFindChildBin(downbeatBin, PITCHED_BIN_NAME);
+    if (!bin) {
+        bin = downbeatBin.createBin(PITCHED_BIN_NAME);
+        made.bins.push(bin);
+    }
     var before = _dbChildList(bin);
     app.project.importFiles([file.fsName], true, bin, false);
     for (var i = bin.children.numItems - 1; i >= 0; i--) {
@@ -1056,14 +1266,63 @@ function _dbImportPitchedCopy(downbeatBin, file, mediaPath) {
         var childPath = null;
         try { childPath = child.getMediaPath(); } catch (pathErr) { childPath = null; }
         if (childPath && _dbSamePath(childPath, mediaPath) && !_dbItemOffline(child) && !_dbWasInList(child, before)) {
+            made.items.push(child);
             return child;
         }
     }
     // When this Premiere adds no second item for the same file to that bin,
     // the copy is imported into a new bin of the same name instead.
     var own = downbeatBin.createBin(PITCHED_BIN_NAME);
+    made.bins.push(own);
     app.project.importFiles([file.fsName], true, own, false);
-    return _findItemInBinByPath(own, mediaPath);
+    var ownItem = _findItemInBinByPath(own, mediaPath);
+    if (ownItem) { made.items.push(ownItem); }
+    return ownItem;
+}
+
+// A refused pitch takes away what this call added to the project: the
+// items it imported or made (only while no clip uses them) and its bins
+// once they are empty. Premiere deletes items only with a bin, so they go
+// into a bin of their own first, and that bin goes only when it holds
+// nothing else.
+function _dbItemUsed(sequence, item) {
+    var groups = [sequence.audioTracks, sequence.videoTracks];
+    for (var g = 0; g < groups.length; g++) {
+        for (var t = 0; t < groups[g].numTracks; t++) {
+            var clips = groups[g][t].clips;
+            for (var c = 0; c < clips.numItems; c++) {
+                var used = clips[c].projectItem;
+                if (used && (used === item || (item.nodeId !== undefined && used.nodeId === item.nodeId))) { return true; }
+            }
+        }
+    }
+    return false;
+}
+function _dbBinHoldsOnly(bin, items) {
+    for (var i = 0; i < bin.children.numItems; i++) {
+        if (!_dbWasInList(bin.children[i], items)) { return false; }
+    }
+    return true;
+}
+function _dbDiscardMade(sequence, parentBin, made) {
+    try {
+        var items = [];
+        for (var i = 0; i < made.items.length; i++) {
+            if (made.items[i] && !_dbItemUsed(sequence, made.items[i])) { items.push(made.items[i]); }
+        }
+        if (items.length && typeof items[0].moveBin === "function") {
+            var bin = parentBin.createBin(PITCHED_BIN_NAME);
+            for (var m = 0; m < items.length; m++) {
+                try { items[m].moveBin(bin); } catch (moveErr) { /* stays where it is */ }
+            }
+            if (typeof bin.deleteBin === "function" && _dbBinHoldsOnly(bin, items)) { bin.deleteBin(); }
+        }
+        for (var b = made.bins.length - 1; b >= 0; b--) {
+            if (made.bins[b].children.numItems === 0 && typeof made.bins[b].deleteBin === "function") { made.bins[b].deleteBin(); }
+        }
+    } catch (discardErr) {
+        // the unused item stays in the bin
+    }
 }
 // True only when Premiere says the item's media is offline. A host without
 // ProjectItem.isOffline() counts it as online.
@@ -1574,6 +1833,7 @@ function retryEdgeFades(target, startSeconds, optsJson, placedToken) {
     }
     return JSON.stringify(result);
 }
+
 // Validate the displayed pitch plan before importing or changing any clip.
 function _dbAssertPitchReference(reference) {
     var selection = JSON.parse(getSelectedAudioInfo());
@@ -1585,7 +1845,8 @@ function _dbAssertPitchReference(reference) {
         Math.abs(clip.clipStartSeconds - reference.clipStartSeconds) > 0.0001 ||
         Math.abs(clip.inPointSeconds - reference.inPointSeconds) > 0.0001 ||
         Math.abs(clip.outPointSeconds - reference.outPointSeconds) > 0.0001 ||
-        Math.abs((clip.speed || 1) - (reference.speed || 1)) > 0.0001 || !!clip.reversed !== !!reference.reversed) {
+        Math.abs((clip.speed || 1) - (reference.speed || 1)) > 0.0001 || !!clip.reversed !== !!reference.reversed ||
+        !!clip.disabled !== !!reference.disabled) {
         throw new Error("The selected clip changed. Review the pitch plan and try again.");
     }
 }
@@ -1624,33 +1885,266 @@ function _dbPreparePitchMarkers(item, original) {
     }
 }
 
-// The first unlocked audio track from `firstTrack` on with nothing between
-// startSeconds and startSeconds + span, or -1.
-function _dbFreeAudioTrack(sequence, firstTrack, startSeconds, span) {
-    for (var t = firstTrack; t < sequence.audioTracks.numTracks; t++) {
-        var track = sequence.audioTracks[t];
-        var locked = false;
+// A track that takes no new clip: locked, or muted by the editor (a sound
+// placed there is not heard, and Pitch switches the original off).
+function _dbTrackClosed(track) {
+    var closed = false;
+    try {
+        closed = typeof track.isLocked === "function" && track.isLocked() === true;
+    } catch (lockErr) {
+        closed = false;
+    }
+    if (!closed) {
         try {
-            locked = typeof track.isLocked === "function" && track.isLocked();
-        } catch (lockErr) {
-            locked = false;
+            closed = typeof track.isMuted === "function" && track.isMuted() === true;
+        } catch (muteErr) {
+            closed = false;
         }
-        if (locked) {
-            continue;
+    }
+    return closed;
+}
+function _dbTrackEmptyAt(track, startSeconds, span) {
+    for (var c = 0; c < track.clips.numItems; c++) {
+        var clip = track.clips[c];
+        if (clip.start.seconds < startSeconds + span - 0.001 && clip.end.seconds > startSeconds + 0.001) {
+            return false;
         }
+    }
+    return true;
+}
+
+// The first audio track from `firstTrack` on where `count` tracks in a row
+// (media with several mono channels takes a track for each) are open and
+// have nothing between startSeconds and startSeconds + span, or -1.
+function _dbFreeAudioTrack(sequence, firstTrack, startSeconds, span, count) {
+    var need = count > 1 ? Math.floor(count) : 1;
+    for (var t = firstTrack; t + need <= sequence.audioTracks.numTracks; t++) {
         var free = true;
-        for (var c = 0; c < track.clips.numItems; c++) {
-            var clip = track.clips[c];
-            if (clip.start.seconds < startSeconds + span - 0.001 && clip.end.seconds > startSeconds + 0.001) {
-                free = false;
-                break;
-            }
+        for (var k = t; k < t + need && free; k++) {
+            var track = sequence.audioTracks[k];
+            free = !_dbTrackClosed(track) && _dbTrackEmptyAt(track, startSeconds, span);
         }
         if (free) {
             return t;
         }
     }
     return -1;
+}
+
+// How many audio clips the item lays down: camera dual mono or a poly WAV
+// taken as mono channels gives one per channel, each on a track of its
+// own. 1 when this Premiere cannot say.
+function _dbItemAudioClipCount(item) {
+    try {
+        var mapping = item.getAudioChannelMapping;
+        if (typeof mapping === "function") {
+            mapping = item.getAudioChannelMapping();
+        }
+        var n = mapping ? Number(mapping.audioClipsNumber) : NaN;
+        if (isFinite(n) && n >= 1 && n <= 32) {
+            return Math.floor(n);
+        }
+    } catch (mapErr) {
+        // unknown below
+    }
+    return 1;
+}
+
+// Downbeat places sound only. A file that may hold picture (anything but
+// a plain audio format) is laid down through an audio-only subclip, so no
+// picture lands over the editor's video.
+var _DB_AUDIO_ONLY_EXT = /\.(wav|wave|bwf|aif|aiff|aifc|mp3|m4a|aac|flac|ogg|oga|opus|wma|caf)$/i;
+function _dbAudioOnlySubclip(item, endSeconds, mediaPath) {
+    if (typeof item.createSubClip !== "function" || !(endSeconds > 0)) {
+        return null;
+    }
+    var start = new Time();
+    start.seconds = 0;
+    var end = new Time();
+    end.seconds = endSeconds;
+    // Time values, as in Adobe's sample; tick strings where those are refused.
+    var ranges = [[start, end], ["0", String(Math.round(endSeconds * TICKS_PER_SECOND))]];
+    for (var r = 0; r < ranges.length; r++) {
+        var sub = null;
+        try {
+            sub = item.createSubClip(item.name, ranges[r][0], ranges[r][1], 0, 0, 1); // no picture, sound only
+        } catch (subErr) {
+            sub = null;
+        }
+        var subPath = null;
+        try { subPath = sub ? sub.getMediaPath() : null; } catch (pathErr) { subPath = null; }
+        if (subPath && _dbSamePath(subPath, mediaPath)) {
+            return sub;
+        }
+    }
+    return null;
+}
+
+// The project item's own In / Out, the marks the editor sets in the Source
+// Monitor. An insert sets In / Out for a part, so they are read first,
+// cleared for the insert (a whole sound is laid down whole) and put back
+// after it. readable is false when this Premiere cannot read them; then
+// they are left as they are.
+function _dbItemPointSeconds(item, getter) {
+    if (typeof item[getter] !== "function") {
+        return null;
+    }
+    // Without a media type first, then for every media type (4).
+    for (var a = 0; a < 2; a++) {
+        try {
+            var t = a === 0 ? item[getter]() : item[getter](4);
+            var s = t && typeof t.seconds === "number" ? t.seconds : Number(t);
+            if (t !== null && t !== undefined && isFinite(s)) {
+                return s;
+            }
+        } catch (pointErr) {
+            // the next way, or unknown below
+        }
+    }
+    return null;
+}
+function _dbTakeItemMarks(item) {
+    var marks = { readable: false, inSec: _dbItemPointSeconds(item, "getInPoint"), outSec: _dbItemPointSeconds(item, "getOutPoint"),
+        mediaEnd: null, hadIn: false, hadOut: false };
+    if (marks.inSec === null || marks.outSec === null || typeof item.clearInPoint !== "function" || typeof item.clearOutPoint !== "function") {
+        return marks;
+    }
+    var clearedOut = false;
+    try { item.clearInPoint(); } catch (clearInErr) { /* put back below all the same */ }
+    try { item.clearOutPoint(); clearedOut = true; } catch (clearOutErr) { clearedOut = false; }
+    marks.readable = true;
+    marks.mediaEnd = clearedOut ? _dbItemPointSeconds(item, "getOutPoint") : null;
+    marks.hadIn = marks.inSec > 0.0005;
+    marks.hadOut = marks.mediaEnd === null || marks.outSec < marks.mediaEnd - 0.0005;
+    return marks;
+}
+function _dbPutBackItemMarks(item, marks, touched) {
+    if (marks.readable && (marks.hadIn || marks.hadOut)) {
+        try {
+            if (marks.hadIn) { item.setInPoint(marks.inSec, 4); } else { item.clearInPoint(); }
+        } catch (inErr) { /* nothing more to do */ }
+        try {
+            if (marks.hadOut) { item.setOutPoint(marks.outSec, 4); } else { item.clearOutPoint(); }
+        } catch (outErr) { /* same */ }
+        return;
+    }
+    if (touched) {
+        try { item.clearInPoint(); } catch (clearInErr) { /* older Premiere: the bin item keeps the marks */ }
+        try { item.clearOutPoint(); } catch (clearOutErr) { /* same */ }
+    }
+}
+
+// Every clip of the sequence, to tell afterwards which ones an insert added.
+function _dbAllClips(sequence) {
+    var all = [];
+    var groups = [sequence.audioTracks, sequence.videoTracks];
+    for (var g = 0; g < groups.length; g++) {
+        for (var t = 0; t < groups[g].numTracks; t++) {
+            var clips = groups[g][t].clips;
+            for (var c = 0; c < clips.numItems; c++) {
+                all.push(clips[c]);
+            }
+        }
+    }
+    return all;
+}
+// What the insert laid down, { audio: [{ track, clip }], video: [...] }:
+// on the target track (free there before) the clip starting at
+// startSeconds; anywhere else a clip of `item` starting there that its own
+// ID shows to be new.
+function _dbPlacedParts(sequence, before, item, startSeconds, target) {
+    var parts = { audio: [], video: [] };
+    var groups = [sequence.audioTracks, sequence.videoTracks];
+    for (var g = 0; g < groups.length; g++) {
+        for (var t = 0; t < groups[g].numTracks; t++) {
+            var clips = groups[g][t].clips;
+            for (var c = 0; c < clips.numItems; c++) {
+                var clip = clips[c];
+                if (Math.abs(clip.start.seconds - startSeconds) >= 0.02) {
+                    continue;
+                }
+                var used = clip.projectItem;
+                var ours = g === 0 && t === target;
+                if (!ours) {
+                    ours = clip.nodeId !== undefined && !_dbWasInList(clip, before) && !!used &&
+                        (used === item || (item.nodeId !== undefined && used.nodeId === item.nodeId));
+                }
+                if (ours) {
+                    (g === 0 ? parts.audio : parts.video).push({ track: t, clip: clip });
+                }
+            }
+        }
+    }
+    return parts;
+}
+// Takes away what the insert laid down (found again the same way), and
+// only that: an editor's clip was there before, or is of another item.
+function _dbRemovePlaced(sequence, before, item, startSeconds, target, videoOnly) {
+    var parts = _dbPlacedParts(sequence, before, item, startSeconds, target);
+    var list = videoOnly ? parts.video : parts.audio.concat(parts.video);
+    for (var i = 0; i < list.length; i++) {
+        try { list[i].clip.remove(false, false); } catch (removeErr) { /* reported by the caller */ }
+    }
+    return list.length;
+}
+
+// The original's other mono channels: the same media, linked to it, at the
+// same place on other audio tracks. They are switched off with it, so none
+// of them plays along with the pitched copy.
+function _dbOnAudioTrack(sequence, clip) {
+    for (var t = 0; t < sequence.audioTracks.numTracks; t++) {
+        var clips = sequence.audioTracks[t].clips;
+        for (var c = 0; c < clips.numItems; c++) {
+            if (clips[c] === clip || (clip.nodeId !== undefined && clips[c].nodeId === clip.nodeId)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+function _dbLinkedAudioParts(sequence, clip) {
+    var parts = [];
+    try {
+        var linked = typeof clip.getLinkedItems === "function" ? clip.getLinkedItems() : null;
+        var count = linked ? (linked.numItems !== undefined ? linked.numItems : linked.length) : 0;
+        for (var i = 0; i < count; i++) {
+            var other = linked[i];
+            if (!other || other === clip || (clip.nodeId !== undefined && other.nodeId === clip.nodeId)) {
+                continue;
+            }
+            var a = other.projectItem;
+            var b = clip.projectItem;
+            if (a && b && (a === b || (b.nodeId !== undefined && a.nodeId === b.nodeId)) &&
+                    Math.abs(other.start.seconds - clip.start.seconds) < 0.001 && Math.abs(other.end.seconds - clip.end.seconds) < 0.001 &&
+                    _dbOnAudioTrack(sequence, other)) {
+                parts.push(other);
+            }
+        }
+    } catch (linkErr) {
+        // only the selected clip goes off
+    }
+    return parts;
+}
+// The video clips that are on now. Switching an audio clip off must not
+// switch its linked picture off: whatever went off is put back on.
+function _dbPictureOn(sequence) {
+    var on = [];
+    for (var t = 0; t < sequence.videoTracks.numTracks; t++) {
+        var clips = sequence.videoTracks[t].clips;
+        for (var c = 0; c < clips.numItems; c++) {
+            try {
+                if (clips[c].disabled !== true) { on.push(clips[c]); }
+            } catch (readErr) { /* not touched */ }
+        }
+    }
+    return on;
+}
+function _dbKeepPictureOn(on) {
+    for (var i = 0; i < on.length; i++) {
+        try {
+            if (on[i].disabled === true) { on[i].disabled = false; }
+        } catch (keepErr) { /* nothing more to do */ }
+    }
 }
 
 // Where the project item's media ends, in seconds (its out point with no
@@ -1682,20 +2176,26 @@ function _dbNoFreeTrackText(length, opts) {
 
 // optsJson: { inSec, outSec, fadeInSec, fadeOutSec, transitionIn,
 // transitionOut, speed, reverse, atSeconds, muteSelected, underTrack,
-// selectInserted, pitchReference }. The original file is inserted, trimmed
-// to inSec..outSec of the source, with Premiere's own transitions on its
-// edges so the fades stay editable on the timeline. Trimming goes through
-// the project item's in / out points, which are cleared again right after
-// the insert so the bin item stays whole. Times in opts are file seconds;
-// speed / reverse are applied to the placed clip. underTrack: the first
-// audio track to try; selectInserted: select only the new clip afterwards;
-// pitchReference: the clip the pitch plan was made for, checked again before
-// anything changes. After Effects reads belowLayerIndex instead of underTrack.
+// selectInserted, pitchReference, knownPlaced }. The original file is
+// inserted, trimmed to inSec..outSec of the source, with Premiere's own
+// transitions on its edges so the fades stay editable on the timeline.
+// Trimming goes through the project item's in / out points; the editor's
+// own In / Out on the item are put back as they were right after the
+// insert (_dbTakeItemMarks). A placed clip that does not come out at the
+// asked length is removed again and data.trimFailed says so. Times in opts
+// are file seconds; speed / reverse are applied to the placed clip.
+// underTrack: the first audio track to try; selectInserted: select only
+// the new clip afterwards; pitchReference: the clip the pitch plan was made
+// for, checked again before anything changes; knownPlaced: the panel's
+// timeline sets, so the pitched clip takes over the original's set. After
+// Effects reads belowLayerIndex instead of underTrack.
 function insertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
     if (_dbIsAe()) {
         return dbAeInsertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson);
     }
     var result = { ok: false, error: null, data: null };
+    var made = null;
+    var placedOk = false;
     try {
         var mediaPath = JSON.parse(mediaPathJson);
         var sequence = _getActiveSequenceOrThrow();
@@ -1748,7 +2248,8 @@ function insertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
         }
         var bin = _findOrCreateDownbeatBin();
         var cleanPitch = !!(opts && opts.pitchReference);
-        var item = cleanPitch ? _dbImportPitchedCopy(bin, file, mediaPath) : _findItemInBinByPath(bin, mediaPath);
+        made = { items: [], bins: [] };
+        var item = cleanPitch ? _dbImportPitchedCopy(bin, file, mediaPath, made) : _findItemInBinByPath(bin, mediaPath);
         var imported = cleanPitch;
         if (cleanPitch && !item) {
             throw new Error("Premiere did not import the file.");
@@ -1767,103 +2268,185 @@ function insertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
         }
         if (cleanPitch) { _dbPreparePitchMarkers(item, toMute); }
 
-        // An untrimmed insert lays down the whole file, whatever length the
-        // panel sent - and a sound whose key and tempo came from its name was
-        // never decoded, so the panel may not know it at all. The imported
-        // item says how long the file is; the track must be free for that
-        // before anything is placed, so the overwrite edit never covers an
-        // editor's clip, and without any length nothing is placed.
-        if (outSec === null) {
-            var mediaEnd = _dbItemMediaEnd(item);
-            if (mediaEnd !== null && mediaEnd - inSec > sourceLength + 0.0005) {
-                sourceLength = mediaEnd - inSec;
-                length = sourceLength / speed;
-                target = _dbFreeAudioTrack(sequence, firstTrack, startSeconds, Math.max(length, sourceLength));
-                if (target === -1) {
-                    throw new Error(_dbNoFreeTrackText(length, opts));
-                }
-            } else if (mediaEnd === null && !(Number(durationSeconds) > 0)) {
-                throw new Error("Downbeat could not read how long this sound is, so it did not insert it. Nothing on the timeline was changed.");
-            }
-        }
-        if (trim) {
-            try {
-                item.setInPoint(inSec, 4); // 4 = every media type
-                if (outSec !== null) {
-                    item.setOutPoint(outSec, 4);
-                }
-            } catch (inOutErr) {
-                trim = false; // checked below by the placed clip's length
-            }
-        }
+        // The editor's own In / Out on the item are cleared for the insert
+        // and put back right after it, so a whole sound goes in whole and the
+        // item's end read below is the file's own.
+        var touched = !!opts && (inSec > 0 || outSec !== null);
+        var marks = _dbTakeItemMarks(item);
+        var placeItem = item;
+        var placeMarks = null;
+        var refused = null;
+        var clipCount = 1;
+        var before = null;
         try {
-            sequence.audioTracks[target].overwriteClip(item, position);
+            // An untrimmed insert lays down the whole file, whatever length
+            // the panel sent - and a sound whose key and tempo came from its
+            // name was never decoded, so the panel may not know it at all
+            // (a free check over a guessed length could let the overwrite
+            // edit cover an editor's clip further along). The imported item
+            // says how long the file is; the track
+            // must be free for that before anything is placed, and without
+            // any length nothing is placed.
+            var mediaEnd = marks.readable ? marks.mediaEnd : _dbItemMediaEnd(item);
+            if (outSec === null) {
+                if (mediaEnd !== null && mediaEnd - inSec > sourceLength + 0.0005) {
+                    sourceLength = mediaEnd - inSec;
+                    length = sourceLength / speed;
+                } else if (mediaEnd === null && !(Number(durationSeconds) > 0)) {
+                    throw new Error("Downbeat could not read how long this sound is, so it did not insert it. Nothing on the timeline was changed.");
+                }
+            }
+            if (!_DB_AUDIO_ONLY_EXT.test(String(mediaPath))) {
+                placeItem = _dbAudioOnlySubclip(item, mediaEnd !== null ? mediaEnd : (outSec !== null ? outSec : whole), mediaPath);
+                if (placeItem) {
+                    made.items.push(placeItem);
+                    placeMarks = _dbTakeItemMarks(placeItem);
+                } else {
+                    placeItem = item;
+                    refused = "pictureFailed";
+                }
+            }
+            if (!refused) {
+                clipCount = _dbItemAudioClipCount(placeItem);
+                var trimSet = trim;
+                if (trim) {
+                    try {
+                        placeItem.setInPoint(inSec, 4); // 4 = every media type
+                        if (outSec !== null) {
+                            placeItem.setOutPoint(outSec, 4);
+                        }
+                    } catch (inOutErr) {
+                        trimSet = false; // cut back below, on the placed clip
+                    }
+                }
+                // What the overwrite lays down before it is cut back and
+                // re-sped: the part, or the whole file when the item would
+                // not take In / Out. The tracks must be free for that, one
+                // per mono channel of the media, or the overwrite would cover
+                // the editor's clips. A pitch does not know the file's whole
+                // length (it sends the part's end), so it places nothing then.
+                var laid = sourceLength;
+                if (!trimSet && trim) {
+                    var full = mediaEnd !== null ? mediaEnd : (!cleanPitch && Number(durationSeconds) > 0 ? whole : null);
+                    if (full === null) {
+                        refused = "trimFailed";
+                    } else {
+                        laid = Math.max(laid, full);
+                    }
+                }
+                if (!refused) {
+                    target = _dbFreeAudioTrack(sequence, firstTrack, startSeconds, Math.max(length, laid), clipCount);
+                    if (target === -1) {
+                        throw new Error(_dbNoFreeTrackText(length, opts));
+                    }
+                    before = _dbAllClips(sequence);
+                    sequence.audioTracks[target].overwriteClip(placeItem, position);
+                }
+            }
         } finally {
-            if (opts && (inSec > 0 || outSec !== null)) {
-                try { item.clearInPoint(); } catch (clearInErr) { /* the bin item then keeps the marks */ }
-                try { item.clearOutPoint(); } catch (clearOutErr) { /* same */ }
-            }
+            if (placeMarks) { _dbPutBackItemMarks(placeItem, placeMarks, touched); }
+            _dbPutBackItemMarks(item, marks, touched && placeItem === item);
         }
-        // Read the timeline back rather than trusting the call.
+        if (refused) {
+            // trimFailed as well, so every caller says nothing was inserted.
+            result.ok = true;
+            result.data = { trimFailed: true, where: null };
+            result.data[refused] = true;
+            return JSON.stringify(result);
+        }
+        // Read the timeline back rather than trusting the call: the clip on
+        // the target track, and one on each following track for media with
+        // several mono channels. Picture that came along is Downbeat's own
+        // and goes again; a part anywhere else means the free check did not
+        // cover it, so nothing stays.
+        var parts = _dbPlacedParts(sequence, before, placeItem, startSeconds, target);
+        var pictureRemoved = parts.video.length ? _dbRemovePlaced(sequence, before, placeItem, startSeconds, target, true) : 0;
         var placedClip = null;
-        var targetTrack = sequence.audioTracks[target];
-        for (var k = 0; k < targetTrack.clips.numItems; k++) {
-            if (Math.abs(targetTrack.clips[k].start.seconds - startSeconds) < 0.02) {
-                placedClip = targetTrack.clips[k];
-                break;
+        var stray = false;
+        var partTracks = [];
+        for (var pp = 0; pp < parts.audio.length; pp++) {
+            if (parts.audio[pp].track === target && !placedClip) {
+                placedClip = parts.audio[pp].clip;
             }
+            if (parts.audio[pp].track < target || parts.audio[pp].track >= target + clipCount) {
+                stray = true;
+            }
+            partTracks.push(parts.audio[pp].track);
         }
-        if (!placedClip) {
+        if (!placedClip || stray) {
+            _dbRemovePlaced(sequence, before, placeItem, startSeconds, target, false);
             throw new Error("Premiere did not place the clip on A" + (target + 1) + ".");
         }
-        if (opts && (inSec > 0 || outSec !== null)) {
+        var targetTrack = sequence.audioTracks[target];
+        if (touched) {
             // Project-item In/Out can quantize an audio selection to video frames.
             // Set Time values on the inserted instance before checking the trim.
-            try {
-                var exactIn = new Time();
-                exactIn.seconds = inSec;
-                placedClip.inPoint = exactIn;
-                if (outSec !== null) {
-                    var exactOut = new Time();
-                    exactOut.seconds = outSec;
-                    placedClip.outPoint = exactOut;
+            for (var tp = 0; tp < parts.audio.length; tp++) {
+                var part = parts.audio[tp].clip;
+                try {
+                    var exactIn = new Time();
+                    exactIn.seconds = inSec;
+                    part.inPoint = exactIn;
+                    if (outSec !== null) {
+                        var exactOut = new Time();
+                        exactOut.seconds = outSec;
+                        part.outPoint = exactOut;
+                    }
+                    var exactEnd = new Time();
+                    exactEnd.seconds = startSeconds + sourceLength;
+                    part.end = exactEnd;
+                } catch (exactTrimErr) { /* readback below rejects a refused trim */ }
+                var placedLength = part.end.seconds - part.start.seconds;
+                var placedIn = part.inPoint ? part.inPoint.seconds : 0;
+                if (Math.abs(placedLength - sourceLength) > Math.max(0.05, 2 / Math.max(1, _getFrameRate(sequence))) || Math.abs(placedIn - inSec) > 0.05) {
+                    _dbRemovePlaced(sequence, before, placeItem, startSeconds, target, false);
+                    result.ok = true;
+                    result.data = { trimFailed: true, where: "A" + (parts.audio[tp].track + 1), placedLength: placedLength, placedIn: placedIn, requestedLength: sourceLength, requestedIn: inSec, requestedOut: outSec };
+                    return JSON.stringify(result);
                 }
-                var exactEnd = new Time();
-                exactEnd.seconds = startSeconds + sourceLength;
-                placedClip.end = exactEnd;
-            } catch (exactTrimErr) { /* readback below rejects a refused trim */ }
-            var placedLength = placedClip.end.seconds - placedClip.start.seconds;
-            var placedIn = placedClip.inPoint ? placedClip.inPoint.seconds : 0;
-            if (Math.abs(placedLength - sourceLength) > Math.max(0.05, 2 / Math.max(1, _getFrameRate(sequence))) || Math.abs(placedIn - inSec) > 0.05) {
-                try { placedClip.remove(false, false); } catch (removeErr) { /* reported below */ }
-                result.ok = true;
-                result.data = { trimFailed: true, where: "A" + (target + 1), placedLength: placedLength, placedIn: placedIn, requestedLength: sourceLength, requestedIn: inSec, requestedOut: outSec };
-                return JSON.stringify(result);
             }
         }
+        // Every part gets the speed; the target's answer is the one reported.
         var speedResult = null;
         if (sped) {
-            speedResult = _applyClipSpeed(sequence, target, startSeconds, speed, reverse, length);
-            if (!speedResult.ok) {
-                var spedClip = _findClipStartingAt(targetTrack, startSeconds);
-                try { if (spedClip) { spedClip.remove(false, false); } } catch (removeSpeedErr) { /* reported below */ }
-                result.ok = true;
-                result.data = { speedFailed: true, where: "A" + (target + 1), speedResult: speedResult };
-                return JSON.stringify(result);
+            for (var sp = 0; sp < partTracks.length; sp++) {
+                var partSpeed = _applyClipSpeed(sequence, partTracks[sp], startSeconds, speed, reverse, length);
+                if (partTracks[sp] === target) {
+                    speedResult = partSpeed;
+                }
+                if (!partSpeed.ok) {
+                    _dbRemovePlaced(sequence, before, placeItem, startSeconds, target, false);
+                    result.ok = true;
+                    result.data = { speedFailed: true, where: "A" + (partTracks[sp] + 1), speedResult: partSpeed };
+                    return JSON.stringify(result);
+                }
             }
         }
         var fades = null;
         if (opts && (Number(opts.fadeInSec) > 0 || Number(opts.fadeOutSec) > 0)) {
             fades = _addEdgeFades(sequence, target, startSeconds, opts);
+            for (var fp = 0; fp < partTracks.length; fp++) {
+                if (partTracks[fp] !== target) {
+                    try { _addEdgeFades(sequence, partTracks[fp], startSeconds, opts); } catch (partFadeErr) { /* the target's fades are reported */ }
+                }
+            }
         }
+        // The original goes off with its other mono channels; a picture
+        // linked to it stays on.
         var muted = false;
         if (toMute) {
+            var pictureOn = _dbPictureOn(sequence);
+            var channels = _dbLinkedAudioParts(sequence, toMute);
             try {
                 toMute.disabled = true;
                 muted = toMute.disabled === true;
             } catch (muteErr) {
                 muted = false;
             }
+            for (var ch = 0; ch < channels.length; ch++) {
+                try { channels[ch].disabled = true; } catch (channelErr) { /* the selected one is off */ }
+            }
+            _dbKeepPictureOn(pictureOn);
         }
         var selected = false;
         if (opts && opts.selectInserted) {
@@ -1898,11 +2481,22 @@ function insertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
         // For retryEdgeFades: this clip in this sequence, nothing else.
         var placedNow = _findClipStartingAt(targetTrack, startSeconds);
         var placedToken = placedNow ? _dbRememberSelection(sequence, placedNow, placedNow.projectItem) : null;
+        var where = [];
+        for (var wp = 0; wp < partTracks.length; wp++) {
+            where.push("A" + (partTracks[wp] + 1));
+        }
+        placedOk = true;
         result.ok = true;
-        result.data = { where: "A" + (target + 1), target: target, startSeconds: startSeconds, imported: imported, offlineCopy: offlineCopy, trimmed: !!opts && (inSec > 0 || outSec !== null), fades: fades, muted: muted, speed: speedResult, selected: selected, placedToken: placedToken };
+        result.data = { where: where.join(", "), target: target, startSeconds: startSeconds, imported: imported, offlineCopy: offlineCopy, trimmed: touched, fades: fades, muted: muted, speed: speedResult, selected: selected, placedToken: placedToken, pictureRemoved: pictureRemoved };
+        result.data.placedTimeline = cleanPitch && toMute && placedNow ? _dbHandOverTimelineSet(sequence, toMute, placedNow, opts.knownPlaced) : null;
     } catch (e) {
         result.ok = false;
         result.error = e.message ? e.message : e.toString();
+    } finally {
+        // A pitch that placed nothing leaves no new item in the bin.
+        if (made && made.items.length && !placedOk) {
+            _dbDiscardMade(sequence, bin, made);
+        }
     }
     return JSON.stringify(result);
 }

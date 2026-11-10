@@ -26,6 +26,12 @@ var AE_LABEL_COLOR_INDEX = {
 // Text, color and length can all be made by hand, so they do not prove
 // who placed a marker; this parameter does.
 var AE_OWN_MARKER_PARAM = "Downbeat";
+// A second parameter on each composition marker Place puts down: the id of
+// the layer it was placed for. Composition markers stay where they are when
+// layers move, so this is what tells one layer's set from another's on the
+// same frames; it is undone and redone with its marker, and the panel needs
+// no memory of where the set went.
+var AE_LAYER_PARAM = "DownbeatLayer";
 // Whether a marker value is one Downbeat placed: the text D or b, the
 // Downbeat parameter with that text, Downbeat's label color for it, no
 // duration and none of a chapter, web link, cue point name or protected
@@ -149,7 +155,7 @@ function _dbAeParseLabels(json) {
 }
 // A marker in After Effects has one visible text, so the long explanation
 // Premiere keeps in `comments` is not set.
-function _dbAeMarkerValue(label) {
+function _dbAeMarkerValue(label, layerTag) {
     var text = "";
     var typeCode = null;
     if (label) {
@@ -170,6 +176,9 @@ function _dbAeMarkerValue(label) {
     if (text === typeCode && AE_LABEL_COLOR_INDEX.hasOwnProperty(text)) {
         var params = {};
         params[AE_OWN_MARKER_PARAM] = text;
+        if (layerTag !== undefined && layerTag !== null) {
+            params[AE_LAYER_PARAM] = String(layerTag);
+        }
         try {
             mv.setParameters(params);
         } catch (paramErr) {
@@ -187,7 +196,9 @@ function _dbAeMarkerValue(label) {
 // own marker already sits would replace it. Such a beat is left out and
 // counted in `kept`; a Downbeat marker at that time is still rewritten, so
 // re-placing stays a replacement.
-function _dbAeForeignMarkerAt(markerProp, t) {
+// With layerTag, a Downbeat marker of another layer's set at that time is
+// left alone as well: the set placing went first kept it for that layer.
+function _dbAeForeignMarkerAt(markerProp, t, layerTag) {
     if (!markerProp.numKeys) {
         return false;
     }
@@ -196,10 +207,14 @@ function _dbAeForeignMarkerAt(markerProp, t) {
         return false;
     }
     var v = markerProp.keyValue(k);
-    return !_dbAeIsOwnMarker(v);
+    if (!_dbAeIsOwnMarker(v)) {
+        return true;
+    }
+    var tag = layerTag !== undefined && layerTag !== null ? _dbAeTagOf(v) : null;
+    return tag !== null && tag !== String(layerTag);
 }
 
-function _dbAeAddMarkers(markerProp, compTimes, labels, minTime, maxTime) {
+function _dbAeAddMarkers(markerProp, compTimes, labels, minTime, maxTime, layerTag) {
     var created = 0;
     var skipped = 0;
     var kept = 0;
@@ -211,12 +226,12 @@ function _dbAeAddMarkers(markerProp, compTimes, labels, minTime, maxTime) {
             skipped++;
             continue;
         }
-        if (_dbAeForeignMarkerAt(markerProp, t)) {
+        if (_dbAeForeignMarkerAt(markerProp, t, layerTag)) {
             kept++;
             continue;
         }
         try {
-            markerProp.setValueAtTime(t, _dbAeMarkerValue(labels ? labels[i] : null));
+            markerProp.setValueAtTime(t, _dbAeMarkerValue(labels ? labels[i] : null, layerTag));
             created++;
             placed.push(t);
         } catch (mkErr) {
@@ -258,7 +273,13 @@ function dbAeGetSelectedAudioInfo() {
             frameRate: comp.frameRate,
             trackIndex: layer.index,
             host: "ae",
-            layerName: layer.name
+            layerName: layer.name,
+            disabled: layer.audioEnabled === false,
+            // The composition every action goes to: the active item, which a
+            // click in the Project panel can make another one than the
+            // timeline on screen. The panel names it in the clip line.
+            compName: comp.name,
+            compId: comp.id
         };
     });
 }
@@ -274,12 +295,138 @@ function _dbAeRemoveOwnMarkers(markerProp, minTime, maxTime) {
     }
     return removed;
 }
-// Both kinds around one layer: its own layer markers and the composition
-// markers within its in/out range.
+
+// The layer id a composition marker is tagged with (AE_LAYER_PARAM), or
+// null: untagged (placed without the layer parameter).
+function _dbAeTagOf(v) {
+    var params = null;
+    try {
+        params = v && v.getParameters ? v.getParameters() : null;
+    } catch (paramErr) {
+        params = null;
+    }
+    var tag = params ? params[AE_LAYER_PARAM] : null;
+    return tag === undefined || tag === null || tag === "" ? null : String(tag);
+}
+function _dbAeSameLayer(a, b) {
+    if (a && b && a.id !== undefined && a.id !== null && b.id !== undefined && b.id !== null) {
+        return a.id === b.id;
+    }
+    return a === b;
+}
+function _dbAeCovers(layer, t) {
+    return t >= Math.min(layer.inPoint, layer.outPoint) - 0.0005 && t <= Math.max(layer.inPoint, layer.outPoint) + 0.0005;
+}
+// Whether a marker at t is over `owner`'s sound (host.jsx _dbClipHolds): one
+// on its out point goes with `layer` when `layer` starts playing there.
+function _dbAeHolds(owner, t, layer) {
+    if (!_dbAeCovers(owner, t)) {
+        return false;
+    }
+    if (t < Math.max(owner.inPoint, owner.outPoint) - 0.0005) {
+        return true;
+    }
+    return !(t >= Math.min(layer.inPoint, layer.outPoint) - 0.0005 && t < Math.max(layer.inPoint, layer.outPoint) - 0.0005);
+}
+// The other pieces of a layer after Edit > Split Layer (or a duplicate laid
+// over it): the same footage at the same Stretch and start time. A piece
+// moved in time, or another use of the song, is another layer.
+function _dbAePiecesOf(comp, layer) {
+    var pieces = [];
+    for (var i = 1; i <= comp.numLayers; i++) {
+        var l = comp.layer(i);
+        if (_dbAeSameLayer(l, layer) || !l.source || !layer.source) {
+            continue;
+        }
+        var sameSource = l.source === layer.source || (l.source.id !== undefined && l.source.id === layer.source.id);
+        if (sameSource && Math.abs(l.startTime - layer.startTime) < 0.0005 && Math.abs(l.stretch - layer.stretch) < 1e-6) {
+            pieces.push(l);
+        }
+    }
+    return pieces;
+}
+
+// The composition markers Place (mode "place") or Clear ("clear") on
+// `layer` takes, as key indices from the last down (host.jsx
+// _dbTimelinePlan, with the tag instead of a remembered set):
+//   - the markers tagged for this layer, wherever it sits now; on Place,
+//     those over another piece of the layer stay with that piece; on Clear
+//     also those of its other pieces after Split Layer;
+//   - in the layer's range, Downbeat markers no layer holds: untagged, or
+//     tagged for a layer that is gone or not under them any more;
+//   - untagged ones at the times the panel remembers for the layer.
+// Markers tagged for another layer stay wherever that layer still plays,
+// also inside this layer's range.
+function _dbAeCompPlan(comp, layer, mode) {
+    var out = [];
+    var cm = comp.markerProperty;
+    if (!cm) {
+        return out;
+    }
+    var byId = {};
+    for (var i = 1; i <= comp.numLayers; i++) {
+        var l = comp.layer(i);
+        if (l.id !== undefined && l.id !== null) {
+            byId[String(l.id)] = l;
+        }
+    }
+    var pieces = _dbAePiecesOf(comp, layer);
+    var mine = {};
+    var myId = _dbAeLayerKey(layer);
+    if (myId !== null) {
+        mine[String(myId)] = true;
+    }
+    for (var p = 0; p < pieces.length && mode === "clear"; p++) {
+        if (pieces[p].id !== undefined && pieces[p].id !== null) {
+            mine[String(pieces[p].id)] = true;
+        }
+    }
+    var legacy = myId !== null ? _dbPlacedEntry(_dbPlacedTimeline[_dbPlacedKey(comp.id, myId)]) : null;
+    for (var k = cm.numKeys; k >= 1; k--) {
+        var v = cm.keyValue(k);
+        if (!_dbAeIsOwnMarker(v)) {
+            continue;
+        }
+        var t = cm.keyTime(k);
+        var tag = _dbAeTagOf(v);
+        var take = _dbAeCovers(layer, t);
+        if (tag === null) {
+            for (var b = 0; !take && legacy && b < legacy.t.length; b++) {
+                take = Math.abs(t - legacy.t[b]) < 0.0005;
+            }
+        } else if (mine[tag]) {
+            if (!take) {
+                take = true;
+                for (var q = 0; q < pieces.length && mode !== "clear"; q++) {
+                    if (_dbAeHolds(pieces[q], t, layer)) { take = false; break; }
+                }
+            }
+        } else if (byId[tag] && _dbAeHolds(byId[tag], t, layer)) {
+            take = false;
+        }
+        if (take) {
+            out.push(k);
+        }
+    }
+    return out;
+}
+function _dbAeRemoveKeys(markerProp, indices) {
+    for (var i = 0; i < indices.length; i++) {
+        markerProp.removeKey(indices[i]);
+    }
+    return indices.length;
+}
+// Both kinds around one layer: its own layer markers in its in/out range
+// and its composition set, _dbAeCompPlan (the clip / timeline
+// choice). Forgets the times the panel remembered for the layer.
 function _dbAeRemoveOwnAroundLayer(comp, layer) {
-    var removed = _dbAeRemoveOwnMarkers(layer.property("Marker"), layer.inPoint, layer.outPoint);
+    var removed = _dbAeRemoveOwnMarkers(layer.property("ADBE Marker"), layer.inPoint, layer.outPoint);
     if (comp.markerProperty) {
-        removed += _dbAeRemoveOwnMarkers(comp.markerProperty, layer.inPoint, layer.outPoint);
+        removed += _dbAeRemoveKeys(comp.markerProperty, _dbAeCompPlan(comp, layer, "place"));
+    }
+    var layerKey = _dbAeLayerKey(layer);
+    if (layerKey !== null) {
+        delete _dbPlacedTimeline[_dbPlacedKey(comp.id, layerKey)];
     }
     return removed;
 }
@@ -301,45 +448,41 @@ function dbAeCreateClipMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, re
         var r = _dbAeWithUndo("Downbeat: place markers", function () {
             if (replaceOwn === true) {
                 replaced = _dbAeRemoveOwnAroundLayer(comp, layer);
-                replaced += _dbAeRemoveLastCompSet(comp, layer);
             }
-            return _dbAeAddMarkers(layer.property("Marker"), compTimes, labels, layer.inPoint, layer.outPoint);
+            return _dbAeAddMarkers(layer.property("ADBE Marker"), compTimes, labels, layer.inPoint, layer.outPoint);
         });
         // placedKey without times: the panel forgets this layer's composition set.
         return { requested: times.length, created: r.created, skipped: r.skipped, kept: r.kept, replaced: replaced, stored: r.stored, placedKey: placedKey, placedTimes: null };
     });
 }
-// The layer's identity for _dbPlacedTimeline: Layer.id (After Effects 22.0
-// and later; the panel needs 25.0). Without it the answer is null, and
-// composition markers from an earlier Place outside the layer stay: the
-// layer's index is not safe, because a duplicated layer takes the
-// original's index.
+// The layer's identity, written on its composition markers
+// (AE_LAYER_PARAM): Layer.id (After Effects 22.0 and later; the panel needs
+// 25.0), unique within the project. Without it the answer is null, the
+// markers carry no tag and only the range rule applies: the layer's index is
+// not safe, because a duplicated layer takes the original's index.
 function _dbAeLayerKey(layer) {
     return layer.id !== undefined && layer.id !== null ? layer.id : null;
 }
-// Removes Downbeat's own composition markers at the times Place last put
-// them for this layer, wherever the layer sits now, and forgets those
-// times; both placements call it, as in host.jsx _dbRemoveLastTimelineSet.
-function _dbAeRemoveLastCompSet(comp, layer) {
-    var layerKey = _dbAeLayerKey(layer);
-    var key = layerKey !== null ? _dbPlacedKey(comp.id, layerKey) : null;
-    if (!key || !_dbPlacedTimeline[key] || !comp.markerProperty) {
-        return 0;
+// Pitch the clip puts a new layer where the original plays: the
+// composition markers tagged for the original are tagged for it, so Place
+// or Clear on the pitched layer replaces that whole set, also past its
+// shorter end. Called inside the insert's undo step.
+function _dbAeHandOverCompSet(comp, fromLayer, toLayer) {
+    var cm = comp.markerProperty;
+    var fromId = _dbAeLayerKey(fromLayer);
+    var toId = _dbAeLayerKey(toLayer);
+    if (!cm || fromId === null || toId === null) {
+        return;
     }
-    var before = _dbPlacedTimeline[key];
-    var removed = 0;
-    for (var k = comp.markerProperty.numKeys; k >= 1; k--) {
-        var kt = comp.markerProperty.keyTime(k);
-        for (var b = 0; b < before.length; b++) {
-            if (Math.abs(kt - before[b]) < 0.0005 && _dbAeIsOwnMarker(comp.markerProperty.keyValue(k))) {
-                comp.markerProperty.removeKey(k);
-                removed++;
-                break;
-            }
+    for (var k = 1; k <= cm.numKeys; k++) {
+        var v = cm.keyValue(k);
+        if (_dbAeIsOwnMarker(v) && _dbAeTagOf(v) === String(fromId)) {
+            var params = v.getParameters();
+            params[AE_LAYER_PARAM] = String(toId);
+            v.setParameters(params);
+            cm.setValueAtTime(cm.keyTime(k), v);
         }
     }
-    delete _dbPlacedTimeline[key];
-    return removed;
 }
 // Comp times, like Premiere's sequence markers.
 function dbAeCreateMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, referenceJson, knownPlacedJson) {
@@ -352,9 +495,10 @@ function dbAeCreateMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, refere
             throw new Error("This After Effects version does not expose composition markers to scripts.");
         }
         var layer = replaceOwn === true ? _dbAeSelectedAudioLayerOrThrow(comp) : null;
-        // See _dbPlacedTimeline in host.jsx: composition markers stay put
-        // when the layer moves, so re-placing also clears Downbeat's own
-        // ones at the times it used last time.
+        // Composition markers stay put when the layer moves: the new set is
+        // tagged with the layer's id, and re-placing takes the tagged set
+        // wherever it is (_dbAeCompPlan). An untagged set is found by the
+        // times the panel still remembers for it.
         var layerKey = layer ? _dbAeLayerKey(layer) : null;
         var placedKey = layerKey !== null ? _dbPlacedKey(comp.id, layerKey) : null;
         if (placedKey) { _dbSeedPlacedTimeline(knownPlacedJson); }
@@ -362,15 +506,12 @@ function dbAeCreateMarkers(secondsJsonArray, labelsJsonArray, replaceOwn, refere
         var r = _dbAeWithUndo("Downbeat: place markers", function () {
             if (layer) {
                 replaced = _dbAeRemoveOwnAroundLayer(comp, layer);
-                replaced += _dbAeRemoveLastCompSet(comp, layer);
             }
-            return _dbAeAddMarkers(comp.markerProperty, times, labels, 0, comp.duration);
+            return _dbAeAddMarkers(comp.markerProperty, times, labels, 0, comp.duration, layerKey);
         });
-        if (placedKey) {
-            _dbPlacedTimeline[placedKey] = r.placed;
-        }
+        // placedKey without times: the panel forgets any times it kept for this layer.
         return { requested: times.length, created: r.created, skipped: r.skipped, kept: r.kept, replaced: replaced, stored: r.stored,
-            placedKey: placedKey, placedTimes: placedKey ? r.placed : null };
+            placedKey: placedKey, placedTimes: null };
     });
 }
 // Splits the layer at one comp time the way Edit > Split Layer does: the
@@ -443,42 +584,30 @@ function _dbAeMarkerTimes(markerProp) {
     }
     return out;
 }
-// Downbeat's own markers (_dbAeIsOwnMarker) on the layer and among the
-// composition markers inside its range; never an editor's.
+
+// Same scope as Premiere's clearMarkersForSelectedClip: Downbeat's own
+// markers (_dbAeIsOwnMarker) on the layer and on its other pieces after
+// Split Layer (each piece keeps a copy of the layer markers), and the
+// composition markers of its set (_dbAeCompPlan) - never an editor's.
 function dbAeClearMarkersForSelectedClip(knownPlacedJson) {
     return _dbAeResult(function () {
         var comp = _dbAeActiveCompOrThrow();
         var layer = _dbAeSelectedAudioLayerOrThrow(comp);
-        var epsilon = 0.0005;
         var layerRemoved = 0;
         var compRemoved = 0;
         var layerKey = _dbAeLayerKey(layer);
         var placedKey = layerKey !== null ? _dbPlacedKey(comp.id, layerKey) : null;
         if (placedKey) { _dbSeedPlacedTimeline(knownPlacedJson); }
         _dbAeWithUndo("Downbeat: clear markers", function () {
-            var lm = layer.property("Marker");
-            for (var i = lm.numKeys; i >= 1; i--) {
-                if (!_dbAeIsOwnMarker(lm.keyValue(i))) {
-                    continue;
-                }
-                lm.removeKey(i);
-                layerRemoved++;
+            var pieces = [layer].concat(_dbAePiecesOf(comp, layer));
+            for (var p = 0; p < pieces.length; p++) {
+                layerRemoved += _dbAeRemoveOwnMarkers(pieces[p].property("ADBE Marker"), -1e20, 1e20);
             }
-            var cm = comp.markerProperty;
-            if (cm) {
-                for (var j = cm.numKeys; j >= 1; j--) {
-                    var t = cm.keyTime(j);
-                    if (t >= layer.inPoint - epsilon && t <= layer.outPoint + epsilon &&
-                            _dbAeIsOwnMarker(cm.keyValue(j))) {
-                        cm.removeKey(j);
-                        compRemoved++;
-                    }
-                }
-                // And the set Place last put on the composition for this
-                // layer, wherever the layer sat then.
-                compRemoved += _dbAeRemoveLastCompSet(comp, layer);
+            if (comp.markerProperty) {
+                compRemoved = _dbAeRemoveKeys(comp.markerProperty, _dbAeCompPlan(comp, layer, "clear"));
             }
         });
+        if (placedKey) { delete _dbPlacedTimeline[placedKey]; }
         return {
             sequenceMarkersRemoved: compRemoved,
             clipMarkersRemoved: layerRemoved,
@@ -490,29 +619,21 @@ function dbAeClearMarkersForSelectedClip(knownPlacedJson) {
     });
 }
 // Downbeat's own markers around the selected layer (host.jsx
-// countOwnMarkersForSelectedClip): its own layer markers, and composition
-// markers between its in and out points - what clear and placing touch.
-function dbAeCountOwnMarkersForSelectedClip() {
+// countOwnMarkersForSelectedClip): its own layer markers, and the
+// composition markers placing would replace (_dbAeCompPlan).
+function dbAeCountOwnMarkersForSelectedClip(knownPlacedJson) {
     return _dbAeResult(function () {
         var comp = _dbAeActiveCompOrThrow();
         var layer = _dbAeSelectedAudioLayerOrThrow(comp);
-        var epsilon = 0.0005;
         var count = 0;
-        var lm = layer.property("Marker");
+        var lm = layer.property("ADBE Marker");
         for (var i = 1; i <= lm.numKeys; i++) {
             if (_dbAeIsOwnMarker(lm.keyValue(i))) {
                 count++;
             }
         }
-        var cm = comp.markerProperty;
-        if (cm) {
-            for (var j = 1; j <= cm.numKeys; j++) {
-                var t = cm.keyTime(j);
-                if (t >= layer.inPoint - epsilon && t <= layer.outPoint + epsilon && _dbAeIsOwnMarker(cm.keyValue(j))) {
-                    count++;
-                }
-            }
-        }
+        _dbSeedPlacedTimeline(knownPlacedJson);
+        count += _dbAeCompPlan(comp, layer, "place").length;
         return { count: count };
     });
 }
@@ -537,7 +658,7 @@ function dbAeGetMarkersDataForSelectedClip() {
     return _dbAeResult(function () {
         var comp = _dbAeActiveCompOrThrow();
         var layer = _dbAeSelectedAudioLayerOrThrow(comp);
-        var props = [comp.markerProperty, layer.property("Marker")];
+        var props = [comp.markerProperty, layer.property("ADBE Marker")];
         var groups = [[], []];
         for (var g = 0; g < props.length; g++) {
             var prop = props[g];
@@ -552,6 +673,17 @@ function dbAeGetMarkersDataForSelectedClip() {
         return { version: 2, host: "ae", clipName: layer.name, sequenceMarkers: groups[0], clipMarkers: groups[1] };
     });
 }
+// A pasted composition marker of Downbeat's set belongs to the layer it is
+// pasted onto, not to the one it was copied from (whose Place or Clear
+// would otherwise take it away from here).
+function _dbAePastedParameters(params, layerTag) {
+    var out = {};
+    for (var name in params) {
+        if (params.hasOwnProperty(name) && name !== AE_LAYER_PARAM) { out[name] = params[name]; }
+    }
+    if (params.hasOwnProperty(AE_LAYER_PARAM) && layerTag !== null) { out[AE_LAYER_PARAM] = String(layerTag); }
+    return out;
+}
 function dbAePasteMarkersData(dataJson, referenceJson) {
     return _dbAeResult(function () {
         _dbValidateSelection(referenceJson);
@@ -559,7 +691,7 @@ function dbAePasteMarkersData(dataJson, referenceJson) {
         var plan = _dbTransferPlan(JSON.parse(dataJson), info);
         var comp = _dbAeActiveCompOrThrow();
         var layer = _dbAeSelectedAudioLayerOrThrow(comp);
-        var props = [comp.markerProperty, layer.property("Marker")];
+        var props = [comp.markerProperty, layer.property("ADBE Marker")];
         var groups = [plan.sequenceMarkers, plan.clipMarkers], writes = [], kept = 0;
         // Construct all MarkerValues before changing any host property.
         for (var g = 0; g < groups.length; g++) {
@@ -573,7 +705,7 @@ function dbAePasteMarkersData(dataJson, referenceJson) {
                     var name = _dbAeTransferFields[f];
                     if (m.fields && m.fields[name] !== undefined) { value[name] = m.fields[name]; }
                 }
-                if (m.parameters) { value.setParameters(m.parameters); }
+                if (m.parameters) { value.setParameters(_dbAePastedParameters(m.parameters, g === 0 ? _dbAeLayerKey(layer) : null)); }
                 // A marker already at this time stays; writing there would replace it.
                 if (props[g].numKeys && Math.abs(props[g].keyTime(props[g].nearestKeyIndex(time)) - time) <= 0.00001) {
                     kept++;
@@ -629,6 +761,56 @@ function _dbAeCheckReversed(layer, startSeconds, endSeconds, inSec, outSec, fps)
     out.seen = "active " + a0 + "/" + a1 + ", source " + s0.toFixed(3) + "->" + s1.toFixed(3) + " s, in " + Number(layer.inPoint).toFixed(3) + ", out " + Number(layer.outPoint).toFixed(3);
     out.ok = a0 && a1 && Math.abs(s0 - outSec) <= tol + 0.01 && Math.abs(s1 - inSec) <= tol + 0.01;
     return out;
+}
+
+// The editor's own layer markers come along to the pitched layer, at the
+// same place in the sound, as Premiere's pitched clip carries its clip
+// markers. Downbeat's markers do not; a time where the new layer already
+// has a marker keeps that one.
+function _dbAeCopyMarkerValue(v, ratio) {
+    var copy = new MarkerValue(v.comment);
+    var fields = ["chapter", "url", "frameTarget", "cuePointName", "eventCuePoint", "label", "protectedRegion"];
+    for (var i = 0; i < fields.length; i++) {
+        try {
+            if (v[fields[i]] !== undefined) { copy[fields[i]] = v[fields[i]]; }
+        } catch (fieldErr) {
+            // that field keeps its default
+        }
+    }
+    try { copy.duration = (Number(v.duration) || 0) * ratio; } catch (durationErr) { /* no duration */ }
+    try {
+        if (v.getParameters) { copy.setParameters(v.getParameters()); }
+    } catch (paramErr) {
+        // the marker is still carried
+    }
+    return copy;
+}
+function _dbAeCarryEditorMarkers(from, to) {
+    var carried = 0;
+    try {
+        var source = from.property("ADBE Marker");
+        var target = to.property("ADBE Marker");
+        if (!source || !target || !source.numKeys) {
+            return 0;
+        }
+        var ratio = Math.abs(to.stretch / from.stretch);
+        for (var k = 1; k <= source.numKeys; k++) {
+            var v = source.keyValue(k);
+            if (_dbAeIsOwnMarker(v)) {
+                continue;
+            }
+            var sourceSeconds = (source.keyTime(k) - from.startTime) * 100 / from.stretch;
+            var t = to.startTime + sourceSeconds * to.stretch / 100;
+            if (target.numKeys && Math.abs(target.keyTime(target.nearestKeyIndex(t)) - t) < 0.00001) {
+                continue;
+            }
+            target.setValueAtTime(t, _dbAeCopyMarkerValue(v, ratio));
+            carried++;
+        }
+    } catch (carryErr) {
+        // the pitched layer stands without them; the original keeps them
+    }
+    return carried;
 }
 // Library insert: the file as a new layer starting at the comp's current
 // time. An already-imported footage item for the same file is reused; a new
@@ -704,7 +886,7 @@ function dbAeInsertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
             }
             if (opts && opts.pitchReference) {
                 try {
-                    _dbAeRemoveOwnMarkers(added.property("Marker"), -1e20, 1e20);
+                    _dbAeRemoveOwnMarkers(added.property("ADBE Marker"), -1e20, 1e20);
                 } catch (markerErr) { added.remove(); throw markerErr; }
             }
             // Keep the metronome immediately below its selected music layer.
@@ -797,6 +979,9 @@ function dbAeInsertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
                 try { added.remove(); } catch (removeErr) { /* reported by the panel's message */ }
                 return null;
             }
+            if (toMute && opts && opts.pitchReference) {
+                _dbAeCarryEditorMarkers(toMute, added);
+            }
             var fadeIn = opts ? Number(opts.fadeInSec) || 0 : 0;
             var fadeOut = opts ? Number(opts.fadeOutSec) || 0 : 0;
             if (fadeIn > 0 || fadeOut > 0) {
@@ -824,6 +1009,7 @@ function dbAeInsertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
                 } catch (muteErr) {
                 // reported below
                 }
+                if (opts && opts.pitchReference) { _dbAeHandOverCompSet(comp, toMute, added); }
             }
             return added;
         });

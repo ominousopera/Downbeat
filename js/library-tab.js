@@ -96,14 +96,24 @@
       renderLibrary();
       if (!loaded.ok) {
         reportLoadProblem(loaded);
+      } else if (SL.overlappingFolders(libSection).length) {
+        setTranslatedText(libScanStatus, "library.folderConflict"); // a folder saved in both sections
       }
     }
 
-    // A saved library that could not be read is reported on the Library
-    // tab, not only in the log.
+    // A saved library that could not be read is said on the Library tab,
+    // not only in the log. Both library files can fail at one start: the
+    // line names every kept file.
+    var _loadProblems = [];
     function reportLoadProblem(result) {
-      setTranslatedText(libScanStatus, result.setAside ? "library.loadSetAside" : "library.loadBlocked",
-        { file: result.setAside ? basename(result.setAside) : "" });
+      _loadProblems.push(result);
+      var aside = _loadProblems.filter(function (r) { return r.setAside; }).map(function (r) { return basename(r.setAside); });
+      var blocked = aside.length < _loadProblems.length;
+      if (aside.length && blocked) {
+        libScanStatus.textContent = I18n.t("library.loadSetAside", { file: aside.join(", ") }) + " " + I18n.t("library.loadBlocked");
+      } else {
+        setTranslatedText(libScanStatus, aside.length ? "library.loadSetAside" : "library.loadBlocked", { file: aside.join(", ") });
+      }
     }
     // File and folder dialogs. CEP's own dialog first: it is parented to
     // Premiere, so on Windows it opens in front and does not tie up the
@@ -184,6 +194,7 @@
       _libPersistTimer = null;
       SL.loadState(null);
       window.BeatMarkerLibrary.loadEntries([]);
+      _libScope = { music: [], sfx: [] }; // a saved setting, deleted there too
       if (_libPlayer) { _libPlayer.stop(); }
       _libPaneItem = null; _libPaneReady = false; libPane.hidden = true;
       libSelectedPath = null;
@@ -202,6 +213,7 @@
         return;
       }
       var result = window.BeatMarkerPersistence.saveSoundLibrary(ctx.csInterface(), SL.getState());
+      if (ctx.noteSaveResult) { ctx.noteSaveResult("sound-library", result); }
       if (!result.ok) {
         log("WARNING: could not save the folder library to disk: " + result.error);
       } else if (result.keptIn) {
@@ -240,9 +252,32 @@
       var folderFiles = SL.getState().files;
       var out = [];
       var all = window.BeatMarkerLibrary.getAll(true);
+      // The hosts give Windows paths with "\" (and any letter case), the
+      // folder records keep "/": the same file must not be listed twice.
+      var lowerFiles = null;
+      function inFolders(mediaPath) {
+        var p = String(mediaPath || "");
+        if (Object.prototype.hasOwnProperty.call(folderFiles, p)) {
+          return true;
+        }
+        p = p.replace(/\\/g, "/");
+        if (Object.prototype.hasOwnProperty.call(folderFiles, p)) {
+          return true;
+        }
+        if (!/^[a-z]:\//i.test(p)) {
+          return false;
+        }
+        if (!lowerFiles) {
+          lowerFiles = {};
+          for (var f in folderFiles) {
+            if (Object.prototype.hasOwnProperty.call(folderFiles, f)) { lowerFiles[f.toLowerCase()] = true; }
+          }
+        }
+        return Object.prototype.hasOwnProperty.call(lowerFiles, p.toLowerCase());
+      }
       for (var i = 0; i < all.length; i++) {
         var e = all[i];
-        if ((e.material === "sfx" ? "sfx" : "music") !== section || folderFiles[e.mediaPath]) {
+        if ((e.material === "sfx" ? "sfx" : "music") !== section || inFolders(e.mediaPath)) {
           continue;
         }
         if (!e.bpm && !e.camelot) {
@@ -326,6 +361,37 @@
     function _libScopeList() {
       return (_libScope[libSection] || []).slice();
     }
+    // The squares on folders still in the library: one on a folder that was
+    // renamed, or removed in the other host, is ignored (it would empty the
+    // list with no row left to switch it off) and dropped after a scan.
+    function _libScopeLive() {
+      var list = _libScopeList();
+      if (!list.length) {
+        return list;
+      }
+      var roots = SL.getFolders(libSection);
+      var items = SL.sectionItems(libSection);
+      return list.filter(function (dir) {
+        if (roots.indexOf(dir) !== -1) {
+          return true;
+        }
+        var prefix = dir.slice(-1) === "/" ? dir : dir + "/";
+        for (var i = 0; i < items.length; i++) {
+          if (String(items[i].path).indexOf(prefix) === 0) {
+            return true;
+          }
+        }
+        return false;
+      });
+    }
+    // After a scan has listed the disk, such a square is forgotten for good.
+    function _libDropStaleScope() {
+      var live = _libScopeLive();
+      if (live.length !== _libScopeList().length) {
+        _libScope[libSection] = live;
+        persistSettings({ libraryFolderScope: _libScope });
+      }
+    }
     function _libSetScope(list) {
       _libScope[libSection] = list;
       persistSettings({ libraryFolderScope: _libScope });
@@ -350,7 +416,7 @@
         libFolderList.appendChild(none);
         return;
       }
-      var scope = _libScopeList();
+      var scope = _libScopeLive();
       var open = _libFoldersShown(folders.length);
       libFoldersToggleBtn.hidden = false;
       if (scope.length) {
@@ -471,6 +537,29 @@
       }
       return _libExistsCache[path];
     }
+    // Whether each added folder was there when the list was last drawn. A
+    // drive plugged back in (or pulled out) is noticed when the panel gets
+    // the focus back or a dimmed row is clicked, and the list is redrawn.
+    var _libFolderThere = {};
+    function _libDrivesChanged() {
+      var changed = false;
+      SL.getFolders(libSection).forEach(function (dir) {
+        var there;
+        try {
+          there = window.cep_node.require("fs").existsSync(dir);
+        } catch (e) {
+          there = true;
+        }
+        if (Object.prototype.hasOwnProperty.call(_libFolderThere, dir) && _libFolderThere[dir] !== there) {
+          changed = true;
+        }
+        _libFolderThere[dir] = there;
+      });
+      if (changed) {
+        _libExistsAt = 0; // the files' answers are out of date too
+      }
+      return changed;
+    }
     // Says so when a file is not there any more, and repaints its row.
     function _libMissing(path) {
       if (_libFileThere(path, true)) {
@@ -576,14 +665,26 @@
       insert.addEventListener("click", function (evt) {
         evt.stopPropagation();
         _libBlur(insert);
+        if (_libRepeatClick(insert, evt)) {
+          return; // the second click of a double click: one insert per gesture
+        }
         _libSelect(item.path, false);
         _libInsertFromRow(item);
       });
       row.addEventListener("click", function () {
         _libSelect(item.path, false);
         _libFocusKeys();
+        if (missing && (_libDrivesChanged() || _libFileThere(item.path, true))) {
+          renderLibrary(true); // its drive or the file itself is back
+        }
       });
-      row.addEventListener("dblclick", function () { _libInsertFromRow(item); });
+      row.addEventListener("dblclick", function (evt) {
+        // A double click on ▶, the star or Insert belongs to that button.
+        if (_libFromButton(evt, row) || _libRepeatClick(insert, null, true)) {
+          return;
+        }
+        _libInsertFromRow(item);
+      });
       if (missing) {
         play.disabled = true;
         insert.disabled = true;
@@ -669,6 +770,9 @@
           }
         }
       }
+      if (!libScan.running && _libDrivesChanged()) {
+        renderLibrary(true);
+      }
       if (ctx.activeTabId() === "library" && !_libIsTypingField(document.activeElement)) {
         _libFocusKeys();
       }
@@ -678,6 +782,27 @@
         el.blur();
       }
       _libFocusKeys();
+    }
+    // A double click is two clicks and a dblclick; the host may have
+    // finished the first insert before the second click comes, so a
+    // click on the same button within this time counts as the same one.
+    // peek: only asks, without counting this as a click.
+    var LIB_REPEAT_CLICK_MS = 600;
+    function _libRepeatClick(el, evt, peek) {
+      var now = Date.now();
+      var again = !!(evt && evt.detail > 1) || (el._libClickAt > 0 && now - el._libClickAt < LIB_REPEAT_CLICK_MS);
+      if (!peek) {
+        el._libClickAt = now;
+      }
+      return again;
+    }
+    function _libFromButton(evt, row) {
+      for (var n = evt && evt.target; n && n !== row; n = n.parentNode) {
+        if (String(n.tagName || "").toLowerCase() === "button") {
+          return true;
+        }
+      }
+      return false;
     }
     // The star flips what the button shows: the row's own record may have
     // been replaced by the other host's newer one since it was drawn.
@@ -689,6 +814,13 @@
       // it.
       var absorbed = _libAbsorbFromDisk();
       if (!SL.setFavorite(item.path, on)) {
+        if (absorbed) {
+          // The other host's file does not have this sound any more (its Clear, scan
+          // or folder change): show that list, not the old one, and say why
+          // the star did not land.
+          renderLibrary(true);
+          setTranslatedText(libScanStatus, "library.goneElsewhere");
+        }
         return;
       }
       btn.classList.toggle("is-on", on);
@@ -748,7 +880,9 @@
     function _libCurrentMatches() {
       var items = SL.sectionItems(libSection).concat(_libTimelineItems(libSection));
       var criteria = _libCriteria();
-      var filtering = !!(String(criteria.text).trim() || criteria.camelot || parseFloat(criteria.bpm) > 0);
+      // A key or BPM filter needs an analysis; a search by name does not, so
+      // it also lists sounds still waiting or that could not be read.
+      var filtering = !!(criteria.camelot || parseFloat(criteria.bpm) > 0);
       // A SFX without a trustworthy tempo drops out of a BPM search.
       var searchable = items.map(function (it) {
         var copy = {};
@@ -767,7 +901,7 @@
       if (criteria.pitchedOnly) {
         matches = matches.filter(function (it) { return it.status === "done" && !!it.camelot && SL.hasPitch(it); });
       }
-      var scope = _libScopeList();
+      var scope = _libScopeLive();
       if (scope.length) {
         matches = matches.filter(function (it) { return !it.fromTimeline && _libInScope(it.path, scope); });
       }
@@ -827,6 +961,7 @@
       for (var b = 0; b < libSectionButtons.length; b++) {
         libSectionButtons[b].classList.toggle("is-active", libSectionButtons[b].getAttribute("data-section") === libSection);
       }
+      _libDrivesChanged(); // what this drawing shows (see _libFolderThere)
       renderLibraryFolders();
       libRescanBtn.hidden = libScan.running || SL.getFolders(libSection).length === 0;
       var waiting = SL.counts(libSection).pending + SL.outdatedCount(libSection); // outdated: analyzed by an older method, redone by Start scan
@@ -1013,9 +1148,16 @@
       }
       _libPlainToggle(path);
     }
+    // The browser's <audio> cannot play AIFF; only the pane's own reader can.
+    function _libPlainCanPlay(path) {
+      return !/\.(aif|aiff|aifc)$/i.test(String(path));
+    }
     // The plain <audio> preview: without Web Audio, or for a file the pane
     // cannot hold (too long) - it plays as is, no pitch or reverse.
     function _libPlainToggle(path) {
+      if (!_libPlainCanPlay(path)) {
+        return; // it would fail without a sound; the pane's note says why
+      }
       if (_libPlayer && _libPlayer.isPlaying()) {
         _libPlayer.pause();
       }
@@ -1050,8 +1192,18 @@
     // Reverse come along. What you hear in the pane is what lands on the
     // timeline. Any other sound is inserted as the plain file.
     function _libInsertFromRow(item) {
-      if (_libPaneItem && item && _libPaneItem.path === item.path && _libPaneReady && _libPaneHasEdits()) {
+      var inPane = !!(_libPaneItem && item && _libPaneItem.path === item.path && _libPaneReady);
+      if (inPane && _libPaneHasEdits()) {
         _libPaneAdd();
+        return;
+      }
+      // With In key on, a sound the pane has not loaded yet goes in at the
+      // pitch the pane would give it, as the same sound does once loaded
+      // (not one the pane cannot load: that one plays and goes in as is).
+      var cannot = !!(item && _libPaneCannot[item.path]);
+      var st = inPane || cannot ? 0 : _libInKeySemitones(item);
+      if (st) {
+        _libInsert(item, { speed: LP.semitoneRate(st) });
         return;
       }
       _libInsert(item);
@@ -1259,7 +1411,7 @@
     // Decodes one file for the pane: WAV / AIFF with the plugin's own reader
     // (every channel, its own rate - AIFF plays here too, which the plain
     // preview cannot), anything else with the browser's decoder.
-    function _libPaneDecode(path) {
+    function _libPaneDecode(path, item) {
       var ext = (String(path).split(".").pop() || "").toLowerCase();
       var fs = window.cep_node.require("fs");
       if (ext === "wav" || ext === "aif" || ext === "aiff" || ext === "aifc") {
@@ -1289,6 +1441,15 @@
       // nothing is resampled.
       var rate = null;
       try { rate = _libWavReader().nativeRate(path); } catch (rateErr) { rate = null; }
+      // A compressed file decodes to many times its size (a 128 kbps MP3
+      // about 22 times), so the limit is checked on the decoded size: the
+      // scanned length at the file's rate, as stereo. Without a length, a
+      // low common bit rate for the format gives a generous estimate.
+      var seconds = item && typeof item.durationSec === "number" && item.durationSec > 0 ? item.durationSec
+        : size * 8 / ((ext === "flac" ? 600 : ext === "wav" ? 700 : 128) * 1000);
+      if (seconds * (rate || 44100) * 2 * 4 > LIB_PANE_MAX_DECODED_BYTES) {
+        return Promise.reject({ tooLong: true });
+      }
       return window.BeatMarkerAudio.readFileAsArrayBuffer(path).then(function (ab) {
         return window.BeatMarkerAudio.decodeToBuffer(ab, rate);
       });
@@ -1324,6 +1485,16 @@
         _libPlayer.setPitch(Math.max(-LP.PITCH_LIMIT, Math.min(LP.PITCH_LIMIT, st)));
       }
     }
+    // The shift In key gives a sound (semitones): 0 when In key is off, the
+    // clip has no key, or the sound has no clear key.
+    function _libInKeySemitones(item) {
+      var clip = _libClipCamelot();
+      if (!_libInKey || !LP || !item || !clip || !item.camelot || !SL.hasPitch(item)) {
+        return 0;
+      }
+      var st = _libInKeyShift(item.camelot, clip);
+      return st === null ? 0 : Math.max(-LP.PITCH_LIMIT, Math.min(LP.PITCH_LIMIT, st));
+    }
     function _libFileIdentity(path) {
       try {
         var stat = window.cep_node.require("fs").statSync(path);
@@ -1338,6 +1509,13 @@
     function _libPaneLoad(item) {
       var token = ++_libPaneToken;
       _libPlayer.stop();
+      // The last sound's pitch, Reverse, part and fades go now, not when this
+      // one has loaded: a sound the pane cannot load must not show them (and
+      // keep Add off for edits it cannot carry).
+      _libPlayer.setPitch(0);
+      _libPlayer.setReverse(false);
+      _libPlayer.setRegion(null, null);
+      _libPlayer.setFades(0, 0, 0, 0);
       libPlayingPath = null;
       _libPaneItem = item;
       _libPaneIdentity = _libFileIdentity(item.path);
@@ -1354,7 +1532,7 @@
       // stay.
       libPaneReverse.checked = false;
       _libPaneDraw();
-      _libPaneLoading = _libPaneDecode(item.path).then(function (buffer) {
+      _libPaneLoading = _libPaneDecode(item.path, item).then(function (buffer) {
         if (token !== _libPaneToken) { return false; }
         if (!_libPaneCurrent(item.path)) {
           _libPaneReady = false;
@@ -1381,7 +1559,7 @@
         }
         _libPaneCannot[item.path] = _libFileIdentity(item.path);
         if (err && err.tooLong) {
-          _libPaneNote("library.paneTooLong");
+          _libPaneNote(_libPlainCanPlay(item.path) ? "library.paneTooLong" : "library.paneTooLongNoPlay");
         } else {
           _libPaneNote("library.paneUnreadable");
           log("Library preview could not read " + basename(item.path) + ": " + (err && err.message ? err.message : err));
@@ -1629,7 +1807,8 @@
         };
         setTranslatedText(libPaneKey, "library.paneKeyShift", { from: keyText(keyItem.camelot), to: keyText(newCode) });
       } else if (_libInKey && keyItem && _libPaneReady) {
-        setTranslatedText(libPaneKey, itemHasKey ? "library.paneInKeyAlready" : "library.paneInKeyNoKey");
+        setTranslatedText(libPaneKey, !itemHasKey ? "library.paneInKeyNoKey"
+          : clipCode ? "library.paneInKeyAlready" : "library.paneInKeyBetween");
       }
       if (_libPaneReady) {
         var p = _libPlayer.progress();
@@ -1826,7 +2005,12 @@
           _libPaneDraw();
         }
       });
-      libPaneAddBtn.addEventListener("click", _libPaneAdd);
+      libPaneAddBtn.addEventListener("click", function (evt) {
+        if (evt && evt.detail > 1) {
+          return; // the second click of a double click: one insert per gesture
+        }
+        _libPaneAdd();
+      });
     }
     // Whether Add carries edits from the pane: a pitch, Reverse, a selected
     // part or fades (then the pane's sound must be loaded first).
@@ -1896,6 +2080,26 @@
     // Library tab, and not while typing in a field. The panel asks the host
     // for these keys only while that tab is shown (see switchTab), so
     // elsewhere Premiere's own Space / arrows keep working.
+    // Settings, a dialog, a busy cover or an open drawn list over the list:
+    // keys then belong to them. (The tour and the update card leave the
+    // panel usable around them; the tour even shows these keys.)
+    var LIB_KEY_COVERS = ["settingsPanel", "deleteDataOverlay", "textViewerOverlay", "externalLinkOverlay",
+      "langPickOverlay", "busyOverlay", "libScanOverlay"];
+    function _libListCovered() {
+      for (var c = 0; c < LIB_KEY_COVERS.length; c++) {
+        var cover = document.getElementById(LIB_KEY_COVERS[c]);
+        if (cover && !cover.hidden) {
+          return true;
+        }
+      }
+      var sel = window.BeatMarkerSelect;
+      return !!(sel && typeof sel.isOpen === "function" && sel.isOpen());
+    }
+    function _libKeyCatcherRelease() {
+      if (libKeyCatcher && typeof libKeyCatcher.blur === "function") {
+        libKeyCatcher.blur();
+      }
+    }
     document.addEventListener("keydown", function (evt) {
       if (ctx.activeTabId() !== "library") {
         return;
@@ -1903,8 +2107,27 @@
       var t = evt.target;
       var tag = t && t.tagName ? String(t.tagName).toLowerCase() : "";
       var isCatcher = t === libKeyCatcher;
-      if (!isCatcher && (tag === "textarea" || tag === "select" || (tag === "input" && t.type !== "checkbox" && t.type !== "radio"))) {
+      var listKey = !evt.ctrlKey && !evt.altKey && !evt.metaKey &&
+        (evt.key === "ArrowDown" || evt.key === "ArrowUp" || evt.key === " " || evt.key === "Spacebar" || evt.key === "Enter");
+      if (!listKey) {
+        // Not the list's key (Ctrl+S, Ctrl+Z, J K L, Delete, or a modifier
+        // pressed first): the hidden field gives the keyboard back, so the
+        // host's own shortcuts work again (a focused text field keeps keys
+        // from the host).
+        if (isCatcher || document.activeElement === libKeyCatcher) {
+          _libKeyCatcherRelease();
+        }
         return;
+      }
+      if (!isCatcher && (tag === "textarea" || tag === "select" || tag === "button" || tag === "input")) {
+        return; // typing, or a focused button, checkbox or drawn list of its own
+      }
+      if (_libListCovered()) {
+        return;
+      }
+      var tab = document.getElementById("tabContentLibrary");
+      if (!isCatcher && t && tag !== "body" && tag !== "html" && tab && typeof tab.contains === "function" && !tab.contains(t)) {
+        return; // a key on something outside the Library tab
       }
       if (evt.key === "ArrowDown" || evt.key === "ArrowUp") {
         _libMoveSelection(evt.key === "ArrowDown" ? 1 : -1);
@@ -1913,8 +2136,9 @@
         _libTogglePreview(libSelectedPath);
         evt.preventDefault();
       } else if (evt.key === "Enter" && libSelectedPath && !evt.repeat) {
+        // The same rule as Insert and a double click: any row that is shown.
         var i = _libShownIndex(libSelectedPath);
-        if (i >= 0 && _libShown[i].item.status === "done") {
+        if (i >= 0) {
           _libInsertFromRow(_libShown[i].item);
           evt.preventDefault();
         }
@@ -1983,21 +2207,46 @@
       libScanEta.textContent = libScan.stop ? "" : _libEtaText(libScan.done, libScan.total, Date.now() - startedAt);
     }
     // Runs the worker's "library" mode on one manifest of already-written
-    // excerpt files.
-    function _runLibraryWorker(manifestPath, itemCount) {
+    // excerpt files. The time limit grows with the batch (30 s plus 5 s a
+    // file). Started like the analysis workers (js/bridge.js): no console
+    // window on Windows, its own time limit, stopped with the panel. A
+    // failed batch keeps the exit code or signal; Node's "Command failed:
+    // <command line>" is left out of the row's text (it holds only paths).
+    function _runLibraryWorker(manifestPath, itemCount, tempFiles) {
       return new Promise(function (resolve, reject) {
         var fs = window.cep_node.require("fs");
         var os = window.cep_node.require("os");
         var childProcess = window.cep_node.require("child_process");
         var extensionRoot = ctx.csInterface().getSystemPath(SystemPath.EXTENSION);
+        var Bridge = window.BeatMarkerBridge;
+        var timeoutMs = 30000 + itemCount * 5000;
+        var started = Date.now();
+        var forget = function () {};
+        var executable = _resolveNodeExecutable(fs, os, extensionRoot);
         var child = childProcess.execFile(
-          _resolveNodeExecutable(fs, os, extensionRoot),
+          executable,
           [extensionRoot + "/worker/analyze-worker.js", "library", manifestPath],
-          { maxBuffer: 20 * 1024 * 1024, timeout: 30000 + itemCount * 5000 },
+          { maxBuffer: 20 * 1024 * 1024, timeout: timeoutMs, windowsHide: true, env: Bridge.workerEnv(timeoutMs, tempFiles) },
           function (err, stdout, stderr) {
+            forget();
             libScanChildren = libScanChildren.filter(function (c) { return c !== child; });
+            if (err && err.code === "ENOENT") {
+              // No helper to run at all (the other platform's package, a
+              // broken install): the scan stops and says so; the files stay
+              // to scan, not marked unreadable.
+              var missing = new Error(Bridge.missingRuntimeReason(fs, os, extensionRoot, executable));
+              missing.helperMissing = true;
+              reject(missing);
+              return;
+            }
             if (err) {
-              reject(new Error(err.killed ? "timed out" : (err.message || String(err)) + (stderr ? " | " + String(stderr).slice(0, 300) : "")));
+              var timedOut = err.killed || Date.now() - started >= timeoutMs;
+              var reason = timedOut ? "timed out" : /^Command failed:/.test(String(err.message)) ? "the worker stopped" : (err.message || String(err));
+              var text = reason + Bridge.workerFailureDetails(err) + (stderr ? " | " + String(stderr).slice(0, 300) : "");
+              if (!libScan.stop) {
+                log("Library scan: a batch of " + itemCount + " file(s) failed: " + text);
+              }
+              reject(new Error(text));
               return;
             }
             try {
@@ -2011,6 +2260,7 @@
             }
           }
         );
+        forget = Bridge.trackWorker(child, tempFiles);
         libScanChildren.push(child);
       });
     }
@@ -2089,8 +2339,12 @@
     // One batch. WAV files - most of any SFX library - go to the worker as
     // paths: it reads just the excerpt from disk itself (worker/
     // wav-excerpt.js), so the panel never loads them. Other formats are
-    // decoded here (two at a time, a big file alone - _libDecodePump) and their
-    // excerpt handed over as a temp file.
+    // decoded here (two at a time, a big file alone - _libDecodePump) and
+    // their excerpt handed over as a temp file. A WAV the worker cannot read
+    // (compressed, RF64) comes back marked `fallback` and goes the
+    // panel-decode way. Temp files are the plugin's own
+    // library-<n>-<n>.raw/.json in the hand-off folder (js/persistence.js
+    // getTempDir), removed after.
     function _libAnalyzeBatch(section, paths, forcePanelDecode, scan) {
       scan = scan || libScan;
       var fs = window.cep_node.require("fs");
@@ -2122,6 +2376,14 @@
               } catch (probeErr) {
                 durationSec = null;
               }
+            }
+            if (durationSec === null && !fs.existsSync(path)) {
+              // Not there now: not "analyzed" without a length; Start scan
+              // tries it again (as for any file it could not read).
+              SL.setResult(path, { ok: false, error: "file not found" });
+              scan.failed++;
+              scan.done++;
+              return null;
             }
             SL.setResult(path, { ok: true, durationSec: durationSec, bpm: null, bpmConfidence: null });
             SL.applyNameTags(path);
@@ -2163,7 +2425,7 @@
           return it.wav ? { wav: it.wav, material: it.material }
                         : { raw: it.raw, material: it.material, bpm: it.bpm, durationSec: it.durationSec };
         }) }));
-        return _runLibraryWorker(manifest, items.length).then(function (results) {
+        return _runLibraryWorker(manifest, items.length, tmpFiles).then(function (results) {
           if (scan.stop) { return; }
           items.forEach(function (it, i) {
             if (results[i] && results[i].fallback) {
@@ -2181,6 +2443,9 @@
         }, function (err) {
           if (scan.stop) {
             return; // killed by Cancel: these files stay pending for the next scan
+          }
+          if (err && err.helperMissing) {
+            throw err; // ends the scan (see _libStartScan); the files stay pending
           }
           items.forEach(function (it) {
             SL.setResult(it.path, { ok: false, error: err && err.message ? err.message : String(err) });
@@ -2212,16 +2477,28 @@
       var sync = SL.syncFiles(section, found, offline);
       if (capped) { log("Library scan (" + section + ") stopped at " + SL.MAX_FILES_PER_SCAN + " files: the folders hold more; add smaller folders instead."); }
       else if (partial) { log("Library scan is incomplete; unreadable records are retained."); }
-      var queue = SL.pendingPaths(section);
+      // Files waiting under a folder that is not there now wait for it: a
+      // scan would only mark them unreadable, or analyzed without a length.
+      var waitingAll = SL.pendingPaths(section);
+      var queue = waitingAll.filter(function (p) { return !offline.some(function (d) { return SL.isUnder(p, d); }); });
+      var offlineWaiting = waitingAll.length - queue.length;
       persistSoundLibrary();
+      if (section === libSection) {
+        _libDropStaleScope();
+      }
       if (queue.length === 0) {
-        setTranslatedText(libScanStatus, capped ? "library.scanCapped" : (partial ? "library.scanPartial" : "library.upToDate"), { count: SL.counts(section).total, max: SL.MAX_FILES_PER_SCAN });
+        // A folder in both sections is listed in one of them only: say why
+        // instead of "Everything is analyzed".
+        var overlap = SL.overlappingFolders(section).length > 0;
+        setTranslatedText(libScanStatus, capped ? "library.scanCapped" : (partial ? "library.scanPartial" :
+          (offlineWaiting ? "library.scanOfflineWaiting" : (overlap ? "library.folderConflict" : "library.upToDate"))),
+          { count: offlineWaiting || SL.counts(section).total, max: SL.MAX_FILES_PER_SCAN });
         renderLibrary();
         return;
       }
       libScan = { running: true, stop: false, section: section, done: 0, total: queue.length, failed: 0, fromName: 0 };
       log("Library scan (" + section + "): " + queue.length + " file(s) to analyze (" + sync.added + " new, " + sync.changed +
-          " changed, " + sync.removed + " gone).");
+          " changed, " + sync.moved + " moved, " + sync.removed + " gone" + (offlineWaiting ? ", " + offlineWaiting + " waiting for a folder that is not there" : "") + ").");
       var scan = libScan;
       var scanError = null;
       var startedAt = Date.now();
@@ -2270,6 +2547,9 @@
         persistSoundLibrary();
         summary.max = SL.MAX_FILES_PER_SCAN;
         setTranslatedText(libScanStatus, scanError ? "library.scanError" : (capped ? "library.scanCapped" : (partial ? "library.scanPartial" : (stopped ? "library.scanStopped" : (summary.failed ? "library.scanDoneFailed" : "library.scanDone")))), summary);
+        // A helper that cannot start: the same short text Analyze shows.
+        var helperProblem = scanError && scanError.helperMissing ? ctx.failureReason(scanError.message) : null;
+        if (helperProblem) { setTranslatedText(libScanStatus, helperProblem.key, helperProblem.params); }
         if (scanError) { log("Library scan failed: " + (scanError.message || scanError)); }
         log("Library scan (" + section + ") " + (stopped ? "stopped" : "finished") + ": " + summary.done + " analyzed (" +
             libScan.fromName + " straight from the file name), " + summary.failed + " unreadable, " + summary.seconds + " s.");
@@ -2283,17 +2563,25 @@
     var clearLibraryBtn = document.getElementById("clearLibraryBtn");
     var libraryAdminStatus = document.getElementById("libraryAdminStatus");
     var _libClearArmedTimer = null;
-    clearLibraryBtn.addEventListener("click", function () {
+    // The second click of a double click (or one before "Click again to
+    // clear" can be read) is not an answer to that question.
+    var LIB_CLEAR_MIN_MS = 600;
+    var _libClearArmedAt = 0;
+    clearLibraryBtn.addEventListener("click", function (evt) {
       if (libScan.running) {
         setTranslatedText(libraryAdminStatus, "library.busyScanning");
         return;
       }
       if (!_libClearArmedTimer) {
         setTranslatedText(clearLibraryBtn, "library.clearConfirm");
+        _libClearArmedAt = Date.now();
         _libClearArmedTimer = setTimeout(function () {
           _libClearArmedTimer = null;
           setTranslatedText(clearLibraryBtn, "library.clear");
         }, 4000);
+        return;
+      }
+      if ((evt && evt.detail > 1) || Date.now() - _libClearArmedAt < LIB_CLEAR_MIN_MS) {
         return;
       }
       clearTimeout(_libClearArmedTimer);
@@ -2320,6 +2608,25 @@
     // tempo and key. Loading ADDS to the current library - see
     // js/sound-library.js's mergeState() - so it can never wipe anything.
     var BACKUP_FORMAT = "downbeat-library-backup";
+    // The copy goes to a new file beside the chosen one and is then renamed
+    // over it, so a full disk or an unplugged drive mid-write leaves the old
+    // copy whole instead of neither. The temp file is this save's own (an
+    // exclusive name) and is removed when anything fails.
+    function _writeCopyAtomic(fs, target, text) {
+      var temp = target + ".tmp-" + Date.now() + "-" + Math.floor(Math.random() * 1e6);
+      var fd = fs.openSync(temp, "wx");
+      try {
+        try {
+          fs.writeFileSync(fd, text, "utf8");
+        } finally {
+          fs.closeSync(fd);
+        }
+        fs.renameSync(temp, target);
+      } catch (e) {
+        try { fs.unlinkSync(temp); } catch (e2) { /* already gone */ }
+        throw e;
+      }
+    }
     document.getElementById("saveLibraryBackupBtn").addEventListener("click", function () {
       var tracks = window.BeatMarkerLibrary.getAll().map(function (e) {
         return { mediaPath: e.mediaPath, label: e.label, bpm: e.bpm || null, key: e.key || null, scale: e.scale || null,
@@ -2339,7 +2646,7 @@
           }
           var backup = { format: BACKUP_FORMAT, version: 1, savedAt: new Date().toISOString(),
                          soundLibrary: SL.getState(), trackLibrary: tracks };
-          window.cep_node.require("fs").writeFileSync(picked.path, JSON.stringify(backup), "utf8");
+          _writeCopyAtomic(window.cep_node.require("fs"), picked.path, JSON.stringify(backup));
           setTranslatedText(libraryAdminStatus, "library.backupSaved", { files: fileCount + tracks.length });
           log("Library copy saved to " + picked.path + " (" + fileCount + " folder file(s), " + tracks.length + " timeline clip(s)).");
         })
@@ -2360,7 +2667,7 @@
           }
           var backup;
           try {
-            backup = JSON.parse(window.cep_node.require("fs").readFileSync(picked.path, "utf8"));
+            backup = window.BeatMarkerPersistence.parseJson(window.cep_node.require("fs").readFileSync(picked.path, "utf8"));
           } catch (e) {
             backup = null;
           }
@@ -2382,10 +2689,10 @@
           persistSoundLibrary();
           persistLibrary();
           renderLibrary();
-          setTranslatedText(libraryAdminStatus, "library.backupLoaded",
-            { files: added.files + newTracks.length, folders: added.folders });
+          setTranslatedText(libraryAdminStatus, added.marks ? "library.backupLoadedMarks" : "library.backupLoaded",
+            { files: added.files + newTracks.length, folders: added.folders, marks: added.marks });
           log("Library copy loaded from " + picked.path + ": " + added.files + " folder file(s), " + newTracks.length +
-              " timeline clip(s), " + added.folders + " folder(s) added.");
+              " timeline clip(s), " + added.folders + " folder(s) added; stars or confirmed keys restored on " + added.marks + ".");
         })
         .catch(function (err) {
           log("Load a copy failed: " + (err && err.message ? err.message : err));
@@ -2399,6 +2706,7 @@
       _libPersistTimer = null;
       SL.loadState(null);
       libSelectedPath = null;
+      _libScope = { music: [], sfx: [] }; // a saved setting, deleted with settings.json
       renderLibrary();
     }
     function applySettings(settings) {
@@ -2417,10 +2725,36 @@
       _libUpdateMatchState();
       if (_libMatched) {
         var playback = ctx.selectedPlayback();
-        libKeySelect.value = playback && playback.camelot || "";
-        libBpmInput.value = playback && playback.bpm ? playback.bpm.toFixed(1) : "";
-        _libMatched = { camelot: libKeySelect.value, bpm: libBpmInput.value };
+        if (playback && (playback.camelot || playback.bpm)) {
+          libKeySelect.value = playback.camelot || "";
+          libBpmInput.value = playback.bpm ? playback.bpm.toFixed(1) : "";
+          _libMatched = { camelot: libKeySelect.value, bpm: libBpmInput.value };
+        } else {
+          // The selection has no key or tempo now (another clip, or none):
+          // Match clip turns off with the filters it set and says why, so a
+          // lit button never stands for a match that is not there.
+          libKeySelect.value = "";
+          libKeyModeSelect.value = "exact";
+          libBpmInput.value = "";
+          _libMatched = null;
+          _libUpdateMatchState();
+          setTranslatedText(libScanStatus, "library.matchClipNone");
+        }
         renderLibrary();
+      }
+      var keyed = ctx.selectedPlayback();
+      if (_libInKey && !(keyed && keyed.sourceCamelot)) {
+        // The same for In key when the selection has no key at all: it turns
+        // off (the sound back at its own pitch) and the pane says why. A clip
+        // that has a key but plays between two keys keeps it on.
+        _libInKey = false;
+        if (_libPlayer && _libPaneReady) {
+          _libPlayer.setPitch(0);
+        }
+        if (libPaneNote.hidden || _libInKeyHintShown) {
+          _libPaneNote("library.paneInKeyNone");
+          _libInKeyHintShown = true;
+        }
       }
       _libApplyInKey();
       _libPaneRefresh();

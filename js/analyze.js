@@ -350,14 +350,31 @@
     });
   }
 
-  // monoSamples: Float32Array at 44100 Hz (from js/audio.js). tempoConstraint:
-  // optional { minTempo, maxTempo } in BPM (defaults 40..208). Returns a
-  // Promise of { cuesheet, beatsArray, confidence, phase, phaseAverages, ... }.
-  // The cuesheet has "beats" (every detected beat) and "downbeats" (every 4th
-  // beat from the detected phase) impulse tracks. Beat times are in file
-  // seconds, shifted earlier by BEAT_LATENCY_SEC.essentia.
+  // Audio the beat tracker cannot read: under 2 s it stops with a raw
+  // "Empty vector input", and silence gives an invented grid (~740 BPM).
+  // Both are refused with a code the panel translates (main.js
+  // _unfitAudioText). The silence line is -60 dBFS at the loudest sample,
+  // far under any music.
+  var MIN_BEATS_SECONDS = 2;
+  var SILENT_PEAK = 0.001;
+  function audioUnfitForBeats(monoSamples, sampleRate) {
+    if (!monoSamples || monoSamples.length < MIN_BEATS_SECONDS * sampleRate) {
+      return "DOWNBEAT_AUDIO_TOO_SHORT";
+    }
+    for (var i = 0; i < monoSamples.length; i++) {
+      if (monoSamples[i] > SILENT_PEAK || monoSamples[i] < -SILENT_PEAK) {
+        return null;
+      }
+    }
+    return "DOWNBEAT_AUDIO_SILENT";
+  }
+
   function analyzeBeatsToCuesheet(monoSamples, audioPath, tempoConstraint) {
     return initEssentia().then(function (essentia) {
+      var unfit = audioUnfitForBeats(monoSamples, global.BeatMarkerAudio.TARGET_SAMPLE_RATE);
+      if (unfit) {
+        throw new Error(unfit);
+      }
       var signalVector = essentia.arrayToVector(monoSamples);
       var sampleRate = global.BeatMarkerAudio.TARGET_SAMPLE_RATE;
       var minTempo = (tempoConstraint && typeof tempoConstraint.minTempo === "number") ? tempoConstraint.minTempo : 40;
@@ -965,6 +982,7 @@
     initEssentia: initEssentia,
     pickBestPhase: pickBestPhase,
     analyzeBeatsToCuesheet: analyzeBeatsToCuesheet,
+    audioUnfitForBeats: audioUnfitForBeats,
     pickPhaseForExternalBeats: pickPhaseForExternalBeats,
     detectKey: detectKey,
     chordKeyOnly: _chordKeyOnly,

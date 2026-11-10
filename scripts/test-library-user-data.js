@@ -107,9 +107,17 @@ wait(800).then(function () {
     return out;
   }
   const audioBefore = snapshot(SFX);
+  const realNow = Date.now;
+  let now = realNow();
+  Date.now = function () { return now; };
   $.clearLibraryBtn._fire("click");
   check("one click only arms Clear; nothing is removed yet", Object.keys(SL.getState().files).length > 0);
-  $.clearLibraryBtn._fire("click");
+  now += 120;
+  $.clearLibraryBtn._fire("click", { detail: 2 });
+  check("a double click on Clear removes nothing (its second click is not the answer)", Object.keys(SL.getState().files).length > 0);
+  now += 1000;
+  $.clearLibraryBtn._fire("click", { detail: 1 });
+  Date.now = realNow;
   const saved = JSON.parse(fs.readFileSync(path.join(DOCS, "Downbeat", "sound-library.json"), "utf8"));
   check("Clear empties folders, records and favourites", Object.keys(saved.files).length === 0 &&
     saved.folders.music.length === 0 && saved.folders.sfx.length === 0, JSON.stringify(saved.folders));

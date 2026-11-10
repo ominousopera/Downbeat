@@ -10,7 +10,7 @@
   // visible, so a step never spotlights nothing.
   // `tab`: the tab (js/main.js's window.BeatMarkerTabs) that must be active
   // for the target to be visible; null for targets outside the tab system
-  // (the settings gear) and for steps with no target.
+  // (the settings gear) and for the welcome step.
   var STEPS = [
     { target: null, tab: null, titleKey: "tour.welcomeTitle", bodyKey: "tour.welcomeBody" },
     { target: "#analyzeBtn", tab: "analyze", titleKey: "tour.analyzeTitle", bodyKey: "tour.analyzeBody" },
@@ -24,7 +24,9 @@
     { target: "#pitchApplyBtn", tab: "key", titleKey: "tour.pitchTitle", bodyKey: "tour.pitchBody" },
     { target: "#libSectionSwitch", tab: "library", titleKey: "tour.libraryTitle", bodyKey: "tour.libraryBody" },
     { target: "#settingsGearBtn", tab: null, titleKey: "tour.settingsTitle", bodyKey: "tour.settingsBody" },
-    { target: null, tab: null, titleKey: "tour.finishTitle", bodyKey: "tour.finishBody" }
+    // Ends on Analyze: its text says to select a clip, and the clip line is
+    // not shown on the Library tab.
+    { target: null, tab: "analyze", titleKey: "tour.finishTitle", bodyKey: "tour.finishBody" }
   ];
 
   var overlay, spotlight, callout, stepIndicator, calloutTitle, calloutBody;
@@ -97,6 +99,9 @@
       var above = rect.top - pad - 10 - calloutH;
       top = above >= margin ? above : Math.max(margin, viewportH - margin - calloutH);
     }
+    // Never below the bottom edge either: a target low in the panel (or
+    // one the page has scrolled past) must not push Next / Skip out of view.
+    top = Math.min(top, viewportH - margin - calloutH);
 
     var left = targetEl ? rect.left : (viewportW - calloutW) / 2;
     if (left + calloutW > viewportW - margin) {
@@ -114,7 +119,9 @@
     callout.style.visibility = "visible";
   }
 
-  function renderStep() {
+  // keepScroll: re-placed after the user scrolled, so the page is not
+  // scrolled back under them.
+  function renderStep(keepScroll) {
     _els();
     var step = STEPS[currentStepIndex];
     var I18n = global.BeatMarkerI18n;
@@ -123,15 +130,39 @@
     calloutBody.textContent = I18n.t(step.bodyKey);
     // Gone on the first step, so Next takes the whole row there.
     backBtn.hidden = currentStepIndex === 0;
-    nextBtn.textContent = currentStepIndex === STEPS.length - 1 ? I18n.t("tour.done") : I18n.t("tour.next");
-    // Switch to this step's tab before measuring: a target inside an inactive
-    // tab has zero size.
+    // The attribute too: a language change re-applies it to the button.
+    var nextKey = currentStepIndex === STEPS.length - 1 ? "tour.done" : "tour.next";
+    nextBtn.setAttribute("data-i18n", nextKey);
+    nextBtn.textContent = I18n.t(nextKey);
+
+    // Switch to this step's tab before measuring: a target inside an
+    // inactive tab has zero size.
     if (step.tab && global.BeatMarkerTabs) {
       global.BeatMarkerTabs.switchTab(step.tab);
     }
 
+    if (isSetAside) {
+      return; // placed when it is shown again (setAside below)
+    }
     var targetEl = resolveVisibleTarget(step.target);
+    if (!keepScroll) {
+      _scrollIntoViewIfOut(targetEl);
+    }
     positionCallout(targetEl);
+  }
+
+  // A target below (or above) the visible part of a short panel is scrolled
+  // to the middle first, so its highlight and the box beside it are seen.
+  // Only when it is out of view, and not while the user scrolls.
+  function _scrollIntoViewIfOut(targetEl) {
+    if (!targetEl || typeof targetEl.scrollIntoView !== "function") {
+      return;
+    }
+    var rect = targetEl.getBoundingClientRect();
+    var viewportH = document.documentElement.clientHeight;
+    if (rect.top < 0 || rect.bottom > viewportH) {
+      targetEl.scrollIntoView({ block: "center" });
+    }
   }
 
   function start(finishCallback) {
@@ -139,7 +170,7 @@
     onFinishCallback = finishCallback || null;
     currentStepIndex = 0;
     isActive = true;
-    overlay.hidden = false;
+    overlay.hidden = isSetAside;
     renderStep();
   }
 
@@ -191,7 +222,7 @@
         return;
       }
       spotlight.style.transition = "none";
-      renderStep();
+      renderStep(true);
       clearTimeout(scrollSettleTimer);
       scrollSettleTimer = setTimeout(function () {
         spotlight.style.transition = "";
@@ -199,9 +230,34 @@
     }, { passive: true, capture: true });
   }
 
+  // After a language change: the open step is written again in the new
+  // language (its text is set once per step, not by the generic pass).
+  function refresh() {
+    if (isActive) {
+      renderStep();
+    }
+  }
+
+  // Settings opened during the tour sits under the tour layer: the layer
+  // is hidden while Settings is open and the step is shown again after.
+  var isSetAside = false;
+  function setAside(on) {
+    isSetAside = !!on;
+    if (!isActive) {
+      return;
+    }
+    _els();
+    overlay.hidden = isSetAside;
+    if (!isSetAside) {
+      renderStep();
+    }
+  }
+
   global.BeatMarkerTour = {
     start: start,
     wireButtons: wireButtons,
+    refresh: refresh,
+    setAside: setAside,
     isActive: function () { return isActive; }
   };
 })(window);

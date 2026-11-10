@@ -3,13 +3,13 @@
 // State (saved as Documents/Downbeat/sound-library.json by
 // js/persistence.js):
 //   folders: { music: [dir...], sfx: [dir...] }
-//   files: { <path>: record }
-//   record: { path, section, name, size, mtimeMs, status, durationSec, bpm,
-//             bpmConfidence, camelot, key, scale, strength, error }
-//   status: "pending" (new or changed since its analysis) | "done" | "error"
-// A file whose size or modification time changed is analyzed again; one that
-// disappeared from disk is dropped on the next scan, unless its whole folder
-// is offline (offlineFolders()).
+//   files:   { <path>: record }
+//   record:  { path, section, name, size, mtimeMs, status, durationSec,
+//              bpm, bpmConfidence, camelot, key, scale, strength, error }
+//   status:  "pending" (new or changed since its analysis) | "done" | "error"
+// A file whose size or modification time changed is analyzed again; one
+// that disappeared from disk is dropped on the next scan, unless it carries
+// a star or a key set by hand (see syncFiles).
 (function (global) {
   "use strict";
 
@@ -44,7 +44,9 @@
       removed: {}, folderAt: {}, removedFolders: {}, clearedAt: { music: 0, sfx: 0 } };
   }
   var TOMBSTONE_DAYS = 90;
-  var TOMBSTONE_MAX = 5000;
+  // Room for every file of both sections leaving in one scan (a big folder
+  // renamed): with fewer, the other host would keep the rest as ghosts.
+  var TOMBSTONE_MAX = 2 * MAX_FILES_PER_SCAN;
   function _now() {
     return Date.now();
   }
@@ -85,6 +87,7 @@
 
   function loadState(saved) {
     state = _emptyState();
+    _childDirs = null;
     if (!saved || typeof saved !== "object") {
       return;
     }
@@ -97,32 +100,87 @@
     state.removedFolders = _timeMap(saved.removedFolders);
     SECTIONS.forEach(function (sec) { state.clearedAt[sec] = _time(saved.clearedAt && saved.clearedAt[sec]); });
     var files = saved.files || {};
+    var retag = [];
     for (var p in files) {
       // "__proto__" as a key would replace state.files' prototype instead of
       // adding a record (a hand-edited or damaged file).
       if (p !== "__proto__" && files.hasOwnProperty(p) && files[p] && SECTIONS.indexOf(files[p].section) !== -1) {
         state.files[p] = files[p];
-        // Records that have not been checked for name tags yet get them now,
-        // without a rescan.
+        // Records whose name tags were read by other rules (or not at all) get
+        // them now, once every record is in (a folder's note depends on the
+        // folders beside it).
         if (files[p].status === "done" && files[p].nameChecked !== NAME_TAGS_VERSION) {
-          applyNameTags(p);
+          retag.push(p);
+        } else {
+          _applyConfirmed(files[p]);
         }
-        _applyConfirmed(files[p]);
       }
     }
+    _childDirs = null;
+    retag.forEach(function (path) {
+      _retag(path);
+      _applyConfirmed(state.files[path]);
+    });
   }
   // Bumped when the name-tag rules change, so existing records are re-checked on load.
-  var NAME_TAGS_VERSION = 1;
+  // 2: a bare note letter counts only beside the BPM tag, and a folder's
+  // note only for a sound with a pitch (see _folderNoteHolds).
+  var NAME_TAGS_VERSION = 2;
   function _baseAndFolder(path) {
     var parts = String(path).split("/");
     return { base: parts[parts.length - 1], folder: parts.length > 1 ? parts[parts.length - 2] : "" };
   }
-  // Name tags win over detection: a producer's label is more reliable than an
-  // estimate. Applied to a record after its analysis (or instead of it, see
-  // nameTagsComplete). A root-only tag (no mode) keeps the root and takes the
-  // mode from what was detected: the detected key itself when it has that
-  // root, the matching one when detection found the relative major/minor,
-  // else the detected scale.
+  // Has the scan measured whether this sound has a pitch? Music always has a key.
+  function _measured(rec) {
+    return rec.section === "music" || (typeof rec.pitchCrest === "number" && typeof rec.pitchFlatness === "number");
+  }
+  // parent folder -> { name of a folder inside it: true }, over every
+  // folder that holds a record. Built when first needed; dropped whenever
+  // records come or go.
+  var _childDirs = null;
+  function _childDirsOf(parent) {
+    if (!_childDirs) {
+      _childDirs = {};
+      for (var p in state.files) {
+        if (!state.files.hasOwnProperty(p)) {
+          continue;
+        }
+        var parts = p.split("/");
+        var prefix = parts[0];
+        for (var d = 1; d < parts.length - 1; d++) {
+          (_childDirs[prefix] || (_childDirs[prefix] = {}))[parts[d]] = true;
+          prefix += "/" + parts[d];
+        }
+      }
+    }
+    return _childDirs.hasOwnProperty(parent) ? _childDirs[parent] : {};
+  }
+  // A folder named after a note sorts pitched sounds by note, but "A" to
+  // "G" are also the folders of a library sorted by first letter. So a
+  // folder's note never overrides "no clear pitch", and a bare letter
+  // counts only when every folder beside it is a note too, one of them
+  // sharp, flat or with a mode (A, A#, B, C, C#...).
+  function _folderNoteHolds(path, rec, bare) {
+    if (_measured(rec) && !hasPitch({ section: rec.section, pitchCrest: rec.pitchCrest, pitchFlatness: rec.pitchFlatness, strength: rec.strength })) {
+      return false;
+    }
+    if (!bare) {
+      return true;
+    }
+    var parts = String(path).split("/");
+    var kids = Object.keys(_childDirsOf(parts.slice(0, -2).join("/")));
+    var marked = false;
+    for (var i = 0; i < kids.length; i++) {
+      var f = kids[i].match(NOTE_FOLDER);
+      if (!f) {
+        return false;
+      }
+      if (f[2] || f[3]) {
+        marked = true;
+      }
+    }
+    return marked && kids.length > 1;
+  }
   function applyNameTags(path) {
     var rec = state.files[path];
     if (!rec) {
@@ -133,6 +191,10 @@
     }
     var bf = _baseAndFolder(path);
     var tags = parseNameTags(bf.base, bf.folder);
+    if (tags.fromFolder && !_folderNoteHolds(path, rec, tags.folderBare)) {
+      tags.key = null; tags.scale = null; tags.note = null;
+    }
+    tags.applied = !!(tags.key || tags.note);
     var CAM = global.BeatMarkerCamelot;
     if (tags.key && CAM) {
       rec.key = tags.key;
@@ -170,22 +232,45 @@
     }
     return tags;
   }
+
+  // Name tags again on an analyzed record (read by other name-tag rules,
+  // or moved to another folder). A key that came from a title word or a
+  // folder letter replaced the detected one, so the record goes back to the
+  // next Start scan; so does a sound keyed by its folder alone, never
+  // measured for pitch. Its star and confirmations stay.
+  function _retag(path) {
+    var rec = state.files[path];
+    var hadNameKey = rec.keyFrom === "name";
+    var tags = applyNameTags(path);
+    if ((hadNameKey && !tags.applied) || (tags.applied && tags.fromFolder && !_measured(rec))) {
+      rec.status = "pending";
+    }
+  }
   // True when the file name already states the key (and, for music, the BPM):
   // then the file is not analyzed at all.
+  // A key from the folder alone still needs the analysis: it counts only
+  // for a sound with a pitch.
   function nameTagsComplete(path, section) {
     var bf = _baseAndFolder(path);
     var tags = parseNameTags(bf.base, bf.folder);
-    return !!(tags.key && (tags.bpm || section === "sfx"));
+    return !!(tags.key && !tags.fromFolder && (tags.bpm || section === "sfx"));
   }
 
   function getState() {
     return state;
   }
-  // Adds a saved copy (Load a copy) to the current library without removing
-  // anything. Records keep their size and modification time, so Rescan skips
-  // files that did not change.
+
+  // Load a copy: adds a saved state to the current one instead of
+  // replacing it, so there is a way back if the library is lost. Folders
+  // not yet here are added (through addFolder's
+  // nesting rules), a file's record is taken when this library has none
+  // for it or has only an unfinished one. Records keep their size and
+  // modification time, so Rescan skips files that did not change. For a
+  // file both have (the same size and date), the copy's star and the key
+  // or BPM set by hand come back where the library has none.
+  // Returns { folders, files, marks } - how many were added or restored.
   function mergeState(saved) {
-    var added = { folders: 0, files: 0 };
+    var added = { folders: 0, files: 0, marks: 0 };
     if (!saved || typeof saved !== "object") {
       return added;
     }
@@ -211,13 +296,31 @@
       var mine = state.files[p];
       if ((mine && mine.section !== rec.section) || folderProblem(rec.section, p)) { continue; }
       if (!mine || (mine.status !== "done" && rec.status === "done")) {
+        if (mine && mine.fav) { rec.fav = true; } // adding never takes a star away
         state.files[p] = rec;
         _applyConfirmed(rec);
         _touch(rec);
+        if (rec.fav) { rec.favAt = rec.updatedAt; }
         delete state.removed[p];
         added.files++;
+      } else if (mine.size === rec.size && mine.mtimeMs === rec.mtimeMs) {
+        var restored = false;
+        var at = Math.max(_now(), _time(mine.favAt) + 1, _time(mine.confirmedAt) + 1);
+        if (rec.fav && !mine.fav) {
+          _takeMarks(mine, { fav: true, favAt: at });
+          restored = true;
+        }
+        if ((rec.confirmedKey || rec.confirmedBpm) && !mine.confirmedKey && !mine.confirmedBpm && mine.status === "done") {
+          _takeMarks(mine, { confirmedKey: rec.confirmedKey, confirmedBpm: rec.confirmedBpm, confirmedAt: at });
+          restored = !!(mine.confirmedKey || mine.confirmedBpm) || restored;
+        }
+        if (restored) {
+          mine.updatedAt = Math.max(_time(mine.updatedAt), at);
+          added.marks++;
+        }
       }
     }
+    _childDirs = null;
     return added;
   }
 
@@ -294,6 +397,15 @@
     return null;
   }
 
+  // The section's folders that overlap one of the other section (a saved
+  // library can hold such a pair). Their files are listed in one section only.
+  function overlappingFolders(section) {
+    var other = section === "music" ? "sfx" : "music";
+    return (state.folders[section] || []).filter(function (dir) {
+      return (state.folders[other] || []).some(function (d) { return _under(dir, d) || _under(d, dir); });
+    });
+  }
+
   // Returns false for a folder already covered (the same folder, or one
   // inside a folder already in this section).
   function addFolder(section, dir) {
@@ -331,9 +443,14 @@
         delete state.files[p];
       }
     }
+    _childDirs = null;
   }
   // Every audio file under the section's folders: [{ path, size, mtimeMs }].
-  // Hidden entries (".name") are skipped; symlinks are not followed.
+  // Hidden entries (".name": .Trashes, .Trash-1000) are skipped; symlinks
+  // are not followed. So are the system's and network drives' own folders:
+  // a deleted sound sits in a NAS share's #recycle / @Recycle and must
+  // not come back as a Library sound.
+  var SKIP_DIR = /^(__macosx|system volume information|\$recycle\.bin|#recycle|@recycle|@eadir|#snapshot|@recently-snapshot|lost\+found)$/i;
   function listAudioFiles(fs, section) {
     var out = [];
     var seen = {};
@@ -351,8 +468,7 @@
       }
       for (var i = 0; i < names.length; i++) {
         var name = names[i];
-        // Windows keeps these at a drive's root and never lets them be read.
-        if (name.charAt(0) === "." || name === "__MACOSX" || name === "System Volume Information" || /^\$recycle\.bin$/i.test(name)) {
+        if (name.charAt(0) === "." || SKIP_DIR.test(name)) {
           continue;
         }
         var full = (dir.slice(-1) === "/" ? dir : dir + "/") + name;
@@ -396,11 +512,26 @@
       }
     });
   }
-  // Brings the section in line with what is on disk. Files under the offline
-  // folders (offlineFolders above) are left as they are.
+
+  // A star or a key or BPM set by hand is the user's own: such a record
+  // outlives its file, shown "file not found", while any of them is there.
+  function _userMarked(rec) {
+    return !!(rec.fav || rec.confirmedKey || rec.confirmedBpm);
+  }
+  function _identity(path, size, mtimeMs) {
+    return _basename(path) + "\n" + size + "\n" + mtimeMs;
+  }
+
+  // Brings the section in line with what is on disk. Returns
+  // { added, changed, removed, moved, pending } counts. Files under the
+  // offline folders (offlineFolders above) are left as they are. A file
+  // gone from its place but found elsewhere in the section with the same
+  // name, size and date (moved, or its folder renamed) keeps its record -
+  // analysis, star, confirmed key - at the new place.
   function syncFiles(section, found, offline) {
-    var result = { added: 0, changed: 0, removed: 0, pending: 0 };
+    var result = { added: 0, changed: 0, removed: 0, moved: 0, pending: 0 };
     var present = {};
+    var fresh = {}; // identity -> path of a record this scan added (null when two share it)
     for (var i = 0; i < found.length; i++) {
       var f = found[i];
       present[f.path] = true;
@@ -412,6 +543,8 @@
         state.files[f.path] = { path: f.path, section: section, name: _basename(f.path), size: f.size, mtimeMs: f.mtimeMs, status: "pending", updatedAt: _now() };
         delete state.removed[f.path];
         result.added++;
+        var id = _identity(f.path, f.size, f.mtimeMs);
+        fresh[id] = fresh.hasOwnProperty(id) ? null : f.path;
       } else if (rec.size !== f.size || rec.mtimeMs !== f.mtimeMs) {
         rec.size = f.size;
         rec.mtimeMs = f.mtimeMs;
@@ -426,14 +559,43 @@
       }
     }
     var keep = (offline || []).concat(found.incomplete || []);
+    var movedTo = [];
     for (var p in state.files) {
       if (state.files.hasOwnProperty(p) && state.files[p].section === section && !present[p] &&
           !keep.some(function (d) { return _under(p, d); })) {
+        var old = state.files[p];
+        var oldId = _identity(p, old.size, old.mtimeMs);
+        var to = fresh.hasOwnProperty(oldId) ? fresh[oldId] : null;
+        if (to) {
+          fresh[oldId] = null; // one old record per new place
+          var moved = {};
+          for (var k in old) {
+            if (old.hasOwnProperty(k)) { moved[k] = old[k]; }
+          }
+          moved.path = to;
+          moved.name = _basename(to);
+          moved.updatedAt = _now();
+          if (moved.status === "error" || (moved.status === "done" && (moved.v || 1) !== ANALYSIS_VERSION[section])) {
+            moved.status = "pending";
+          }
+          state.files[to] = moved;
+          movedTo.push(to);
+          result.added--;
+          result.moved++;
+        } else if (_userMarked(old) && !p.split("/").some(function (part) { return SKIP_DIR.test(part); })) {
+          continue;
+        } else {
+          result.removed++;
+        }
         delete state.files[p];
         state.removed[p] = _now();
-        result.removed++;
       }
     }
+    _childDirs = null;
+    // A new folder can mean a different folder note (see _folderNoteHolds).
+    movedTo.forEach(function (path) {
+      if (state.files[path].status === "done") { _retag(path); }
+    });
     result.pending = pendingPaths(section).length;
     return result;
   }
@@ -475,6 +637,7 @@
     if (bpm !== null) { rec.confirmedBpm = { value: bpm, source: "user" }; }
     _applyConfirmed(rec);
     _touch(rec);
+    rec.confirmedAt = rec.updatedAt;
   }
   function clearConfirmed(path) {
     var rec = state.files[path];
@@ -484,6 +647,41 @@
     }
     rec.confirmedKey = null; rec.confirmedBpm = null; rec.detected = null;
     _touch(rec);
+    rec.confirmedAt = rec.updatedAt;
+  }
+
+  // The user's own marks on a record (the star, a key or BPM set by hand)
+  // carry their own times, so they survive a newer record from the other
+  // host - its scan result for the same sound - instead of being lost with
+  // the older record (two hosts never drop each other's stars). Takes the
+  // marks of `from` into `rec` where they are newer; returns whether
+  // anything changed.
+  function _takeMarks(rec, from) {
+    var changed = false;
+    if (_time(from.favAt) > _time(rec.favAt)) {
+      if (from.fav) { rec.fav = true; } else { delete rec.fav; }
+      rec.favAt = from.favAt;
+      changed = true;
+    }
+    if (_time(from.confirmedAt) > _time(rec.confirmedAt)) {
+      var fields = ["bpm", "bpmConfidence", "bpmFrom", "key", "scale", "camelot", "strength", "keyFrom", "keyAgreement"];
+      if (rec.detected) {
+        fields.forEach(function (k) { rec[k] = rec.detected[k]; });
+      }
+      rec.detected = null;
+      rec.confirmedKey = from.confirmedKey || null;
+      rec.confirmedBpm = from.confirmedBpm || null;
+      if (rec.confirmedKey || rec.confirmedBpm) {
+        if (rec.status === "done") { // a waiting record gets them over its result (setResult)
+          rec.detected = {};
+          fields.forEach(function (k) { rec.detected[k] = rec[k]; });
+        }
+        _applyConfirmed(rec);
+      }
+      rec.confirmedAt = from.confirmedAt;
+      changed = true;
+    }
+    return changed;
   }
 
   function setResult(path, result) {
@@ -547,6 +745,7 @@
       state.folders[sec] = [];
     });
     state.files = {};
+    _childDirs = null;
   }
 
   // Takes in what another host saved (the parsed sound-library.json) and
@@ -619,6 +818,9 @@
         if (mine.section === rec.section && theirTime > _time(mine.updatedAt)) {
           state.files[p] = rec;
           _applyConfirmed(rec);
+          _takeMarks(rec, mine);
+          changed = true;
+        } else if (mine.section === rec.section && _takeMarks(mine, rec)) {
           changed = true;
         }
       } else if (!goneSince(p, rec.section, theirTime) && !folderProblem(rec.section, p)) {
@@ -633,6 +835,7 @@
         changed = true;
       }
     }
+    if (changed) { _childDirs = null; }
     return changed;
   }
   // Number of records made by a different analysis version; Start scan redoes them.
@@ -744,15 +947,29 @@
     });
     return out.map(function (r) { return r.item; });
   }
-  // KEY AND BPM FROM THE FILE NAME. Returns { key, scale, bpm, note } - any
-  // of them null. `note` is a root with no mode ("Loopable D", a "G" folder
-  // of piano pings); the scan takes the mode from detection.
+
+  // KEY AND BPM FROM THE FILE NAME (sample packs often say the key and
+  // tempo in the name, so there is nothing to detect).
+  // Returns { key, scale, bpm, note } - any of them null. `note` is a root
+  // with no mode ("Loopable D", a "G" folder of piano pings); the scan
+  // takes the mode from detection. An explicit mode word is reliable
+  // ("Key C#min", "F# minor", "Bbmaj"); a bare short form is not, because
+  // in plain text "Am" or "Em" is usually a word. So short forms count only
+  // when fenced by _ - ( ) [ ], with "key" before them, or beside a BPM tag
+  // in the same name. Note letters are uppercase only ("a minor" is text).
   var ACC = "(#|b|\\u266f|\\u266d|[ -]?[Ss]harp|[ -]?[Ff]lat)?";
   var MODE_WORD = "([Mm]aj(?:or)?|[Mm]in(?:or)?|MAJ(?:OR)?|MIN(?:OR)?|[Mm]oll|[Dd]ur)";
   var RE_KEY_WORD = new RegExp("(?:^|[^A-Za-z])([A-G])" + ACC + "[ _-]?" + MODE_WORD + "(?![a-z])");
   var RE_KEY_PREFIX = new RegExp("(?:^|[^A-Za-z])[Kk][Ee][Yy](?: of)?[ :_-]*([A-G])" + ACC + "(m)?(?![A-Za-z])");
   var RE_SHORT_FENCED = new RegExp("(?:^|[_(\\[-])\\s?([A-G])" + ACC + "(m)?\\s?(?=$|[_)\\]-])");
-  var RE_SHORT_SPACED = new RegExp("(?:^|[\\s_(\\[-])([A-G])" + ACC + "(m)?(?=$|[\\s_)\\]-])");
+  // A bare short form with a BPM tag counts only beside it: right after
+  // it and not followed by a word ("Loop 120bpm Am"), right before it with
+  // a minor or an accidental ("Bass Cm 120bpm"; "Am" and "Em" are words
+  // there), or joined by "_" ("Loopable F_..._90 bpm"). A title word
+  // ("Am I Ready Yet 120 BPM", "Paint A Cloud 128bpm", "Option B") is no key.
+  var RE_SHORT_AFTER_BPM = new RegExp("^[\\s_-]*([A-G])" + ACC + "(m)?(?=$|[_)\\]]|\\s*[-(\\[]|\\s+\\d)");
+  var RE_SHORT_BEFORE_BPM = new RegExp("(?:^|[\\s_(\\[-])([A-G])" + ACC + "(m)?[\\s_-]*$");
+  var RE_SHORT_JOINED = new RegExp("[\\s(\\[-]([A-G])" + ACC + "(m)?(?=_)");
   var RE_BPM_AFTER = /(?:^|[^0-9.])(\d{2,3}(?:\.\d{1,2})?)\s?[-_]?\s?bpm(?![a-z])/i;
   var RE_BPM_BEFORE = /(?:^|[^a-z])bpm\s?[-_:]?\s?(\d{2,3}(?:\.\d{1,2})?)(?![0-9])/i;
   var RE_CAMELOT = /(?:^|[(\[_-]\s?)(1[0-2]|[1-9])([AB])(?=\s?[)\]_-]|\s-\s)/; // "8A - 128 - Title" (Mixed In Key), "(8A)", "_8A_"
@@ -776,8 +993,17 @@
   function parseNameTags(fileName, folderName) {
     var name = String(fileName).replace(/\.[^.]+$/, "");
     var out = { key: null, scale: null, bpm: null, note: null };
-    var m = name.match(RE_BPM_AFTER) || name.match(RE_BPM_BEFORE) || name.match(RE_MIK_BPM);
+    var tagStart = 0, tagEnd = 0; // where the BPM tag is in the name
+    var m = name.match(RE_BPM_AFTER);
     if (m) {
+      tagStart = m.index + m[0].indexOf(m[1]);
+    } else if ((m = name.match(RE_BPM_BEFORE))) {
+      tagStart = m.index + m[0].search(/bpm/i);
+    } else {
+      m = name.match(RE_MIK_BPM);
+    }
+    if (m) {
+      tagEnd = m.index + m[0].length;
       var bpm = parseFloat(m[1]);
       if (bpm >= 40 && bpm <= 250) { out.bpm = bpm; }
     }
@@ -795,15 +1021,27 @@
     if ((m = name.match(RE_SHORT_FENCED)) && m[3]) {
       out.key = _normalizeNote(m[1], m[2]); out.scale = "minor"; return out; // "_Am_", "(F#m)"
     }
-    if (out.bpm && (m = name.match(RE_SHORT_SPACED))) {
-      if (m[3]) { out.key = _normalizeNote(m[1], m[2]); out.scale = "minor"; return out; } // "Loop 120bpm Am"
-      out.note = _normalizeNote(m[1], m[2]);
-      return out;
+    if (out.bpm) {
+      m = name.slice(tagEnd).match(RE_SHORT_AFTER_BPM);
+      if (!m) {
+        m = name.slice(0, tagStart).match(RE_SHORT_BEFORE_BPM);
+        if (m && !(m[2] || (m[3] && m[1] !== "A" && m[1] !== "E"))) { m = null; }
+      }
+      if (!m) {
+        m = name.match(RE_SHORT_JOINED);
+      }
+      if (m) {
+        if (m[3]) { out.key = _normalizeNote(m[1], m[2]); out.scale = "minor"; return out; } // "Loop 120bpm Am"
+        out.note = _normalizeNote(m[1], m[2]); // "Loopable D_..._90 bpm" - a root, mode unknown
+        return out;
+      }
     }
     var f = folderName ? String(folderName).match(NOTE_FOLDER) : null;
     if (f) {
       if (f[3]) { out.key = _normalizeNote(f[1], f[2]); out.scale = _mode(f[3] === "m" ? "min" : f[3]); }
       else { out.note = _normalizeNote(f[1], f[2]); } // a folder of sounds sorted by note
+      out.fromFolder = true; // applied only where it holds: see _folderNoteHolds
+      out.folderBare = !f[2] && !f[3];
     }
     return out;
   }
@@ -832,6 +1070,7 @@
       delete rec.fav;
     }
     _touch(rec);
+    rec.favAt = rec.updatedAt; // its own time: see _takeMarks
     return true;
   }
 
@@ -858,6 +1097,7 @@
     folderTree: folderTree,
     addFolder: addFolder,
     folderProblem: folderProblem,
+    overlappingFolders: overlappingFolders,
     setSystemDrive: setSystemDrive,
     isUnder: function (path, dir) { return _under(String(path), _norm(dir)); },
     removeFolder: removeFolder,

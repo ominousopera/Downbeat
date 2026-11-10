@@ -884,9 +884,12 @@ hr {
 /* The language picker is a mandatory first-run modal (pick a language before
    continuing), unlike the tour above, which is click-through so the
    highlighted control can be tried. It needs its own full backdrop dim and
-   blocks interaction with what is behind it. ID selector so it reliably
-   overrides the shared class regardless of cascade order. */
-#langPickOverlay {
+   blocks interaction with what is behind it. The one-time update question
+   is the same kind of card and blocks the same way, so its answer cannot be
+   changed behind it. ID selectors so they reliably override the shared
+   class regardless of cascade order. */
+#langPickOverlay,
+#updatePickOverlay {
   background: rgba(8, 8, 10, 0.75);
   pointer-events: auto;
 }
@@ -1065,6 +1068,9 @@ hr {
   color: var(--text);
   white-space: pre-line; /* the delete-data dialog lists one file per line */
   word-break: break-word;
+  /* A long list in a short panel scrolls, so the buttons stay in the card. */
+  overflow-y: auto;
+  min-height: 0;
 }
 .modal-card-actions {
   display: flex;
@@ -1575,9 +1581,13 @@ input[type="text"]:focus, input[type="number"]:focus, input[type="password"]:foc
   margin: 2px 0 16px;
 }
 .g-actions button { border: none; border-radius: 0; }
-/* The main button takes the room left and wraps its own text when a language
-   makes the three labels wider than the panel (Russian). */
-.g-actions .g-main { flex: 1; min-width: 0; text-align: left; letter-spacing: 1.5px; }
+/* The main button takes the room left and wraps its own text when a
+   language makes the three labels wider than the panel (Russian). */
+.g-actions .g-main { flex: 1; min-width: 0; text-align: left; letter-spacing: 1.5px; overflow-wrap: anywhere; }
+/* At the narrowest panel a long word (Russian) still fits its button. */
+@media (max-width: 320px) {
+  .g-actions .g-main { letter-spacing: 0.5px; gap: 6px; }
+}
 .g-actions button.ghost,
 .g-actions #clearMarkersBtn {
   flex: 0 0 auto;
@@ -1931,6 +1941,25 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { background: var(--acce
   color: var(--text-faint);
 }
 .g-clip-slot .sel-info { margin-left: 0.5ch; }
+/* An error in the clip line is read in full: it takes a line of its own
+   under the heading, across its whole width, and wraps instead of being
+   cut with "..." (main.js _setSelectionStatus sets these classes). */
+.g-sec-head.has-clip-error { flex-wrap: wrap; }
+.g-sec-meta.g-clip-slot.has-error {
+  flex: 1 1 100%;
+  max-width: 100%;
+  margin-left: 0;
+  overflow: visible;
+  white-space: normal;
+  text-align: left;
+}
+.g-clip-slot.has-error .selection-status.is-error {
+  display: block;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+.g-clip-slot.has-error .sel-name { overflow: visible; text-overflow: clip; }
 
 /* The settings gear: a centered square, so the tour's spotlight frame sits
    on it exactly. */
@@ -2198,20 +2227,31 @@ button.settings-full-btn.is-failed { color: var(--danger); }
 
 /* LIBRARY FILTER LINE, in one place. Two groups: the dropdowns
    (.g-filter-picks) and the on / off filters with Match clip / Reset
-   (.g-filter-checks). In a wide panel both sit on one line; in a narrow
-   one the second group moves to its own line, whole, so no checkbox is
-   left alone on a line. */
+   (.g-filter-checks).
+   - Wide panel: both on one line. The dropdowns give up width first
+     (down to 60 px, values cut with "..."; the key box, usually "Any
+     key", first) - the dropdown group counts as 330 px when the line is
+     laid out, and grows back to its full width when there is room.
+   - Narrow panel (the groups do not fit side by side): the second
+     group moves to its own line, whole - never a lone checkbox, so a
+     resized panel stays tidy.
+   - Narrower still (long Russian / Spanish labels, a 280 px panel): each
+     group wraps inside itself instead of running past the panel's edge.
+     A dropdown counts as 60 px when the line is broken and grows back to
+     its width after, so it shrinks before it wraps; a label keeps room
+     for its dropdown (+66 px, taken back by the dropdown's -66 px), so
+     the two wrap together. */
 .g-filters { flex-wrap: wrap; align-items: center; column-gap: 14px; row-gap: 8px; }
 .g-filter-picks,
 .g-filter-checks { display: flex; align-items: center; min-width: 0; }
-.g-filter-picks { flex: 1 1 330px; max-width: max-content; gap: 6px; }
-.g-filter-picks > .hint { flex: 0 0 auto; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-dim); }
-.g-filter-picks > .hint:not(:first-child) { margin-left: 4px; }
-.g-filter-picks .db-select { flex: 0 1 auto; min-width: 60px; }
-.g-filter-picks .db-select.lib-sort-select { width: 104px; }
-.g-filter-picks .db-select.lib-key-select { width: 116px; flex-shrink: 2; }
-.g-filter-picks .db-select.lib-mode-select { width: 104px; }
-.g-filter-checks { flex: 0 0 auto; flex-wrap: wrap; column-gap: 12px; row-gap: 6px; }
+.g-filter-picks { flex: 1 1 330px; max-width: max-content; flex-wrap: wrap; gap: 6px; }
+.g-filter-picks > .hint { flex: 0 0 auto; margin-right: 66px; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-dim); }
+.g-filter-picks > .hint + .db-select { margin-left: -66px; }
+.g-filter-picks .db-select { flex: 1 1 60px; min-width: 60px; }
+.g-filter-picks .db-select.lib-sort-select { width: 104px; max-width: 104px; margin-right: 4px; }
+.g-filter-picks .db-select.lib-key-select { width: 116px; max-width: 116px; flex-grow: 0.5; }
+.g-filter-picks .db-select.lib-mode-select { width: 104px; max-width: 104px; }
+.g-filter-checks { flex: 0 1 auto; flex-wrap: wrap; column-gap: 12px; row-gap: 6px; }
 .g-filter-checks label { margin: 0; }
 .g-filter-checks label input[type="checkbox"] + span,
 .g-filter-checks .g-lib-links button { letter-spacing: 0.6px; }

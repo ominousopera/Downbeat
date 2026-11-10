@@ -1,8 +1,26 @@
 "use strict";
-// A stub browser + host for the panel, built from the real index.html, so the
-// panel's own scripts can run under plain Node with no Premiere and no
-// browser. Shared by test-panel-boot.js (boot, languages, Delete my data) and
-// test-analyze-pipeline.js (a real Analyze through the real workers).
+// A stub browser + host for the panel, built from the real index.html, so
+// the panel's own scripts can run under plain Node with no Premiere and no
+// browser. Used by the tests that run the whole panel (test-panel-boot.js,
+// test-analyze-pipeline.js, the Library and saved-data tests and others).
+//
+// bootPanel(options) loads every panel script in index.html's order - the
+// panel's init() runs as part of that - and returns handles to the stub
+// DOM. main.js is one self-invoking script, so this can run once per
+// process. options:
+//   docsDir       - what SystemPath.MY_DOCUMENTS resolves to (required;
+//                   always a throwaway temp folder, never the real one)
+//   evalScript    - optional stand-in for CSInterface.evalScript
+//   realTimeouts  - keep Node's setTimeout (for tests that await real
+//                   async work); setInterval is always a no-op
+//   realIntervals - keep Node's setInterval too (the self-test waits on
+//                   its buttons with one); the caller must process.exit()
+//   appName       - the host CSInterface reports ("PPRO" by default,
+//                   "AEFT" for After Effects)
+//   tempDir       - what the system temp folder is for the panel (its
+//                   worker hand-off files go to <tempDir>/Downbeat); by
+//                   default a throwaway folder next to docsDir, removed at
+//                   exit, so a test never touches a real Downbeat's files
 const fs = require("fs");
 const path = require("path");
 // DOWNBEAT_ROOT: build-zxp.sh points this at the staged release copy.
@@ -10,6 +28,12 @@ const ROOT = process.env.DOWNBEAT_ROOT || path.join(__dirname, "..");
 
 function bootPanel(options) {
 const html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+let systemTemp = options.tempDir;
+if (!systemTemp) {
+  systemTemp = fs.mkdtempSync(String(options.docsDir).replace(/[\\/]+$/, "") + "-system-temp-");
+  process.on("exit", function () { fs.rmSync(systemTemp, { recursive: true, force: true }); });
+}
+process.env.TMPDIR = process.env.TEMP = process.env.TMP = systemTemp; // read by os.tmpdir()
 // Every element the panel can reach - by id, by class, or through a
 // data-i18n* attribute - parsed from the real markup with its attributes and
 // its own first text node, so text hardcoded in the markup is visible to the

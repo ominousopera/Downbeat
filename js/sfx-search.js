@@ -16,11 +16,19 @@
   // yi), Armenian, Hebrew, Arabic, Thai, kana, CJK and Hangul. Scripts with
   // no spaces between words (Chinese, Japanese) count a run as one word, so
   // only its start is matched.
-  var WORD_SPLIT = /[^0-9a-z\u00c0-\u024f\u0370-\u03ff\u0400-\u04ff\u0530-\u058f\u05d0-\u05ff\u0600-\u06ff\u0e00-\u0e7f\u1e00-\u1eff\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af]+/;
+  // Combining marks (U+0300-036F) stay inside a word: a name stored
+  // decomposed keeps the marks that have no composed form.
+  var WORD_SPLIT = /[^0-9a-z\u00c0-\u024f\u0300-\u036f\u0370-\u03ff\u0400-\u04ff\u0530-\u058f\u05d0-\u05ff\u0600-\u06ff\u0e00-\u0e7f\u1e00-\u1eff\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af]+/;
   var index = null;
 
+  // Names made on a Mac are often stored decomposed ("e" + a combining
+  // accent); the composed form makes them match what the user types.
   function _norm(s) {
-    return String(s || "").toLowerCase();
+    var t = String(s || "");
+    if (typeof t.normalize === "function") {
+      t = t.normalize("NFC");
+    }
+    return t.toLowerCase();
   }
   // term -> [{ id, how }]. How the term belongs to the category: "enCat" /
   // "enSub" its English category / subcategory name, "xxCat" / "xxSub" its
@@ -337,7 +345,12 @@
     var q = { active: words.length > 0, include: [], exclude: [] };
     words.forEach(function (raw) {
       var neg = raw.charAt(0) === "-" && raw.length > 1;
-      var w = neg ? raw.slice(1) : raw;
+      // File names are split at every non-letter, so a typed "sci-fi" or
+      // "don't" is looked for as the phrase "sci fi" / "don t".
+      var w = (neg ? raw.slice(1) : raw).split(WORD_SPLIT).filter(function (part) { return part; }).join(" ");
+      if (!w) {
+        return;
+      }
       // A one-letter word gets no categories; the empty "how" keeps
       // _expansions from throwing on it (the first keystroke of every search).
       var cats = (_synonyms && w.length >= 2) ? _catsFor(w) : { strong: {}, syn: {}, how: {} };

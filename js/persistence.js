@@ -20,10 +20,49 @@
     cachedDir = documentsDir + "/" + DATA_FOLDER_NAME;
     return cachedDir;
   }
-  // Where the panel (js/bridge.js, js/library-tab.js) writes the decoded-samples
-  // handoff files for its worker subprocesses. Created on demand; callers write into it directly.
+
+  // Where the decoded-samples handoff files for the worker subprocesses go
+  // (js/bridge.js, the Library scan). Created on demand; callers write into
+  // it directly. A Downbeat folder in the system's temp folder: Documents is
+  // often synced (OneDrive folder backup on Windows, iCloud Desktop &
+  // Documents on a Mac), and these are raw copies of the user's audio,
+  // seconds old. Documents/Downbeat/tmp is used when that folder cannot be:
+  // not reported, not a plain folder of this user, or not writable. Both
+  // are swept at start-up and both are covered by Delete my data.
+  function _systemTempDir() {
+    try {
+      var base = String(window.cep_node.require("os").tmpdir() || "").replace(/\\/g, "/").replace(/\/+$/, "");
+      return _looksLikeRealFolderPath(base) ? base + "/" + DATA_FOLDER_NAME : null;
+    } catch (e) {
+      return null;
+    }
+  }
+  function _isOwnPlainFolder(fs, dir) {
+    var stat = fs.lstatSync(dir);
+    if (!stat.isDirectory() || stat.isSymbolicLink()) {
+      return false;
+    }
+    try {
+      var uid = window.cep_node.require("os").userInfo().uid;
+      return uid < 0 || stat.uid === uid; // -1 on Windows, where the folder sits in the user's own profile
+    } catch (e) {
+      return true;
+    }
+  }
   function getTempDir(csInterface) {
     var fs = window.cep_node.require("fs");
+    var systemDir = _systemTempDir();
+    if (systemDir) {
+      try {
+        fs.mkdirSync(systemDir, { recursive: true });
+        if (_isOwnPlainFolder(fs, systemDir)) {
+          fs.accessSync(systemDir, fs.constants.W_OK);
+          return systemDir;
+        }
+      } catch (e) {
+        // Falls back to Documents below.
+      }
+    }
     var dir = _getDataDir(csInterface) + "/tmp";
     fs.mkdirSync(dir, { recursive: true });
     return dir;
@@ -34,22 +73,30 @@
   // data" button, plus two more below. Both use _listOwnFiles(), which
   // returns an explicit list of files that are provably this plugin's, and
   // nothing more:
-  //  - only directly inside Documents/Downbeat/ and Documents/Downbeat/tmp/,
-  //    never deeper, never outside;
-  //  - only exact names this plugin writes: library.json, settings.json,
-  //    sound-library.json, and the worker handoff files matching
-  //    OWN_TEMP_FILE_PATTERN (samples-/beatthis-/skey-/library-<n>-<n>.raw,
-  //    library-<n>-<n>.json);
-  //  - only plain files.
-  // Otherwise it refuses outright. The two more: a data file's kept copy (a
-  // save Windows refused, or one made while the other host was saving):
-  // only by the panel that holds its data and has just saved it, only that
-  // exact name next to its data file, only a plain file, and only while it
-  // is the file the panel read (see "A save Windows refused"); and a data
-  // file's lock left by a host that quit mid-save: only that exact name,
-  // only a plain file, only once it is over a minute old (see "One save at
-  // a time"). The pattern must match the names the panel gives its
-  // worker handoff files.
+  //   - only directly inside Documents/Downbeat/, Documents/Downbeat/tmp/
+  //     and the Downbeat folder in the system's temp folder (handoff files
+  //     only), never deeper, never outside;
+  //   - only exact names this plugin writes: library.json, settings.json,
+  //     sound-library.json, and the worker handoff files matching
+  //     OWN_TEMP_FILE_PATTERN (samples-/beatthis-/skey-/library-<n>-<n>.raw,
+  //     library-<n>-<n>.json);
+  //   - only plain files. A symlink is never followed and never removed,
+  //     so a link sitting in that folder cannot redirect a delete anywhere;
+  //   - and only if Documents/Downbeat itself is a real folder under a
+  //     plausible Documents path. Otherwise it refuses outright.
+  // Everything else found there is reported back as "kept" and left alone.
+  // Folders are removed with rmdirSync only, which fails on any folder that
+  // still has something in it - no recursive delete exists in this file.
+  // The two more: a data file's kept copy (a save Windows refused, or one
+  // made while the other host was saving): only by the panel that holds its
+  // data and has just saved it, only that exact name next to its data file,
+  // only a plain file, and only while it is the file the panel read (see "A
+  // save Windows refused"); and a data file's lock left by a host that quit
+  // mid-save: only that exact name, only a plain file, only once it is over
+  // a minute old (see "One save at a time").
+
+  // Must match the names js/bridge.js and js/library-tab.js give the worker
+  // hand-off files (and OWN_TEMP_FILE in worker/lifeline.js).
   var OWN_TEMP_FILE_PATTERN = /^((samples|beatthis|skey|library)-[0-9]+-[0-9]+\.raw|library-[0-9]+-[0-9]+\.json)$/;
   // In Documents/Downbeat itself: the new copy of a data file while it is
   // written (_writeAtomic), and the bytes of a data file that could not be
@@ -108,6 +155,17 @@
     }
     var dataDir = _getDataDir(csInterface);
     var listing = { dataDir: dataDir, files: [], kept: [] };
+    // Handoff files in the system's temp folder. Anything else there, and a
+    // folder there that is a link or a file, is not looked into or counted.
+    var systemDir = _systemTempDir();
+    if (systemDir && _pathKind(fs, systemDir) === "dir" && _isOwnPlainFolder(fs, systemDir)) {
+      listing.tempDir = systemDir;
+      fs.readdirSync(systemDir).forEach(function (name) {
+        if (OWN_TEMP_FILE_PATTERN.test(name) && _pathKind(fs, systemDir + "/" + name) === "file") {
+          listing.files.push(systemDir + "/" + name);
+        }
+      });
+    }
     var dataDirKind = _pathKind(fs, dataDir);
     if (dataDirKind === "missing") {
       return listing;
@@ -183,7 +241,7 @@
   function _holdsData(fs, f) {
     if (!OWN_DATA_TEMP_PATTERN.test(f.slice(f.lastIndexOf("/") + 1))) { return false; }
     try {
-      JSON.parse(fs.readFileSync(f, "utf8"));
+      parseJson(fs.readFileSync(f, "utf8"));
       return true;
     } catch (e) {
       return false;
@@ -221,6 +279,7 @@
       _saveBlocked = {};
       _forgetSync();
       _removeFolderIfEmpty(fs, listing.dataDir + "/tmp");
+      if (listing.tempDir) { _removeFolderIfEmpty(fs, listing.tempDir); }
       var folderRemoved = _removeFolderIfEmpty(fs, listing.dataDir);
       return {
         ok: result.failed.length === 0,
@@ -257,6 +316,12 @@
       if (!value || typeof value !== "object" || Array.isArray(value)) { throw new Error("sound-library.json did not contain a JSON object."); }
     }
   };
+  // JSON.parse that accepts one leading byte order mark: Windows editors
+  // (Notepad before 1903, PowerShell 5) add it to a file they save as UTF-8,
+  // and the file is valid JSON otherwise.
+  function parseJson(text) {
+    return JSON.parse(typeof text === "string" && text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text);
+  }
   // What this panel last read or wrote, to notice another host's save
   // (Premiere and After Effects can share Documents/Downbeat).
   var _synced = {}; // file path -> "mtimeMs:size"
@@ -312,7 +377,7 @@
       return _keepGeneration[filePath] && _gen[filePath] !== undefined ? _gen[filePath] : _newGeneration();
     }
     if (_gen[filePath] === undefined) {
-      try { _gen[filePath] = _generationOf(JSON.parse(fs.readFileSync(filePath, "utf8"))); } catch (e) { _gen[filePath] = ""; }
+      try { _gen[filePath] = _generationOf(parseJson(fs.readFileSync(filePath, "utf8"))); } catch (e) { _gen[filePath] = ""; }
     }
     return _gen[filePath];
   }
@@ -471,7 +536,7 @@
       try {
         if (!_isCopyOf(filePath, p) || _pathKind(fs, p) !== "file") { continue; }
         var st = fs.statSync(p);
-        var value = JSON.parse(fs.readFileSync(p, "utf8"));
+        var value = parseJson(fs.readFileSync(p, "utf8"));
         if (validate) { validate(value); }
         found.push({ path: p, stamp: st.mtimeMs + ":" + st.size, mtime: st.mtimeMs, value: value });
       } catch (e2) { /* gone, or not a complete copy */ }
@@ -770,7 +835,7 @@
     }
     var value;
     try {
-      value = JSON.parse(raw);
+      value = parseJson(raw);
       if (validate) { validate(value); }
     } catch (parseErr) {
       var recovered = _recoverUnreadable(fs, filePath, stat.stamp, raw, validate, merge);
@@ -827,6 +892,7 @@
         if (after.stamp && after.stamp !== before) { _cutByMe[filePath] = after.stamp; }
         writeErr.message = message + " - the new data is kept in " + (kept || temp) +
           "; the next start takes it in, and it is removed once a save works again";
+        writeErr.keptCopy = kept || temp; // nothing is lost: the caller need not warn
         throw writeErr;
       }
       try { fs.unlinkSync(temp); } catch (e) { /* the sweep keeps it while it parses; the next load takes it in */ }
@@ -900,7 +966,7 @@
       var raw = fs.readFileSync(filePath, "utf8");
       var value;
       try {
-        value = JSON.parse(raw);
+        value = parseJson(raw);
       } catch (parseErr) {
         return _takeOverUnreadable(fs, filePath, stat.stamp, raw, kind === "settings" || kind === "sound-library" ? kind : "library");
       }
@@ -1018,7 +1084,7 @@
       var kept = _writeOrKeep(fs, filePath, JSON.stringify(stripped, null, 2), generation);
       return kept ? { ok: true, path: filePath, count: stripped.length, keptIn: kept } : { ok: true, path: filePath, count: stripped.length };
     } catch (e) {
-      return { ok: false, error: e.message ? e.message : String(e) };
+      return { ok: false, error: e.message ? e.message : String(e), keptCopy: e.keptCopy || null };
     }
   }
   // Loaded entries never have `clipInfo` (see save() above). They still
@@ -1067,7 +1133,7 @@
       }
       return kept ? { ok: true, path: filePath, keptIn: kept } : { ok: true, path: filePath };
     } catch (e) {
-      return { ok: false, error: e.message ? e.message : String(e) };
+      return { ok: false, error: e.message ? e.message : String(e), keptCopy: e.keptCopy || null };
     }
   }
   function loadSettings(csInterface) {
@@ -1103,7 +1169,7 @@
       var kept = _writeOrKeep(fs, filePath, JSON.stringify(_withGeneration(state, generation)), generation);
       return kept ? { ok: true, path: filePath, keptIn: kept } : { ok: true, path: filePath };
     } catch (e) {
-      return { ok: false, error: e.message ? e.message : String(e) };
+      return { ok: false, error: e.message ? e.message : String(e), keptCopy: e.keptCopy || null };
     }
   }
   function loadSoundLibrary(csInterface) {
@@ -1135,6 +1201,7 @@
     readIfChanged: readIfChanged,
     inTurn: inTurn,
     mergeSettings: mergeSettings,
+    parseJson: parseJson,
     recoveryNote: recoveryNote,
     listUserData: listUserData,
     deleteUserData: deleteUserData

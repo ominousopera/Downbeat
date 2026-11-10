@@ -143,9 +143,10 @@ should go too.
 | `js/lib-preview.js`, `js/audio.js` | the preview player, pitch / reverse / fades, decoding |
 | `js/camelot.js`, `js/pitch.js`, `js/key-combine.js`, `js/wheel.js` | keys, Camelot wheel, pitch calculator |
 | `js/i18n.js`, `js/tour.js`, `js/ui-select.js` | languages, the first-run tour, drawn dropdowns |
-| `js/persistence.js`, `js/library.js` | saved data, the analyzed-clips list |
+| `js/persistence.js`, `js/library.js` | saved data and the temp folder (a `Downbeat` folder in the system's temp folder, `Documents/Downbeat/tmp` as the fallback), the analyzed-clips list |
 | `jsx/host.jsx`, `jsx/host-ae.jsx` | ExtendScript run by Premiere Pro / After Effects: markers, inserts, fades |
 | `worker/` | Node processes: essentia (tempo, beats, key), Beat This!, S-KEY, WAV / AIFF reader |
+| `worker/lifeline.js` | loaded first by each worker: ends the worker when the panel's process is gone or its own time limit passes, and removes that run's hand-off files |
 | `models/` | the ONNX models (Beat This!, its mel spectrogram, S-KEY) |
 | `scripts/` | build, fetch, checks (`check-code.js`, `check-dom-ids.py`) and tests (`test-*.js`) |
 

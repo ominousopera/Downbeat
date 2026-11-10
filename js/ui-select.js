@@ -207,5 +207,11 @@
     }
   });
 
-  global.BeatMarkerSelect = { enhance: enhance, enhanceAll: enhanceAll, closeOpen: closeOpen };
+  // Whether a drawn list is open: keys then belong to it, not to the page
+  // behind it (the Library's Enter would insert).
+  function isOpen() {
+    return !!openInstance;
+  }
+
+  global.BeatMarkerSelect = { enhance: enhance, enhanceAll: enhanceAll, closeOpen: closeOpen, isOpen: isOpen };
 })(window);

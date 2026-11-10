@@ -46,8 +46,10 @@ function CompItem(opts) {
 Object.defineProperty(CompItem.prototype, "numLayers", { get: function () { return this.layers.length; } });
 Object.defineProperty(CompItem.prototype, "selectedLayers", { get: function () { return this.layers.filter(function (l) { return l.selected; }); } });
 CompItem.prototype.layer = function (i) { return this.layers[i - 1]; };
-// Each layer has its own id, like Layer.id in After Effects 22 and later.
-let layerSerial = 0;
+// Each layer has its own id, like Layer.id in After Effects 22 and later
+// (unique within a project; counted from 1000 so an id a test sets by hand
+// is not given to another layer as well).
+let layerSerial = 1000;
 function Layer(comp, opts) {
   Object.assign(this, { id: ++layerSerial, stretch: 100, timeRemapEnabled: false, hasAudio: false, hasVideo: false, selected: false, source: null }, opts);
   this.comp = comp;
@@ -76,8 +78,9 @@ Layer.prototype.moveAfter = function (other) {
   layers.splice(layers.indexOf(this), 1);
   layers.splice(layers.indexOf(other) + 1, 0, this);
 };
+// By match name or English display name, as After Effects answers.
 Layer.prototype.property = function (name) {
-  if (name === "Marker") { return this.markers; }
+  if (name === "ADBE Marker" || name === "Marker") { return this.markers; }
   const self = this;
   if (name === "ADBE Transform Group") { return { property: function (n) { return n === "ADBE Scale" ? self.scale : null; } }; }
   if (name === "ADBE Audio Group" && this.hasAudio) {
@@ -90,7 +93,7 @@ Layer.prototype.property = function (name) {
 // selected too (the host must deselect it itself).
 Layer.prototype.duplicate = function () {
   const copy = new Layer(this.comp, { name: this.name, startTime: this.startTime, inPoint: this.inPoint, outPoint: this.outPoint,
-    hasAudio: this.hasAudio, hasVideo: this.hasVideo, source: this.source, selected: this.selected });
+    stretch: this.stretch, hasAudio: this.hasAudio, hasVideo: this.hasVideo, source: this.source, selected: this.selected });
   copy.markers.keys = this.markers.keys.slice();
   this.comp.layers.splice(this.comp.layers.indexOf(this), 0, copy);
   return copy;
@@ -155,10 +158,11 @@ function listWith(countName, items) {
   return items;
 }
 function MarkerCollection() { this.list = []; }
+let markerSerial = 0;
 MarkerCollection.prototype.createMarker = function (seconds) {
   // A WebLink's address is read through the documented getters only, as in
-  // Premiere (there is no url property).
-  const m = { start: T(seconds), end: T(seconds), name: "", comments: "", colorIndex: -1,
+  // Premiere (there is no url property). Every marker has its own guid.
+  const m = { guid: "marker-" + (++markerSerial), start: T(seconds), end: T(seconds), name: "", comments: "", colorIndex: -1,
     setColorByIndex: function (i) { this.colorIndex = i; },
     setTypeAsWebLink: function (url, target) { this.type = "WebLink"; this._url = url; this._target = target; },
     getWebLinkURL: function () { return this._url || ""; },
@@ -231,9 +235,12 @@ function makePremiereHost(opts) {
       return true;
     };
   });
-  function makeBin(name) {
-    return { type: 2, name: name, children: listWith("numItems", []),
-      createBin: function (n) { const b = makeBin(n); this.children.push(b); return b; } };
+  // Bins know their parent, so ProjectItem.moveBin and deleteBin (the bin
+  // and everything in it) can work as in Premiere.
+  function makeBin(name, parent) {
+    return { type: 2, name: name, children: listWith("numItems", []), _parent: parent || null,
+      createBin: function (n) { const b = makeBin(n, this); this.children.push(b); return b; },
+      deleteBin: function () { const p = this._parent; if (p) { p.children.splice(p.children.indexOf(this), 1); } this._parent = null; return true; } };
   }
   const rootItem = makeBin("root");
   rootItem.type = 3;
@@ -274,7 +281,14 @@ function makePremiereHost(opts) {
           if (typeof opts.mediaLength === "number") {
             it.getOutPoint = function () { return T(typeof it._out === "number" ? it._out : opts.mediaLength); };
           }
+          it._parent = bin;
+          it.moveBin = function (dest) {
+            if (it._parent) { it._parent.children.splice(it._parent.children.indexOf(it), 1); }
+            dest.children.push(it); it._parent = dest; return true;
+          };
           if (!opts.noInOut) {
+            // ProjectItem.getInPoint(): the In mark, or the media's start.
+            it.getInPoint = function () { return T(typeof it._in === "number" ? it._in : 0); };
             it.setInPoint = function (s) { it._in = Number(s); };
             it.setOutPoint = function (s) { it._out = Number(s); };
             it.clearInPoint = function () { delete it._in; };

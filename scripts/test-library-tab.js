@@ -195,9 +195,13 @@ waitFor(function () { return /Folder added/.test($.libScanStatus.textContent); }
     const saved = JSON.parse(fs.readFileSync(path.join(WORK, "library copy.json"), "utf8"));
     check("Save a copy writes the library to the chosen file",
       saved.format === "downbeat-library-backup" && Object.keys(saved.soundLibrary.files).length === 2, $.libraryAdminStatus.textContent);
+    const realNow = Date.now;
+    const armedAt = realNow();
     $.clearLibraryBtn._fire("click");
     const armed = rows().length === 2; // the first click only asks
+    Date.now = function () { return armedAt + 1000; }; // a deliberate second click, not a double click
     $.clearLibraryBtn._fire("click");
+    Date.now = realNow;
     check("Clear needs a second click, then empties the library, folders included",
       armed && rows().length === 0 && window.BeatMarkerSoundLibrary.getFolders("music").length === 0 &&
       fs.existsSync(path.join(MUSIC, "Track One.mp3")) && fs.existsSync(path.join(MUSIC, "sub", "Track Two.mp3")), $.libraryAdminStatus.textContent);
@@ -455,7 +459,11 @@ waitFor(function () { return /Folder added/.test($.libScanStatus.textContent); }
     removeBtn._fire("click");
     check("removing the folder empties the section, the files stay on disk",
       rows().length === 0 && fs.existsSync(path.join(MUSIC, "Track One.mp3")), $.libraryDisplay.textContent.slice(0, 60));
-    const tmpLeft = fs.readdirSync(path.join(DOCS, "Downbeat", "tmp")).filter(function (n) { return /^library-/.test(n); });
+    // Scan temp files live in the system temp folder's Downbeat folder, with
+    // Documents/Downbeat/tmp as the fallback; neither may keep any.
+    const tmpLeft = [path.join(os.tmpdir(), "Downbeat"), path.join(DOCS, "Downbeat", "tmp")].reduce(function (left, dir) {
+      return fs.existsSync(dir) ? left.concat(fs.readdirSync(dir).filter(function (n) { return /^library-/.test(n); })) : left;
+    }, []);
     check("no scan temp files left behind", tmpLeft.length === 0, tmpLeft.join(", "));
   })
   .catch(function (e) { failures++; console.error("FAIL " + e.message); })

@@ -129,14 +129,21 @@ function clipFor(mediaPath) {
       await select(file);
       check("back on the clip, Refined is lit", lit() === "Refined" && rowShown() && shown() === 120,
         lit() + ", " + R.bpmDisplay.textContent + " BPM");
+      // The grid shown earlier comes back whole from memory, so Basic
+      // returns at once, with no new Analyze.
       R.gridBasicBtn._fire("click"); await idle();
-      check("Basic with no Basic grid in memory analyzes again and switches back",
-        lit() === "Basic" && shown() === 137 && savedGrid() === "basic" && analyses === 3,
+      check("Basic comes back at once from the grid kept in memory",
+        lit() === "Basic" && shown() === 137 && savedGrid() === "basic" && analyses === 2,
         lit() + ", " + R.bpmDisplay.textContent + " BPM, saved " + savedGrid() + ", Analyze runs " + analyses);
 
       await select(other);
       await select(file);
       check("back on the clip, Basic is lit", lit() === "Basic" && rowShown(), lit());
+      R.gridRefinedBtn._fire("click"); await idle();
+      check("Refined with the other clip's audio in memory analyzes again and applies",
+        lit() === "Refined" && shown() === 120 && savedGrid() === "refined" && analyses === 3,
+        lit() + ", " + R.bpmDisplay.textContent + " BPM, Analyze runs " + analyses);
+      R.gridBasicBtn._fire("click"); await idle();
       R.gridRefinedBtn._fire("click"); await idle();
       check("Refined with the audio still in memory runs only the second detector",
         lit() === "Refined" && shown() === 120 && savedGrid() === "refined" && analyses === 3,

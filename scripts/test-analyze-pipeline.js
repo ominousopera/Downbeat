@@ -54,7 +54,7 @@ function evalScript(script, callback) {
     reply = { ok: true, error: null, data: { requested: times.length, created: times.length } };
   }
   // Downbeat's markers on the clip, as the host counts them.
-  if (/^countOwnMarkersForSelectedClip\(\)/.test(script)) { reply = { ok: true, error: null, data: { count: ownMarkers } }; }
+  if (/^countOwnMarkersForSelectedClip\(/.test(script)) { reply = { ok: true, error: null, data: { count: ownMarkers } }; }
   if (callback) { setImmediate(function () { callback(JSON.stringify(reply)); }); }
 }
 

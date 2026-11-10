@@ -16,6 +16,9 @@
 // toCamelotCode() takes.
 "use strict";
 
+// Ends this process if the panel is gone or the time limit has passed.
+require("./lifeline.js").watch();
+
 const pathMod = require("path");
 const fsMod = require("fs");
 // Same "stdout is sacred" reasoning as analyze-worker.js.

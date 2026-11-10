@@ -136,11 +136,51 @@
     }
     _takeInKeptCopies("The track library file", fresh, window.BeatMarkerLibrary.absorb);
     var result = window.BeatMarkerPersistence.save(csInterface, window.BeatMarkerLibrary.getAll(), window.BeatMarkerLibrary.meta());
+    noteSaveResult("library", result);
     if (!result.ok) {
       log("WARNING: could not save the track library to disk: " + result.error);
     } else if (result.keptIn) {
       log("The other host was saving library.json; this change is kept in " + result.keptIn + " and taken in by the next save.");
     }
+  }
+
+  // SAVED DATA PROBLEMS: the log is hidden, so a save that failed, or a
+  // settings.json that could not be read, is said in one line under the
+  // header, on every tab. A failed save is said until that file saves again;
+  // a save that kept a complete copy lost nothing (the next start takes it
+  // in) and is only logged.
+  var _saveFailed = {}; // "settings" | "library" | "sound-library" -> true
+  var _settingsReadProblem = null; // { key, vars, blocked } until the panel is reopened
+  function _showDataProblem() {
+    var row = document.getElementById("dataProblemRow");
+    var line = document.getElementById("dataProblemStatus");
+    if (!row || !line) {
+      return;
+    }
+    var failed = Object.keys(_saveFailed).length > 0;
+    if (failed) {
+      setTranslatedText(line, "settings.saveFailed");
+    } else if (_settingsReadProblem) {
+      setTranslatedText(line, _settingsReadProblem.key, _settingsReadProblem.vars);
+    } else {
+      line.textContent = "";
+    }
+    line.classList.toggle("is-error", failed || !!(_settingsReadProblem && _settingsReadProblem.blocked));
+    row.hidden = !failed && !_settingsReadProblem;
+  }
+  function noteSaveResult(kind, result) {
+    var failed = !!result && !result.ok && !result.keptCopy &&
+      // A settings.json that could not be opened is said already.
+      !(kind === "settings" && _settingsReadProblem && _settingsReadProblem.blocked);
+    if (failed === !!_saveFailed[kind]) {
+      return;
+    }
+    if (failed) {
+      _saveFailed[kind] = true;
+    } else {
+      delete _saveFailed[kind];
+    }
+    _showDataProblem();
   }
   // After a load or a check that recovered a data file (see "A save Windows
   // refused" in js/persistence.js): the older kept copies are taken in too,
@@ -176,10 +216,12 @@
     csInterface: function () { return csInterface; },
     hostIsAe: function () { return hostIsAe; },
     initialSettings: function () { return initialSettings; },
+    noteSaveResult: noteSaveResult,
     selectedPlayback: _selectedPlayback,
     tempFileStarted: function () { _bridge.tempFileStarted(); },
     tempFileDone: function () { _bridge.tempFileDone(); },
-    translateHostReason: function (message) { return _translateHostReason(message); }
+    translateHostReason: function (message) { return _translateHostReason(message); },
+    failureReason: function (message) { return _failureReason(message); }
   });
   var SL = window.BeatMarkerSoundLibrary;
   var LP = window.BeatMarkerLibPreview;
@@ -213,7 +255,8 @@
     library: _library,
     bridge: function () { return _bridge; },
     csInterface: function () { return csInterface; },
-    initialSettings: function () { return initialSettings; }
+    initialSettings: function () { return initialSettings; },
+    resetSettingsAfterDelete: resetSettingsAfterDelete
   });
   function closeSettingsPanel() {
     return _settingsPanel.closeSettingsPanel.apply(null, arguments);
@@ -232,8 +275,14 @@
   var loadedSettings = window.BeatMarkerPersistence.loadSettings(csInterface);
   var initialSettings = (loadedSettings.ok && loadedSettings.settings) ? loadedSettings.settings : {};
   // An unreadable settings.json was set aside (or, when it could not be
-  // read at all, is left alone and not saved over); logged once the log exists.
+  // read at all, is left alone and not saved over); logged once the log
+  // exists, and said on screen (_showDataProblem) once the language is set.
   var _settingsLoadProblem = loadedSettings.ok ? null : loadedSettings;
+  if (_settingsLoadProblem) {
+    _settingsReadProblem = _settingsLoadProblem.setAside
+      ? { key: "settings.loadSetAside", vars: { file: basename(_settingsLoadProblem.setAside) } }
+      : { key: "settings.loadBlocked", blocked: true };
+  }
   // Saved Library choices that live in code loaded above (this part of
   // main.js runs after the Library's own setup).
   if (window.BeatMarkerSfxSearch) {
@@ -256,12 +305,74 @@
       changes = {};
     });
   }
+  // Settings that are maps of one entry per song or clip (Shift values,
+  // where Place last put timeline markers). Both hosts write them, so a save
+  // sends only the entries this panel changed, on top of the map just read
+  // from disk: the other host's entries stay (a whole map would replace
+  // the other host's). Any entry shape is compared as a whole.
+  var PER_ENTRY_SETTINGS = ["markerNudgeMs", "placedTimeline"];
+  var _pendingEntryChanges = {}; // setting -> { entry key -> { value } | { removed: true } }, until a save works
+  function _isPlainMap(value) {
+    return !!value && typeof value === "object" && !Array.isArray(value);
+  }
+  // Notes, per entry, how `overrides` changes this panel's maps, and takes
+  // those settings out of `overrides` (a copy is returned).
+  function _takeEntryChanges(overrides) {
+    var rest = {};
+    for (var k in overrides) {
+      if (!overrides.hasOwnProperty(k)) { continue; }
+      if (PER_ENTRY_SETTINGS.indexOf(k) === -1 || !_isPlainMap(overrides[k])) {
+        rest[k] = overrides[k];
+        continue;
+      }
+      var before = _isPlainMap(initialSettings[k]) ? initialSettings[k] : {};
+      var after = overrides[k];
+      var pending = _pendingEntryChanges[k] || {};
+      var e;
+      for (e in after) {
+        if (after.hasOwnProperty(e) && e !== "__proto__" &&
+            (!before.hasOwnProperty(e) || JSON.stringify(before[e]) !== JSON.stringify(after[e]))) {
+          pending[e] = { value: after[e] };
+        }
+      }
+      for (e in before) {
+        if (before.hasOwnProperty(e) && !after.hasOwnProperty(e)) { pending[e] = { removed: true }; }
+      }
+      if (Object.keys(pending).length) { _pendingEntryChanges[k] = pending; }
+    }
+    return rest;
+  }
+  // The map `name` of `base` with this panel's changed entries applied.
+  function _withEntryChanges(base, name) {
+    var map = {}, src = _isPlainMap(base[name]) ? base[name] : {}, e;
+    for (e in src) {
+      if (src.hasOwnProperty(e) && e !== "__proto__") { map[e] = src[e]; }
+    }
+    var pending = _pendingEntryChanges[name];
+    for (e in pending) {
+      if (pending.hasOwnProperty(e)) {
+        if (pending[e].removed) { delete map[e]; } else { map[e] = pending[e].value; }
+      }
+    }
+    return map;
+  }
+  function _entryChangeOverrides(base, overrides) {
+    var out = {};
+    for (var k in overrides) {
+      if (overrides.hasOwnProperty(k)) { out[k] = overrides[k]; }
+    }
+    for (var name in _pendingEntryChanges) {
+      if (_pendingEntryChanges.hasOwnProperty(name)) { out[name] = _withEntryChanges(base, name); }
+    }
+    return out;
+  }
   function _saveSettingsNow(overrides) {
+    overrides = _takeEntryChanges(overrides || {});
     var fresh = window.BeatMarkerPersistence.readIfChanged(csInterface, "settings");
     var changedAt = Date.now();
     if (fresh.unavailable) {
       log("WARNING: settings.json could not be checked just now; this change is kept in the panel and saved next time.");
-      _applySettingsChanges(initialSettings, overrides, changedAt);
+      _applySettingsChanges(initialSettings, _entryChangeOverrides(initialSettings, overrides), changedAt);
       return;
     }
     if (fresh.deleted) {
@@ -285,13 +396,42 @@
     if (merged.onboardingCompleted === undefined) {
       merged.onboardingCompleted = false;
     }
-    _applySettingsChanges(merged, overrides, changedAt);
+    // The changed entries go on top of the other host's map when it saved
+    // since (its map is the newest on disk), else on top of this panel's.
+    var mapsFrom = {};
+    for (var pm = 0; pm < PER_ENTRY_SETTINGS.length; pm++) {
+      var mapName = PER_ENTRY_SETTINGS[pm];
+      mapsFrom[mapName] = otherSaved && _isPlainMap(fresh.value[mapName]) ? fresh.value[mapName] : merged[mapName];
+    }
+    _applySettingsChanges(merged, _entryChangeOverrides(mapsFrom, overrides), changedAt);
     initialSettings = merged;
+    _nudgeByPath = _isPlainMap(merged.markerNudgeMs) ? merged.markerNudgeMs : {};
     var result = window.BeatMarkerPersistence.saveSettings(csInterface, merged);
+    noteSaveResult("settings", result);
+    if (result.ok || result.keptCopy || result.keptIn) {
+      _pendingEntryChanges = {}; // on disk, or in a copy the next save or start takes in
+    }
     if (!result.ok) {
       log("WARNING: could not save settings to disk: " + result.error);
     } else if (result.keptIn) {
       log("The other host was saving settings.json; this change is kept in " + result.keptIn + " and taken in by the next save.");
+    }
+  }
+
+  // Delete my data removed settings.json (or some of the files): the
+  // settings in memory go too, or the next change would write every old one
+  // back. Only the panel language and "tour done" stay, so the panel does
+  // not change under the user; Settings shows the defaults again.
+  function resetSettingsAfterDelete() {
+    initialSettings = { language: I18n.getLanguage(), onboardingCompleted: initialSettings.onboardingCompleted === true };
+    _pendingEntryChanges = {};
+    _nudgeByPath = {};
+    _updateNudgeUi();
+    _settingsPanel.applySettings(initialSettings);
+    // The unreadable settings.json and its kept bytes went with the rest.
+    if (_settingsReadProblem) {
+      _settingsReadProblem = null;
+      _showDataProblem();
     }
   }
   // Sets `overrides` on a settings object and stamps each of those keys
@@ -315,6 +455,7 @@
   var isPanelReady = false;
   function refreshDynamicTranslations() {
     _retranslateTexts();
+    if (window.BeatMarkerTour && window.BeatMarkerTour.refresh) { window.BeatMarkerTour.refresh(); } // an open tour step
     populatePitchSelects(); // option labels carry translated scale names
     renderLibraryKeySelect(); // same
     renderLibrarySortSelect(); // same
@@ -419,16 +560,22 @@
   var tabButtons = document.querySelectorAll(".tab-btn");
   var tabContents = document.querySelectorAll(".tab-content");
   // Keys the panel takes from the host while the Library tab is shown
-  // (arrows, Space, Return / Enter; macOS and Windows key codes), for its
-  // keyboard navigation. Other tabs give them back.
-  var LIB_KEY_INTEREST = JSON.stringify([
-    { keyCode: 126 }, { keyCode: 125 }, { keyCode: 49 }, { keyCode: 36 }, { keyCode: 76 },
-    { keyCode: 38 }, { keyCode: 40 }, { keyCode: 32 }, { keyCode: 13 }
-  ]);
-  // Idempotent: switching to the tab that is already active does nothing (no
-  // scroll reset). That matters because js/tour.js calls this on every step
-  // that has a `tab`, even consecutive steps on the same tab, and each Next
-  // click must not scroll to the top.
+  // (arrows, Space, Return / Enter), for its keyboard navigation; other tabs
+  // give them back. Key codes are the system's own, and one system's codes
+  // are other keys on the other (Windows reads 76 as L), so each gets its own.
+  function _libKeyInterest() {
+    var osName = "";
+    try { osName = String(csInterface.getOSInformation() || ""); } catch (osErr) { osName = ""; }
+    if (!osName && typeof navigator !== "undefined") {
+      osName = String(navigator.platform || "");
+    }
+    var codes = /^\s*win/i.test(osName) ? [38, 40, 32, 13] : [126, 125, 49, 36, 76];
+    return JSON.stringify(codes.map(function (c) { return { keyCode: c }; }));
+  }
+  // Idempotent: switching to the tab that is already active does nothing
+  // (no scroll reset). That matters because js/tour.js calls this on every
+  // step that has a `tab`, even consecutive steps on the same tab, and each
+  // Next click must not scroll to the top.
   function switchTab(tabId) {
     activeTabId = tabId;
     // The Library fills the panel's height (css body.on-library), and its
@@ -457,7 +604,8 @@
     }
     if (typeof csInterface !== "undefined" && csInterface && typeof csInterface.registerKeyEventsInterest === "function") {
       try {
-        csInterface.registerKeyEventsInterest(tabId === "library" ? LIB_KEY_INTEREST : "[]");
+        // An empty string removes the interest; CEP rejects "[]".
+        csInterface.registerKeyEventsInterest(tabId === "library" ? _libKeyInterest() : "");
       } catch (keyErr) {
         log("Keyboard keys for the Library could not be requested from the host: " + keyErr);
       }
@@ -544,6 +692,9 @@
     for (var pb = 0; pb < pickButtons.length; pb++) {
       pickButtons[pb].addEventListener("click", onLangPicked, { once: true });
     }
+  } else if (_settingsReadProblem && _settingsReadProblem.blocked) {
+    // settings.json is there but could not be opened: not a first run, and
+    // no answer could be saved, so nothing is asked and no tour starts.
   } else if (!initialSettings.onboardingCompleted) {
     askAboutUpdateNotice(startTourOnce);
   } else {
@@ -554,6 +705,7 @@
     log("WARNING: could not read settings.json (" + _settingsLoadProblem.error + ")" +
         (_settingsLoadProblem.setAside ? " - kept as " + _settingsLoadProblem.setAside + "; starting with default settings." :
           " - it is left as it is and settings are not saved until the host restarts."));
+    _showDataProblem();
   }
 
   (function sweepLeftoverTempFiles() {
@@ -613,7 +765,10 @@
     var view = window.BeatMarkerPitch.playback(clip.speed || 1, bpm, key && key.camelot);
     if (!view) { return null; }
     view.clip = clip;
-    view.signature = JSON.stringify([clip.mediaPath, clip.trackIndex, clip.clipStartSeconds, clip.inPointSeconds,
+    // What the plan on screen depends on. The clip's place and track are
+    // left out: moving it, or a layer added above it, changes no number of
+    // the plan, and the host checks the exact clip again before it acts.
+    view.signature = JSON.stringify([clip.mediaPath, clip.inPointSeconds,
       clip.outPointSeconds, clip.speed, !!clip.reversed, scope, window.BeatMarkerLibrary.identityKey(clip.mediaPath),
       view.sourceCamelot, view.sourceBpm]);
     return view;
@@ -969,19 +1124,21 @@
     // "try it" only after a revert, or on a low-confidence grid where the
     // automatic run did not happen - never after a guard rejected this grid
     // (it would just reject again).
+    // A run that did not finish keeps the row up too, with its own note.
     var applied = !!(lastAnalysis && lastAnalysis.beatThisApplied);
     var rejected = !!(lastAnalysis && lastAnalysis.beatThisRejected);
     var reverted = !!(lastAnalysis && lastAnalysis.beatThisReverted);
-    beatThisRow.style.display = (applied || (!rejected && (low || reverted))) ? "" : "none";
-    _setBeatThisRowMode(applied, reverted);
+    var failed = !applied && !!(lastAnalysis && lastAnalysis.beatThisFailed);
+    beatThisRow.style.display = (applied || failed || (!rejected && (low || reverted))) ? "" : "none";
+    _setBeatThisRowMode(applied, reverted, failed);
     _setManualBpmMode(!!(lastAnalysis && lastAnalysis.manualBpm));
   }
   // The Beat grid line: Refined (Beat This! applied) or Basic (the first
   // detector only), the chosen word lit. Both words drive the hidden
   // #beatThisBtn (_chooseBeatGrid below), so apply and revert work through
   // the same button.
-  function _setBeatThisRowMode(applied, reverted) {
-    var hintKey = (applied || reverted) ? "analyze.gridHelp" : "analyze.beatThisSuggest";
+  function _setBeatThisRowMode(applied, reverted, failed) {
+    var hintKey = failed ? "analyze.refinedFailed" : (applied || reverted) ? "analyze.gridHelp" : "analyze.beatThisSuggest";
     var btnKey = applied ? "analyze.revertBtn" : "analyze.beatThisBtn";
     beatThisHintText.setAttribute("data-i18n", hintKey);
     setTranslatedText(beatThisHintText, hintKey);
@@ -1211,6 +1368,7 @@
   var _lastEvenOut = null;
   function buildDownbeatsCuesheet(phase, modeOverride, clipOverride) {
     var mode = modeOverride || getSelectedCutMode();
+    _coverCustomGrid(lastAnalysis, clipOverride || lastAnalysis.clipInfo);
     // Both modes use lastAnalysis.downbeatTimes when present (Beat This!
     // applied), so the detailed mode puts its D markers on exactly the
     // downbeats the simple mode does. It is null for essentia-only analyses,
@@ -1316,6 +1474,7 @@
   }
 
   function _placeDownbeatsOnCurrentClip(phase) {
+    var analysis = lastAnalysis;
     var cuesheet = buildDownbeatsCuesheet(phase);
     var nudgeMs = _nudgeMsFor(lastAnalysis.audioPath);
     if (nudgeMs) {
@@ -1354,23 +1513,27 @@
             (result.data.kept ? ", " + result.data.kept + " left out where your own marker already sits" : "") + ".");
         warnIfMostlyDropped(result.data.requested, result.data.droppedCount);
         _logStoredMarkerTimes(result.data);
-        _rememberPhase(phase);
+        _rememberPhase(phase, analysis);
         return result;
       });
   }
   // The "1" now in use, shown and saved with the clip's analysis, so
   // selecting the clip again later brings back the same downbeats (not the
-  // pre-shift ones).
-  function _rememberPhase(phase) {
-    lastAnalysis.phase = phase;
-    _updatePhaseShiftUi();
-    _refreshBeatClickPreview();
-    var entry = window.BeatMarkerLibrary.get(lastAnalysis.audioPath);
+  // pre-shift ones). The "1" buttons set lastAnalysis.phase when clicked
+  // (shiftPhase), so an answer that comes after a newer click leaves the
+  // newer one in place.
+  function _rememberPhase(phase, analysis) {
+    analysis = analysis || lastAnalysis;
+    if (analysis === lastAnalysis) {
+      _updatePhaseShiftUi();
+      _refreshBeatClickPreview();
+    }
+    var entry = window.BeatMarkerLibrary.get(analysis.audioPath);
     if (entry && entry.beatsArray) {
-      window.BeatMarkerLibrary.upsertAnalysis(lastAnalysis.audioPath, entry.label, {
-        bpm: entry.bpm, beatsArray: lastAnalysis.beatsArray, confidence: lastAnalysis.confidence,
-        phase: phase, downbeatTimes: lastAnalysis.downbeatTimes, barsUnsure: lastAnalysis.barsUnsure,
-        clipInfo: lastAnalysis.clipInfo
+      window.BeatMarkerLibrary.upsertAnalysis(analysis.audioPath, entry.label, {
+        bpm: entry.bpm, beatsArray: analysis.beatsArray, confidence: analysis.confidence,
+        phase: phase, downbeatTimes: analysis.downbeatTimes, barsUnsure: analysis.barsUnsure,
+        clipInfo: analysis.clipInfo
       });
       persistLibrary();
     }
@@ -1382,6 +1545,9 @@
   // placement; the panel stores them in settings.json and sends them back
   // with every Place and Clear, so the set of a clip moved after a restart
   // is still found. The newest 40 clips.
+  // Per clip: { t: times, g: Premiere's marker ids, at }; the ids tell the
+  // set from another clip's markers on the same frames. An entry without g
+  // is sent as times only.
   var PLACED_TIMELINE_KEEP = 40;
   function _placedTimelineMemory() {
     var m = initialSettings.placedTimeline;
@@ -1391,20 +1557,33 @@
     var m = _placedTimelineMemory();
     var out = {};
     for (var k in m) {
-      if (m.hasOwnProperty(k) && m[k] && m[k].t && m[k].t.length) { out[k] = m[k].t; }
+      if (m.hasOwnProperty(k) && m[k] && m[k].t && m[k].t.length) {
+        out[k] = m[k].g && m[k].g.length === m[k].t.length ? { t: m[k].t, g: m[k].g } : m[k].t;
+      }
     }
     return out;
   }
+  // data: a host answer with placedKey (+ placedTimes / placedIds for a new
+  // set; without times the set is forgotten) and forgetKeys (sets the host
+  // removed or handed on).
   function _rememberPlacedTimeline(data) {
-    if (!data || !data.placedKey) { return; }
+    if (!data || (!data.placedKey && !(data.forgetKeys && data.forgetKeys.length))) { return; }
     var m = _placedTimelineMemory();
+    var drop = {};
+    if (data.placedKey) { drop[data.placedKey] = true; }
+    (data.forgetKeys || []).forEach(function (key) { drop[key] = true; });
     var next = {};
+    var changed = false;
     for (var k in m) {
-      if (m.hasOwnProperty(k) && k !== data.placedKey) { next[k] = m[k]; }
+      if (!m.hasOwnProperty(k)) { continue; }
+      if (drop[k]) { changed = true; } else { next[k] = m[k]; }
     }
-    if (data.placedTimes && data.placedTimes.length) {
+    if (data.placedKey && data.placedTimes && data.placedTimes.length) {
       next[data.placedKey] = { t: data.placedTimes, at: Date.now() };
-    } else if (!m.hasOwnProperty(data.placedKey)) {
+      if (data.placedIds && data.placedIds.length === data.placedTimes.length) { next[data.placedKey].g = data.placedIds; }
+      changed = true;
+    }
+    if (!changed) {
       return; // nothing to forget
     }
     var keys = Object.keys(next).sort(function (a, b) { return (next[b].at || 0) - (next[a].at || 0); });
@@ -1413,49 +1592,99 @@
     persistSettings({ placedTimeline: kept });
   }
   // Shift and the "1" buttons change where the markers go. They put the
-  // markers down again only when Downbeat's markers are already on the clip;
+  // markers down again only when Downbeat's markers are already on the
+  // clip (with none there, Shift would place a fresh set by itself);
   // otherwise the change is kept and Place markers uses it.
-  // `undo` (optional) puts the shown "1" back when nothing was placed, so
-  // the beat buttons always match the markers on the clip.
-  function _replaceMarkersIfPlaced(phase, what, undo) {
-    function failed(message) {
-      log(what + " failed: " + message);
-      if (undo) {
-        undo();
-        _flashSelectionError(message);
-      }
+  // `edit` (optional) is the change being made: edit.undo() puts the shown
+  // "1" back when nothing was placed - a refused placement would otherwise
+  // leave the beat buttons and the markers on the clip disagreeing - and
+  // edit.confirm() records that it reached the clip. The change belongs
+  // to the clip selected when it was made: one made before the panel
+  // noticed another selection is refused, not stored for the previous clip.
+  function _replaceMarkersIfPlaced(phase, what, edit) {
+    var analysis = lastAnalysis;
+    function failed(message, logText) {
+      log(what + " failed: " + (logText || message));
+      if (edit) { edit.undo(); }
+      _flashSelectionError(_placeFailureText(message));
     }
-    return evalJson("countOwnMarkersForSelectedClip()").then(function (data) {
-      if (!data || !data.count) {
-        _rememberPhase(phase);
-        log(what + ": no Downbeat markers on this clip, so none were placed - Place markers will use it.");
+    function reached() {
+      if (edit) { edit.confirm(); }
+    }
+    return getClipInfo().then(function (fresh) {
+      if (lastAnalysis !== analysis || fresh.mediaPath !== analysis.audioPath) {
+        failed(I18n.t("selection.clipChanged"));
         return null;
       }
-      showBusy("busy.default");
-      return placeDownbeatsAtPhase(phase).then(function (result) {
-        hideBusy();
-        if (result && !result.ok) { failed(result.error); }
+      return evalJson("countOwnMarkersForSelectedClip(" + JSON.stringify(JSON.stringify(_placedTimelineJson())) + ")").then(function (data) {
+        if (!data || !data.count) {
+          _rememberPhase(phase, analysis);
+          reached();
+          log(what + ": no Downbeat markers on this clip, so none were placed - Place markers will use it.");
+          return null;
+        }
+        showBusy("busy.default");
+        return placeDownbeatsAtPhase(phase).then(function (result) {
+          hideBusy();
+          if (result && !result.ok) { failed(result.error); } else { reached(); }
+        }, function (err) {
+          hideBusy();
+          failed(err && err.message ? err.message : String(err));
+        });
       }, function (err) {
-        hideBusy();
-        failed(err && err.message ? err.message : String(err));
+        var message = err && err.message ? err.message : String(err);
+        failed(message, "could not check the clip's markers (" + message + "), so none were placed");
       });
     }, function (err) {
-      failed("could not check the clip's markers (" + (err && err.message ? err.message : err) + "), so none were placed");
+      failed(err && err.message ? err.message : String(err));
     });
   }
-  // What the "1" buttons change, to put it back.
-  function _phaseState() {
-    return { phaseShift: lastAnalysis.phaseShift, originalPhase: lastAnalysis._originalPhase,
-      originalDownbeatTimes: lastAnalysis._originalDownbeatTimes, downbeatTimes: lastAnalysis.downbeatTimes, analysis: lastAnalysis };
+  // The placement refusal the panel itself gives, in the panel's language;
+  // other texts go through _flashSelectionError's own translation.
+  function _placeFailureText(message) {
+    return /^No events fall within the clip's in\/out range/.test(String(message)) ? I18n.t("markers.noneInClip") : message;
   }
+  // What the "1" buttons change, to put it back.
+  function _phaseState(analysis) {
+    analysis = analysis || lastAnalysis;
+    return { phase: analysis.phase, phaseShift: analysis.phaseShift, originalPhase: analysis._originalPhase,
+      originalDownbeatTimes: analysis._originalDownbeatTimes, downbeatTimes: analysis.downbeatTimes, analysis: analysis };
+  }
+  // Put back on the analysis it was taken from, also when another clip is
+  // on screen by now, so that analysis keeps the "1" its markers have.
   function _restorePhaseState(saved) {
-    return function () {
-      if (lastAnalysis !== saved.analysis) { return; }
-      lastAnalysis.phaseShift = saved.phaseShift;
-      lastAnalysis._originalPhase = saved.originalPhase;
-      lastAnalysis._originalDownbeatTimes = saved.originalDownbeatTimes;
-      lastAnalysis.downbeatTimes = saved.downbeatTimes;
+    var a = saved.analysis;
+    a.phase = saved.phase;
+    a.phaseShift = saved.phaseShift;
+    a._originalPhase = saved.originalPhase;
+    a._originalDownbeatTimes = saved.originalDownbeatTimes;
+    a.downbeatTimes = saved.downbeatTimes;
+    if (a === lastAnalysis) {
       _updatePhaseShiftUi();
+      _refreshBeatClickPreview();
+    }
+  }
+  // A "1" change is shown and set at once and reaches the clip after the
+  // host answers, so a second click can come before the first is answered.
+  // A refused change goes back to the "1" of the last change that reached
+  // the clip, and only when no newer change is on its way: the newest one
+  // decides what the cells and the markers end with.
+  function _startPhaseEdit() {
+    var a = lastAnalysis;
+    if (!a._phaseEditsPending) { a._phaseReached = _phaseState(a); }
+    a._phaseEditsPending = (a._phaseEditsPending || 0) + 1;
+    var serial = a._phaseEditSerial = (a._phaseEditSerial || 0) + 1;
+    var made = null;
+    return {
+      made: function () { made = _phaseState(a); },
+      confirm: function () {
+        a._phaseEditsPending--;
+        a._phaseReached = made;
+      },
+      undo: function () {
+        a._phaseEditsPending--;
+        if (serial === a._phaseEditSerial) { _restorePhaseState(a._phaseReached); }
+      }
     };
   }
   // Places downbeats via placeDownbeatsAtPhase() with the current phase (the
@@ -1469,20 +1698,33 @@
     }
     placeMarkersBtn.disabled = true;
     showBusy("busy.default");
+    // A Place that puts nothing down says why, in the clip line.
     placeDownbeatsAtPhase(lastAnalysis.phase)
-      .then(function () {
+      .then(function (result) {
         placeMarkersBtn.disabled = false;
         hideBusy();
+        if (result && !result.ok) {
+          _flashSelectionError(_placeFailureText(result.error));
+        }
       }, function (err) {
-        log("Place markers failed: " + (err && err.message ? err.message : err));
+        var message = err && err.message ? err.message : String(err);
+        log("Place markers failed: " + message);
         placeMarkersBtn.disabled = false;
         hideBusy();
+        _flashSelectionError(_placeFailureText(message));
       });
   });
   var analyzeBtn = document.getElementById("analyzeBtn");
   analyzeBtn.addEventListener("click", function () {
     _analyzeSelectedClip();
   });
+  // The beat tracker refuses audio it cannot read (js/analyze.js
+  // audioUnfitForBeats) with a code; the panel says it in its language.
+  var _unfitAudioKeys = { "DOWNBEAT_AUDIO_TOO_SHORT": "analyze.tooShort", "DOWNBEAT_AUDIO_SILENT": "analyze.silent" };
+  function _unfitAudioText(message) {
+    var code = /DOWNBEAT_AUDIO_[A-Z_]+/.exec(String(message));
+    return code && _unfitAudioKeys[code[0]] ? I18n.t(_unfitAudioKeys[code[0]]) : null;
+  }
   function _analyzeSelectedClip() {
     analyzeBtn.disabled = true;
     showBusy("busy.analyze");
@@ -1619,6 +1861,9 @@
         showBusy("busy.refineGrid");
         return _runBeatThisOnCurrentAnalysis(true).then(function () {
           hideBusy();
+          // The clip line names the new grid also when Analyze ended
+          // between two selection checks.
+          if (myGeneration === _activeOperationGeneration) { _refreshClipLine(); }
         });
       })
       .catch(function (err) {
@@ -1629,7 +1874,7 @@
         // a plain message instead (key detection has no such limit). Any
         // other abort, on a shorter file, keeps its own text.
         var tooLong = /^abort\(/.test(String(message)) && decodedSeconds > 25 * 60;
-        _flashSelectionError(tooLong ? I18n.t("analyze.tooLong") : message);
+        _flashSelectionError(tooLong ? I18n.t("analyze.tooLong") : (_unfitAudioText(message) || message));
       })
       .then(function () {
         analyzeBtn.disabled = false;
@@ -1716,8 +1961,22 @@
   // The name of the grid on screen, saved with the entry so that selecting
   // the clip again shows the same Beat grid line (_applyCachedEntry).
   function _beatGridOf(analysis) {
+    if (analysis.evenGridBpm) { return "custom"; }
     if (analysis.beatThisApplied) { return "refined"; }
     return analysis.beatThisRejected ? "kept" : "basic";
+  }
+  // ½× / 2× makes a grid of the first detector's kind: the Beat grid line
+  // lights Basic, and Refined can be tried on the new grid. A grid with no
+  // Beat grid line (Custom BPM, or Beat This! not run) stays without one.
+  function _markGridBasic() {
+    var a = lastAnalysis;
+    if (a.beatThisApplied || a.beatThisRejected || a.beatThisFailed) {
+      a.beatThisApplied = false;
+      a.beatThisRejected = false;
+      a.beatThisFailed = false;
+      a.beatThisReverted = true;
+      a._preBeatThisSnapshot = null;
+    }
   }
   // Runs Beat This! on the current analysis and, if every guard passes,
   // applies its grid and native downbeats, snapshotting the essentia result
@@ -1740,7 +1999,7 @@
       .then(function (btResult) {
         var newBeats = btResult.beatTimes;
         if (!newBeats || newBeats.length < 4) {
-          throw new Error("found too few beats (" + (newBeats ? newBeats.length : 0) + ") - keeping the original grid.");
+          throw _keptGridError("found too few beats (" + (newBeats ? newBeats.length : 0) + ") - keeping the original grid.", null);
         }
         var ratio = newBeats.length / originalBeatsArray.length;
         if (ratio > BEATTHIS_COUNT_RATIO_GUARD || ratio < 1 / BEATTHIS_COUNT_RATIO_GUARD) {
@@ -1761,8 +2020,8 @@
         // the model's own "1"s.
         var modelDownbeatTimes = btResult.modelDownbeatTimes || btResult.downbeatTimes || [];
         if (modelDownbeatTimes.length < 2) {
-          throw new Error(
-            "found too few native downbeats (" + modelDownbeatTimes.length + ") - keeping the original grid."
+          throw _keptGridError(
+            "found too few native downbeats (" + modelDownbeatTimes.length + ") - keeping the original grid.", null
           );
         }
         var rawDownbeatTimes = btResult.downbeatTimes && btResult.downbeatTimes.length >= 2
@@ -1818,6 +2077,7 @@
         lastAnalysis.beatThisApplied = true;
         lastAnalysis.beatThisAuto = !!automatic;
         lastAnalysis.beatThisReverted = false;
+        lastAnalysis.beatThisFailed = false;
         lastAnalysis._preRetempoSnapshot = null;
         _applyBeatFieldsAndRefreshUI({
           beatsArray: merged.newBeats,
@@ -1858,16 +2118,23 @@
       .catch(function (err) {
         var message = err && err.message ? err.message : err;
         log("Alternative analysis: " + message);
-        if (lastAnalysis === analysis) {
+        if (lastAnalysis === analysis && err && err.guard) {
           // A guard rejection is deterministic for this grid - offering the
           // same button again would only reject again.
           analysis.beatThisRejected = true;
+          analysis.beatThisFailed = false;
           window.BeatMarkerLibrary.setBeatGrid(audioPath, "kept");
           persistLibrary();
           _updateGridConfidenceHint(analysis.confidence);
-          if (err && err.gridBars) {
+          if (err.gridBars) {
             _applyBarsOnKeptGrid(err.gridBars, originalBeatsArray, audioPath, clipInfo);
           }
+        } else if (lastAnalysis === analysis) {
+          // The detector did not finish (time limit, crash, missing model):
+          // nothing was decided about this grid. Basic stays saved, the Beat
+          // grid line says so and Refined can be tried again.
+          analysis.beatThisFailed = true;
+          _updateGridConfidenceHint(analysis.confidence);
         }
         return false;
       });
@@ -1878,8 +2145,11 @@
   // (decodeBarsOnGrid in worker/beatthis-bars.js); those "1"s replace the
   // bass / chord phase. The two other guards (too few beats or "1"s) keep
   // that phase.
+  // Every guard's refusal is marked, so a run that did not finish is not
+  // saved as a refusal.
   function _keptGridError(message, btResult) {
     var err = new Error(message);
+    err.guard = true;
     var g = btResult && btResult.gridBars;
     if (g && g.downbeatTimes && g.downbeatTimes.length >= 2) { err.gridBars = g; }
     return err;
@@ -2033,9 +2303,44 @@
     }
     renderLibrary();
     persistLibrary();
+    _refreshClipLine();
     log(snap.lastAnalysis
       ? "Set BPM reverted - restored the previous analysis (" + snap.bpmText + " BPM, " + snap.lastAnalysis.beatsArray.length + " beats)."
       : "Set BPM reverted - back to no analysis for this clip.");
+  }
+
+  // A Custom BPM grid is even and covers the clip however it is trimmed
+  // later: when the clip now ends past the grid, more beats are laid on at
+  // the same tempo (its start already reaches back to the file's start).
+  // The saved entry takes the longer grid when it held this one.
+  function _coverCustomGrid(analysis, clipInfo) {
+    var bpm = analysis && analysis.evenGridBpm;
+    if (!(bpm > 0) || !clipInfo || typeof clipInfo.outPointSeconds !== "number" || !analysis.beatsArray.length) {
+      return;
+    }
+    var beats = analysis.beatsArray;
+    var interval = 60 / bpm;
+    if (beats[beats.length - 1] >= clipInfo.outPointSeconds + interval) {
+      return;
+    }
+    var longer = beats.slice();
+    var end = clipInfo.outPointSeconds + MANUAL_BPM_GRID_PAD_BEATS * interval;
+    for (var i = beats.length; beats[0] + i * interval <= end; i++) {
+      longer.push(beats[0] + i * interval);
+    }
+    analysis.beatsArray = longer;
+    var entry = window.BeatMarkerLibrary.get(analysis.audioPath);
+    if (entry && entry.beatsArray === beats) {
+      window.BeatMarkerLibrary.upsertAnalysis(analysis.audioPath, entry.label, {
+        bpm: entry.bpm, beatsArray: longer, confidence: entry.confidence, phase: entry.phase,
+        downbeatTimes: entry.downbeatTimes, barsUnsure: entry.barsUnsure, clipInfo: entry.clipInfo
+      });
+      persistLibrary();
+    }
+    if (analysis === lastAnalysis) {
+      beatCountDisplay.textContent = String(longer.length);
+    }
+    log("Custom BPM grid laid on to the clip's new end: " + longer.length + " beats.");
   }
   manualBpmBtn.addEventListener("click", function () {
     // Second click while a manual BPM grid is showing undoes it instead of
@@ -2062,7 +2367,9 @@
         var libraryEntryBefore = window.BeatMarkerLibrary.get(clipInfo.mediaPath);
         var preSnapshot = {
           clipInfo: clipInfo,
-          lastAnalysis: lastAnalysis,
+          // Only this file's analysis comes back on Undo, also when another
+          // clip was selected just before the click.
+          lastAnalysis: lastAnalysis && lastAnalysis.audioPath === clipInfo.mediaPath ? lastAnalysis : null,
           bpmText: bpmDisplay.textContent,
           beatCountText: beatCountDisplay.textContent,
           phaseText: phaseDisplay.textContent,
@@ -2078,22 +2385,27 @@
           } : null,
           libraryHadOtherData: !!(libraryEntryBefore && libraryEntryBefore.camelot)
         };
+        // Counted from the clip's start where the BPM was typed: a beat and
+        // a "1" fall there, and the grid reaches back to the file's start,
+        // so a later trim of the clip's start keeps the same grid
+        // (_coverCustomGrid lays it on past the end).
         var beatInterval = 60 / bpm;
-        var padSeconds = MANUAL_BPM_GRID_PAD_BEATS * beatInterval;
-        var gridStart = Math.max(0, clipInfo.inPointSeconds - padSeconds);
-        var gridEnd = clipInfo.outPointSeconds + padSeconds;
+        var anchor = clipInfo.inPointSeconds;
+        var beatsBefore = Math.floor((anchor + 1e-9) / beatInterval);
+        var gridEnd = clipInfo.outPointSeconds + MANUAL_BPM_GRID_PAD_BEATS * beatInterval;
         var beatsArray = [];
-        for (var t = gridStart; t <= gridEnd; t += beatInterval) {
-          beatsArray.push(t);
+        for (var b = 0; anchor + (b - beatsBefore) * beatInterval <= gridEnd; b++) {
+          beatsArray.push(Math.max(0, anchor + (b - beatsBefore) * beatInterval));
         }
         lastAnalysis = {
           beatsArray: beatsArray,
           confidence: 1.0,
           clipInfo: clipInfo,
           audioPath: clipInfo.mediaPath,
-          phase: 0,
+          phase: beatsBefore % 4,
           phaseMarginRatio: null,
           manualBpm: true,
+          evenGridBpm: bpm,
           onsetsArray: null,
           chordPhaseAvailable: false,
           phaseAgreement: "unknown",
@@ -2112,7 +2424,7 @@
             "\"one\" doesn't line up, then Place markers when ready. Click \"" + window.BeatMarkerI18n.t("analyze.revertManualBpmBtn") + "\" above to undo.");
         var upsertResult = window.BeatMarkerLibrary.upsertAnalysis(
           clipInfo.mediaPath, basename(clipInfo.mediaPath),
-          { bpm: bpm, beatsArray: beatsArray, confidence: 1.0, phase: 0, beatGrid: null, clipInfo: clipInfo }
+          { bpm: bpm, beatsArray: beatsArray, confidence: 1.0, phase: lastAnalysis.phase, beatGrid: "custom", clipInfo: clipInfo }
         );
         if (upsertResult.clipInfoChanged) {
           log("Note: " + basename(clipInfo.mediaPath) + " was previously analyzed on a different track/position " +
@@ -2121,6 +2433,7 @@
         }
         renderLibrary();
         persistLibrary();
+        _refreshClipLine();
       })
       .catch(function (err) {
         var message = err && err.message ? err.message : err;
@@ -2173,7 +2486,9 @@
     lastAnalysis.lowContrast = analysis.lowContrast;
     // Onsets are not recomputed here (it would need another worker call).
     lastAnalysis.onsetsArray = null;
+    lastAnalysis.evenGridBpm = null;
     _forgetPhaseShift();
+    _markGridBasic();
     var newBpm = _gridBpm(analysis.beatsArray, analysis.cuesheet.bpm);
     _updatePhaseShiftUi();
     _setBpmText(newBpm.toFixed(2));
@@ -2199,7 +2514,8 @@
     var upsertResult = window.BeatMarkerLibrary.upsertAnalysis(
       lastAnalysis.audioPath, basename(lastAnalysis.audioPath),
       { bpm: newBpm, beatsArray: analysis.beatsArray, confidence: analysis.confidence, phase: analysis.phase,
-        downbeatTimes: lastAnalysis.downbeatTimes, barsUnsure: lastAnalysis.barsUnsure, clipInfo: lastAnalysis.clipInfo }
+        downbeatTimes: lastAnalysis.downbeatTimes, barsUnsure: lastAnalysis.barsUnsure,
+        beatGrid: _beatGridOf(lastAnalysis), clipInfo: lastAnalysis.clipInfo }
     );
     if (upsertResult.clipInfoChanged) {
       log("Note: " + basename(lastAnalysis.audioPath) + " was previously analyzed on a different track/position " +
@@ -2207,6 +2523,7 @@
     }
     renderLibrary();
     persistLibrary();
+    _refreshClipLine();
   }
   // Two BPMs within this relative tolerance count as the same tempo (see
   // _maybePreserveBetterPhase()).
@@ -2243,11 +2560,14 @@
   // kept as one list (same reasoning as BEAT_FIELD_KEYS above) so the
   // round-trip snapshot/restore pair below can never drift out of sync with
   // what a forward retempo recompute touches.
+  // The Beat grid state is part of it (_markGridBasic): the reverse click
+  // brings back a Refined grid as Refined.
   var RETEMPO_FIELD_KEYS = [
     "beatsArray", "downbeatTimes", "confidence", "phase", "phaseMarginRatio",
     "phaseSource", "bassPhase", "bassPhaseMarginRatio", "chordPhase",
     "chordPhaseMarginRatio", "chordPhaseAvailable", "phaseAgreement",
-    "chordChangeEvents", "lowContrast", "onsetsArray"
+    "chordChangeEvents", "lowContrast", "onsetsArray",
+    "beatThisApplied", "beatThisRejected", "beatThisReverted", "beatThisFailed", "_preBeatThisSnapshot"
   ];
   function _snapshotRetempoFields() {
     var snap = {};
@@ -2273,10 +2593,11 @@
       lastAnalysis.audioPath, basename(lastAnalysis.audioPath),
       { bpm: parseFloat(bpmText), beatsArray: lastAnalysis.beatsArray, confidence: lastAnalysis.confidence,
         phase: lastAnalysis.phase, downbeatTimes: lastAnalysis.downbeatTimes, barsUnsure: lastAnalysis.barsUnsure,
-        clipInfo: lastAnalysis.clipInfo }
+        beatGrid: _beatGridOf(lastAnalysis), clipInfo: lastAnalysis.clipInfo }
     );
     renderLibrary();
     persistLibrary();
+    _refreshClipLine();
   }
   // Needs the decoded audio of this clip (lastDecodedSamples, cached from
   // Analyze / Detect key); falls back to the naive path when it is not
@@ -2335,7 +2656,7 @@
       return;
     }
     try { _assertAudioUnchanged(lastAnalysis.clipInfo); } catch (err) { log(err.message); return; }
-    var canRecompute = !lastAnalysis.manualBpm && lastDecodedSamples &&
+    var canRecompute = !lastAnalysis.manualBpm && !lastAnalysis.evenGridBpm && lastDecodedSamples &&
       lastDecodedSamplesPath === lastAnalysis.audioPath;
     var currentBpm = canRecompute ? _estimateBpmFromBeats(lastAnalysis.beatsArray) : 0;
     if (canRecompute && currentBpm > 0) {
@@ -2383,7 +2704,10 @@
     lastAnalysis.phaseMarginRatio = null;
     lastAnalysis.chordPhaseAvailable = false;
     lastAnalysis.phaseAgreement = "unknown";
+    // A Custom BPM grid halved or doubled is still even.
+    if (lastAnalysis.evenGridBpm) { lastAnalysis.evenGridBpm *= factor; }
     _forgetPhaseShift();
+    _markGridBasic();
     _updatePhaseShiftUi();
     _setBpmText(newBpm.toFixed(2));
     beatCountDisplay.textContent = String(newBeats.length);
@@ -2394,6 +2718,16 @@
     _refreshBeatClickPreview();
     log("Tempo re-derived (" + (factor === 2 ? "doubled" : "halved") + "): now " + newBpm.toFixed(2) +
         " BPM, " + newBeats.length + " beats. Downbeat phase was reset - pick the real \"one\" with the 1 2 3 4 buttons.");
+    // Saved like any other grid, so the BPM shown and saved follows ½× / 2×
+    // after a trim or another selection too.
+    window.BeatMarkerLibrary.upsertAnalysis(
+      lastAnalysis.audioPath, basename(lastAnalysis.audioPath),
+      { bpm: newBpm, beatsArray: newBeats, confidence: lastAnalysis.confidence, phase: 0, downbeatTimes: null,
+        barsUnsure: lastAnalysis.barsUnsure, beatGrid: _beatGridOf(lastAnalysis), clipInfo: lastAnalysis.clipInfo }
+    );
+    renderLibrary();
+    persistLibrary();
+    _refreshClipLine();
   }
   retempoHalfBtn.addEventListener("click", function () { _retempo(0.5); });
   retempoDoubleBtn.addEventListener("click", function () { _retempo(2); });
@@ -2431,12 +2765,25 @@
     nudgeEarlierBtn.disabled = !lastAnalysis || ms <= -NUDGE_LIMIT_MS;
     nudgeLaterBtn.disabled = !lastAnalysis || ms >= NUDGE_LIMIT_MS;
   }
+  // A click counts for the clip selected when it is made: one that comes
+  // before the panel noticed another selection changes nothing.
   function _nudgeMarkers(deltaMs) {
     if (!lastAnalysis) {
       return;
     }
-    var path = lastAnalysis.audioPath;
-    var ms = Math.max(-NUDGE_LIMIT_MS, Math.min(NUDGE_LIMIT_MS, _nudgeMsFor(path) + deltaMs));
+    var analysis = lastAnalysis;
+    getClipInfo().then(function (fresh) {
+      if (lastAnalysis !== analysis || fresh.mediaPath !== analysis.audioPath) {
+        log("Shift: another clip is selected now - nothing changed.");
+        _flashSelectionError(I18n.t("selection.clipChanged"));
+        return;
+      }
+      _applyNudge(analysis.audioPath, deltaMs);
+    }, function (err) {
+      _flashSelectionError(err && err.message ? err.message : String(err));
+    });
+  }
+  function _setNudgeMs(path, ms) {
     var copy = {};
     for (var k in _nudgeByPath) { if (Object.prototype.hasOwnProperty.call(_nudgeByPath, k)) { copy[k] = _nudgeByPath[k]; } }
     if (ms) { copy[path] = ms; } else { delete copy[path]; }
@@ -2445,13 +2792,28 @@
     _nudgeByPath = copy;
     persistSettings({ markerNudgeMs: copy });
     _updateNudgeUi();
+  }
+  var _nudgeBefore = null; // { path, ms } before the clicks the next re-place carries
+  function _applyNudge(path, deltaMs) {
+    if (!_nudgeBefore || _nudgeBefore.path !== path) {
+      _nudgeBefore = { path: path, ms: _nudgeMsFor(path) };
+    }
+    _setNudgeMs(path, Math.max(-NUDGE_LIMIT_MS, Math.min(NUDGE_LIMIT_MS, _nudgeMsFor(path) + deltaMs)));
     if (_nudgeTimer) { clearTimeout(_nudgeTimer); }
     _nudgeTimer = setTimeout(function () {
       _nudgeTimer = null;
+      var before = _nudgeBefore;
+      _nudgeBefore = null;
       if (!lastAnalysis || lastAnalysis.audioPath !== path) {
         return;
       }
-      _replaceMarkersIfPlaced(lastAnalysis.phase, "Shift");
+      // A refused re-place puts the number back, so it matches the markers
+      // (unless newer clicks changed it meanwhile).
+      var sent = _nudgeMsFor(path);
+      _replaceMarkersIfPlaced(lastAnalysis.phase, "Shift", {
+        confirm: function () {},
+        undo: function () { if (before && _nudgeMsFor(path) === sent) { _setNudgeMs(path, before.ms); } }
+      });
     }, 400);
   }
   nudgeEarlierBtn.addEventListener("click", function () { _nudgeMarkers(-1); });
@@ -2481,7 +2843,7 @@
       log("Shift phase: run Analyze selected audio first.");
       return;
     }
-    var undo = _restorePhaseState(_phaseState());
+    var edit = _startPhaseEdit();
     // The first shift remembers the grid as the analysis found it, so Reset
     // can bring it back exactly (Beat This!'s downbeats included - shifting
     // them snaps interpolated ones onto beats, so shifting back would not
@@ -2499,28 +2861,36 @@
     // delta. `phase` itself is left unchanged: buildDownbeatsCuesheet()
     // ignores it whenever downbeatTimes is present, so re-placing at the same
     // `lastAnalysis.phase` picks up the shifted array.
+    // Otherwise the phase index itself moves, set here at once so a second
+    // click or Shift's re-place before the host's answer starts from it.
     if (lastAnalysis.downbeatTimes && lastAnalysis.downbeatTimes.length) {
       lastAnalysis.downbeatTimes = window.BeatMarkerCuesheet.shiftDownbeatTimes(
         lastAnalysis.downbeatTimes, lastAnalysis.beatsArray, delta
       );
-      _replaceMarkersIfPlaced(lastAnalysis.phase, "Shift phase", undo);
-      return;
+    } else {
+      lastAnalysis.phase = ((lastAnalysis.phase + delta) % 4 + 4) % 4;
     }
-    var newPhase = ((lastAnalysis.phase + delta) % 4 + 4) % 4;
-    _replaceMarkersIfPlaced(newPhase, "Shift phase", undo);
+    edit.made();
+    _updatePhaseShiftUi();
+    _refreshBeatClickPreview();
+    _replaceMarkersIfPlaced(lastAnalysis.phase, "Shift phase", edit);
   }
   // Back to the "1" the analysis found, and markers placed there.
   function resetPhaseShift() {
     if (!lastAnalysis || !lastAnalysis.phaseShift) {
       return;
     }
-    var undo = _restorePhaseState(_phaseState());
+    var edit = _startPhaseEdit();
     if (lastAnalysis._originalDownbeatTimes) {
       lastAnalysis.downbeatTimes = lastAnalysis._originalDownbeatTimes.slice();
     }
     var phase = typeof lastAnalysis._originalPhase === "number" ? lastAnalysis._originalPhase : lastAnalysis.phase;
     _forgetPhaseShift();
-    _replaceMarkersIfPlaced(phase, "Reset phase", undo);
+    lastAnalysis.phase = phase;
+    edit.made();
+    _updatePhaseShiftUi();
+    _refreshBeatClickPreview();
+    _replaceMarkersIfPlaced(phase, "Reset phase", edit);
   }
   // A beat button: 1 puts the "1" back exactly (resetPhaseShift); 2-4 shift
   // by the shortest way there (+1, +2, or -1 for 4).
@@ -2531,6 +2901,13 @@
     }
     var n = _phaseShiftIndex();
     if (target === n) {
+      // After the host's Undo the markers can sit on another beat than the
+      // lit cell: a click on it puts Downbeat's markers back where it says
+      // (with none on the clip it changes nothing).
+      var analysis = lastAnalysis;
+      evalJson("countOwnMarkersForSelectedClip(" + JSON.stringify(JSON.stringify(_placedTimelineJson())) + ")").then(function (data) {
+        if (data && data.count && lastAnalysis === analysis) { _replaceMarkersIfPlaced(analysis.phase, "Choose the 1"); }
+      }, function () { /* nothing to put back */ });
       return;
     }
     if (target === 0) {
@@ -2560,7 +2937,7 @@
     log("Clearing Downbeat's markers for the selected clip (your own markers stay)...");
     evalJson("clearMarkersForSelectedClip(true, " + JSON.stringify(JSON.stringify(_placedTimelineJson())) + ")")
       .then(function (data) {
-        _rememberPlacedTimeline({ placedKey: data.placedKey, placedTimes: null });
+        _rememberPlacedTimeline({ placedKey: data.placedKey, placedTimes: null, forgetKeys: data.forgetKeys });
         log("Cleared " + data.sequenceMarkersRemoved + " sequence marker(s) between " +
             data.clipStartSeconds.toFixed(3) + "s and " + data.clipEndSeconds.toFixed(3) + "s" +
             (data.clipMarkersAttempted
@@ -2783,6 +3160,11 @@
     showBusy("busy.default");
     getClipInfo()
       .then(function (clip) {
+        // A switched-off clip is usually the original of an earlier pitch,
+        // and that copy still plays: a new copy would play along with it.
+        if (clip.disabled) {
+          throw new Error(I18n.t("key.pitchClipOff"));
+        }
         var fresh = _selectedPlayback();
         if (!fresh || !fresh.camelot || fresh.signature !== signature) {
           _restoreCachedKey(clip);
@@ -2790,15 +3172,20 @@
         }
         var inSec = Math.max(0, clip.inPointSeconds || 0);
         var outSec = typeof clip.outPointSeconds === "number" && clip.outPointSeconds > inSec ? clip.outPointSeconds : null;
-        var opts = { atSeconds: clip.clipStartSeconds, muteSelected: true, selectInserted: true, inSec: inSec, speed: plan.finalSpeed, reverse: !!clip.reversed, pitchReference: clip };
+        var opts = { atSeconds: clip.clipStartSeconds, muteSelected: true, selectInserted: true, inSec: inSec, speed: plan.finalSpeed, reverse: !!clip.reversed, pitchReference: clip,
+          knownPlaced: _placedTimelineJson() };
         if (outSec !== null) {
           opts.outSec = outSec;
         }
         return evalJson("insertAudioAtPlayhead(" + _jsxJsonArg(clip.mediaPath) + ", " + (outSec || 0) + ", " +
                         _jsxJsonArg(opts) + ")").then(function (data) {
+          if (data.pictureFailed) {
+            throw new Error(I18n.t("key.pitchPictureFailed"));
+          }
           if (data.speedFailed || data.trimFailed) {
             throw new Error(I18n.t("library.speedFailed", { name: basename(clip.mediaPath) }));
           }
+          _rememberPlacedTimeline(data.placedTimeline); // the original's timeline set now belongs to the pitched clip
           setTranslatedText(pitchApplyStatus, data.muted ? "key.pitchApplyDone" : "key.pitchApplyNotMuted", { where: data.where });
           if (!data.selected) {
             pitchApplyStatus.textContent += " " + I18n.t("key.pitchSelectNew");
@@ -2809,6 +3196,13 @@
           log(data.selected ? "Key: the pitched clip is selected for further analysis." :
             "Key: select the new pitched clip before further analysis; automatic selection was not confirmed.");
           return getClipInfo().then(function (inserted) {
+            // The copy plays the same part of the file; its in / out can
+            // read back a frame off, so a Selected-clip key goes with it.
+            if (inserted.mediaPath === clip.mediaPath && Math.abs(inserted.inPointSeconds - clip.inPointSeconds) < 0.1 &&
+                Math.abs(inserted.outPointSeconds - clip.outPointSeconds) < 0.1 &&
+                window.BeatMarkerLibrary.carryKey(clip.mediaPath, _keyScopeFor(clip), _keyScopeFor(inserted))) {
+              persistLibrary();
+            }
             _restoreCachedKey(inserted);
           }).catch(function () { selectedClipInfo = null; _clearSelectionDependentState(); });
         });
@@ -3096,6 +3490,7 @@
     var isValidCode = /^([1-9]|1[0-2])[AB]$/.test(raw);
     if (!isValidCode) {
       log("Key override: '" + raw + "' isn't a valid Camelot code (expected like '8A' or '11B').");
+      _flashSelectionError(I18n.t("key.overrideInvalid"));
       return;
     }
     var scope = keyScope, material = keyMaterial;
@@ -3174,10 +3569,23 @@
   // "already analyzed" / "not analyzed yet" are translated parts of it.
   // Transient error flashes pass a plain string and are not rebuilt.
   var _selectionStatusBuilder = null;
+  var _selectionErrorShown = false; // an error is on the line (_flashSelectionError)
   function _setSelectionStatus(text, extraClass) {
     _selectionStatusBuilder = typeof text === "function" ? text : null;
     _writeSelectionStatus(_selectionStatusBuilder ? _selectionStatusBuilder() : text);
     selectionStatusDisplay.className = "selection-status" + (extraClass ? " " + extraClass : "");
+    // An error is shown whole: on a line of its own under the heading,
+    // wrapped instead of cut with "..." (css .g-clip-slot.has-error), in
+    // whichever tab's heading holds the line.
+    _selectionErrorShown = extraClass === "is-error";
+    ["analyzeClipSlot", "keyClipSlot"].forEach(function (id) {
+      var slot = document.getElementById(id);
+      if (!slot) { return; }
+      slot.classList.toggle("has-error", _selectionErrorShown);
+      if (slot.parentNode && slot.parentNode.classList) {
+        slot.parentNode.classList.toggle("has-clip-error", _selectionErrorShown);
+      }
+    });
   }
   function _rebuildSelectionStatus() {
     if (_selectionStatusBuilder) {
@@ -3211,13 +3619,15 @@
   // more than one clip selected) into the selection-status
   // line, already visible on every tab, instead of adding a separate banner
   // per button.
-  var _selectionErrorTimeout = null;
   // The host throws fixed English texts; the ones the user meets most are
   // shown in the panel's language. A count in brackets is kept.
   var _hostReasonKeys = [
     ["Nothing selected. Select one audio clip on the timeline.", "selection.hostNothingClip"],
     ["Nothing selected. Select one audio layer in the composition.", "selection.hostNothingLayer"],
     ["Selection is video, not audio. Select an audio clip instead.", "selection.hostVideo"],
+    // A nested sequence, a multicam or a merged clip has no media file.
+    ["Could not resolve a media file path for the selected clip.", "selection.hostNoMediaFile"],
+    ["The selected clip has no project item.", "selection.hostNoMediaFile"],
     ["More than one audio clip selected (", "selection.hostManyClips"],
     ["More than one layer with audio selected (", "selection.hostManyLayers"],
     ["No active sequence.", "selection.hostNoSequence"],
@@ -3226,7 +3636,22 @@
     ["The selected layer is not a file (a precomp or a generated layer). Select the audio file's own layer.", "selection.hostNotFileLayer"],
     ["The selected layer's media file is missing. Relink it first.", "selection.hostMissingMedia"],
     ["The selected layer uses Time Remapping. Downbeat supports constant positive Time Stretch - turn Time Remap off first.", "selection.hostTimeRemap"],
-    ["The selected layer has a reversed or invalid Time Stretch. Analysis supports positive constant Stretch values.", "selection.hostBadStretch"]
+    ["The selected layer has a reversed or invalid Time Stretch. Analysis supports positive constant Stretch values.", "selection.hostBadStretch"],
+    // The metronome, Pitch the clip, the fades, clip and composition markers,
+    // and the rare refusals of old host versions.
+    ["The selected music changed. Select the analyzed clip and try again.", "selection.hostMusicChanged"],
+    ["Invalid metronome duration.", "selection.hostMetronomeLength"],
+    ["After Effects could not place the metronome below the music.", "selection.hostMetronomeNotPlaced"],
+    ["The selected clip changed. Review the pitch plan and try again.", "key.pitchSelectionChanged"],
+    ["Premiere cannot clear markers on the pitched media item.", "selection.hostPitchNoMarkers"],
+    ["Premiere reused the original media item for pitch.", "selection.hostPitchReused"],
+    ["Premiere did not clear the pitched clip markers.", "selection.hostPitchMarkersLeft"],
+    ["The sequence or the inserted clip changed; the fades were not added.", "selection.hostFadesSkipped"],
+    ["This Premiere version does not offer clip markers to scripts.", "selection.hostNoClipMarkers"],
+    ["This After Effects version does not expose composition markers to scripts.", "selection.hostNoCompMarkers"],
+    ["No project is open.", "selection.hostNoProject"],
+    ["This Premiere version does not expose the editing API needed for cutting.", "selection.hostNoCutApi"],
+    ["Premiere's editing API did not respond; cutting is not available here.", "selection.hostNoCutApi"]
   ];
   // The insert refusals (Library, Pitch the clip, the metronome) carry a
   // length, a track or a path, so they are matched by pattern.
@@ -3257,6 +3682,40 @@
     }
     return null;
   }
+  // Failures of the analysis workers, of the host bridge and of reading a
+  // file come with Node's own English, command lines and paths. The clip
+  // line shows one short sentence in the panel's language instead; the
+  // whole text stays in the log (Settings > Copy log). First match wins.
+  var _failureReasonKeys = [
+    [/this is the (Mac|Windows) package of Downbeat/, "selection.failWrongPackage"],
+    [/could not find a Node\.js executable|Node(\.js)? (access )?is not available in this panel|Cannot find module/, "selection.failMissing"],
+    [/timed out after \d+ ?s|the decoder did not answer within/, "selection.failTimeout"],
+    [/failed: spawn (EPERM|EACCES|EBUSY|UNKNOWN)\b/, "selection.failBlocked"],
+    [/^(EPERM|EACCES|EBUSY|ENOSPC|EROFS|ENOENT)\b.*(samples|beatthis|skey|library)-\d+-\d+\.(raw|json)/, "selection.failTempWrite"],
+    [/^(analyze-worker|beatthis-worker|skey-worker)\b|^Unhandled worker error|^abort\(/, "selection.failStopped"],
+    [/^Failed to read file '/, "selection.failFileUnreadable"],
+    [/^This file's audio codec isn't supported/, "selection.failCodec"],
+    [/^The host script could not run\./, "selection.failHostNoAnswer"],
+    [/^The host's script engine answered unreadably|^Could not parse JSX response as JSON/, "selection.failHostUnreadable"]
+  ];
+  // { key, params } for setTranslatedText (the Library scan uses it too).
+  function _failureReason(message) {
+    var text = String(message || "");
+    for (var i = 0; i < _failureReasonKeys.length; i++) {
+      var m = _failureReasonKeys[i][0].exec(text);
+      if (m) {
+        var key = _failureReasonKeys[i][1];
+        return { key: key, params: key === "selection.failWrongPackage"
+          ? { pkg: m[1], want: m[1] === "Mac" ? "Windows (-win.zxp)" : "Mac (-mac.zxp)" }
+          : { app: hostIsAe ? "After Effects" : "Premiere Pro" } };
+      }
+    }
+    return null;
+  }
+  function _translateFailure(message) {
+    var reason = _failureReason(message);
+    return reason ? I18n.t(reason.key, reason.params) : null;
+  }
   function _flashSelectionError(message) {
     var markerErrorKeys = {
       "The selected clip changed. Select the intended clip and try again.": "selection.clipChanged",
@@ -3270,24 +3729,36 @@
       "The target does not expose markers.": "markers.unavailable"
     };
     if (markerErrorKeys[message]) { message = I18n.t(markerErrorKeys[message]); }
-    else { message = _translateHostReason(message) || message; }
-    if (_selectionErrorTimeout) {
-      clearTimeout(_selectionErrorTimeout);
+    else {
+      var hostText = _translateHostReason(message);
+      var failure = hostText ? null : _translateFailure(message);
+      if (failure) { log("Clip line shows a short text for: " + message); }
+      message = hostText || failure || message;
     }
+    // Stays until the user's next click or key press in the panel, or a
+    // new selection (see _clearSelectionError).
     _setSelectionStatus(message, "is-error");
-    _selectionErrorTimeout = setTimeout(function () {
-      _selectionErrorTimeout = null;
-      lastSelectionKey = null; // next poll tick re-checks for real, instead of assuming this stale flash is still accurate
-      _setSelectionStatus(_selectionPlaceholder, "");
-    }, 3000);
   }
+  function _clearSelectionError() {
+    if (!_selectionErrorShown) {
+      return;
+    }
+    lastSelectionKey = null; // next poll tick re-checks for real, instead of assuming this stale flash is still accurate
+    _setSelectionStatus(_selectionPlaceholder, "");
+  }
+  // mousedown and keydown come before the click (or key) that may flash a
+  // new error, so they clear only one that is already on screen.
+  document.addEventListener("mousedown", _clearSelectionError, true);
+  document.addEventListener("keydown", _clearSelectionError, true);
   function _clearSelectionDependentState() {
     selectedClipInfo = null;
+    _rememberSessionAnalysis(lastAnalysis);
     lastAnalysis = null;
     _updatePhaseShiftUi();
     _setBpmText("-");
     beatCountDisplay.textContent = "-";
     _updatePhaseUncertainHint(null);
+    _updatePhaseAgreementHint(null);
     _updateGridConfidenceHint(null);
     _updateRetempoLikelyHint(null, null);
     _hideBeatClickPreview();
@@ -3295,16 +3766,94 @@
     _refreshPlaybackConsumers();
   }
 
+  // The analyses shown earlier since the panel opened, by file. Selecting a clip of
+  // the same file again - after a trim, or after another clip - brings back
+  // the grid that was on screen with its chosen "1", Custom BPM's Undo and
+  // Basic / Refined, instead of one rebuilt from the saved entry.
+  var SESSION_ANALYSES_KEEP = 12;
+  var _sessionAnalyses = {};
+  var _sessionAnalysisOrder = [];
+  function _rememberSessionAnalysis(analysis) {
+    if (!analysis || !analysis.audioPath) {
+      return;
+    }
+    var path = analysis.audioPath;
+    var at = _sessionAnalysisOrder.indexOf(path);
+    if (at !== -1) { _sessionAnalysisOrder.splice(at, 1); }
+    _sessionAnalyses[path] = analysis;
+    _sessionAnalysisOrder.push(path);
+    while (_sessionAnalysisOrder.length > SESSION_ANALYSES_KEEP) {
+      delete _sessionAnalyses[_sessionAnalysisOrder.shift()];
+    }
+  }
+  // Only while the saved entry still holds that very grid and the file is
+  // unchanged; otherwise the saved entry decides.
+  function _sessionAnalysisFor(entry, clipInfo) {
+    if (!entry || !entry.beatsArray) {
+      return null;
+    }
+    var identity = window.BeatMarkerLibrary.fileIdentity(clipInfo.mediaPath);
+    var candidates = [lastAnalysis, _sessionAnalyses[clipInfo.mediaPath]];
+    for (var i = 0; i < candidates.length; i++) {
+      var a = candidates[i];
+      if (a && a.audioPath === clipInfo.mediaPath && a.beatsArray === entry.beatsArray && a.clipInfo &&
+          window.BeatMarkerLibrary.sameIdentity(a.clipInfo.fileIdentity, identity)) {
+        return a;
+      }
+    }
+    return null;
+  }
+
+  // The clip line: the file's name - in After Effects with the composition
+  // that will be changed, which need not be the one on screen - the BPM of
+  // the grid kept for it since the panel opened, and the key.
+  function _clipLineName(clipInfo) {
+    var name = basename(clipInfo.mediaPath);
+    return clipInfo.compName ? clipInfo.compName + " > " + name : name;
+  }
+  function _showClipLine(clipInfo, entry) {
+    var statusParts = [_clipLineName(clipInfo)];
+    if (entry && entry.beatsArray && entry.clipInfo && entry.bpm) {
+      var bpmText = entry.bpm.toFixed(1);
+      statusParts.push(function () { return bpmText + " BPM (" + I18n.t("selection.alreadyAnalyzed") + ")"; });
+    }
+    var playback = _selectedPlayback();
+    if (playback && playback.camelot) { statusParts.push(playback.camelot); }
+    if (!entry) {
+      statusParts.push(function () { return I18n.t("selection.notAnalyzed"); });
+    }
+    _setSelectionStatus(function () {
+      return statusParts.map(function (part) { return typeof part === "function" ? part() : part; }).join(" — ");
+    }, entry ? "has-cache" : "has-clip");
+  }
+  // After the grid changed with the same clip selected (Analyze, Custom BPM,
+  // ½× / 2×): the line names the new grid.
+  function _refreshClipLine() {
+    if (selectedClipInfo) {
+      _showClipLine(selectedClipInfo, window.BeatMarkerLibrary.get(selectedClipInfo.mediaPath));
+    }
+  }
+
   function _applyCachedEntry(entry, freshClipInfo) {
-    freshClipInfo.fileIdentity = entry ? entry.fileIdentity : null;
+    var kept = _sessionAnalysisFor(entry, freshClipInfo);
+    if (lastAnalysis !== kept) {
+      _rememberSessionAnalysis(lastAnalysis);
+    }
+    freshClipInfo.fileIdentity = kept ? kept.clipInfo.fileIdentity : (entry ? entry.fileIdentity : null);
     if (!entry && lastDecodedSamplesPath === freshClipInfo.mediaPath) {
       lastDecodedSamples = null;
       lastDecodedSamplesPath = null;
       _bpmPassCache.clear();
     }
-    var statusParts = [basename(freshClipInfo.mediaPath)];
 
-    if (entry && entry.beatsArray && entry.clipInfo) {
+    if (kept) {
+      kept.clipInfo = freshClipInfo; // the live position and trim
+      lastAnalysis = kept;
+      _coverCustomGrid(kept, freshClipInfo);
+      _updatePhaseShiftUi();
+      _setBpmText(entry.bpm.toFixed(2));
+      beatCountDisplay.textContent = String(kept.beatsArray.length);
+    } else if (entry && entry.beatsArray && entry.clipInfo) {
       lastAnalysis = {
         beatsArray: entry.beatsArray,
         confidence: entry.confidence,
@@ -3324,38 +3873,33 @@
         // analyzes the clip again (beatThisBtn).
         beatThisApplied: entry.beatGrid === "refined",
         beatThisRejected: entry.beatGrid === "kept",
-        beatThisReverted: entry.beatGrid === "basic"
+        beatThisReverted: entry.beatGrid === "basic",
+        // A Custom BPM grid stays even, so it can be laid on further.
+        evenGridBpm: entry.beatGrid === "custom" ? entry.bpm : null
       };
+      _coverCustomGrid(lastAnalysis, freshClipInfo);
       _updatePhaseShiftUi();
       _setBpmText(entry.bpm.toFixed(2));
-      beatCountDisplay.textContent = String(entry.beatsArray.length);
-      var cachedBpmText = entry.bpm.toFixed(1);
-      statusParts.push(function () { return cachedBpmText + " BPM (" + I18n.t("selection.alreadyAnalyzed") + ")"; });
+      beatCountDisplay.textContent = String(lastAnalysis.beatsArray.length);
     } else {
       lastAnalysis = null;
       _updatePhaseShiftUi();
       _setBpmText("-");
       beatCountDisplay.textContent = "-";
     }
-    // The saved confidence shows the warning only while that grid is on
-    // screen: an entry from an earlier session is not reopened (it needs a
-    // new Analyze), and its warning and Beat grid line would offer a switch
-    // with no grid behind it.
-    _updatePhaseUncertainHint(null);
-    _updateGridConfidenceHint(lastAnalysis ? entry.confidence : null);
+    // The phase warning needs values the library does not save, so it shows
+    // only for a grid kept since the panel opened. The saved confidence shows
+    // the grid warning only while that grid is on screen: an entry from an
+    // earlier session is not reopened (it needs a new Analyze), and its warning
+    // and Beat grid line would offer a switch with no grid behind it.
+    _updatePhaseUncertainHint(kept ? kept.phaseMarginRatio : null);
+    _updatePhaseAgreementHint(kept);
+    _updateGridConfidenceHint(lastAnalysis ? lastAnalysis.confidence : null);
     _updateRetempoLikelyHint(null, null);
     _refreshBeatClickPreview();
 
     _restoreCachedKey(freshClipInfo);
-    var playback = _selectedPlayback();
-    if (playback && playback.camelot) { statusParts.push(playback.camelot); }
-
-    if (!entry) {
-      statusParts.push(function () { return I18n.t("selection.notAnalyzed"); });
-    }
-    _setSelectionStatus(function () {
-      return statusParts.map(function (part) { return typeof part === "function" ? part() : part; }).join(" — ");
-    }, entry ? "has-cache" : "has-clip");
+    _showClipLine(freshClipInfo, entry);
   }
   function pollSelection() {
     if (document.activeElement && document.activeElement.tagName === "SELECT") {
@@ -3388,15 +3932,17 @@
           }
           _renderHeard();
           _refreshPlaybackConsumers();
-          lastSelectionKey = clipInfo.mediaPath + "|" + clipInfo.inPointSeconds + "|" + clipInfo.outPointSeconds + "|" + clipInfo.speed + "|" + window.BeatMarkerLibrary.identityKey(clipInfo.mediaPath);
+          lastSelectionKey = _selectionKeyOf(clipInfo);
           var entry = window.BeatMarkerLibrary.get(clipInfo.mediaPath);
-          var parts = [basename(clipInfo.mediaPath)];
+          var parts = [_clipLineName(clipInfo)];
           if (entry && entry.bpm) {
             parts.push(entry.bpm.toFixed(1) + " BPM");
           }
           var playback = _selectedPlayback();
           if (playback && playback.camelot) { parts.push(playback.camelot); }
-          _setSelectionStatus(parts.join(" — "), "has-cache");
+          if (!_selectionErrorShown) { // the run's own error stays until the user's next action
+            _setSelectionStatus(parts.join(" — "), "has-cache");
+          }
         })
         .catch(function () {
           lastSelectionKey = null;
@@ -3405,7 +3951,7 @@
     }
     getClipInfo()
       .then(function (clipInfo) {
-        var key = clipInfo.mediaPath + "|" + clipInfo.inPointSeconds + "|" + clipInfo.outPointSeconds + "|" + clipInfo.speed + "|" + window.BeatMarkerLibrary.identityKey(clipInfo.mediaPath);
+        var key = _selectionKeyOf(clipInfo);
         if (key === lastSelectionKey) {
           return;
         }
@@ -3414,16 +3960,33 @@
         _applyCachedEntry(entry, clipInfo);
       })
       .catch(function (err) {
-        if (lastSelectionKey === null) {
-          return;
-        }
-        lastSelectionKey = null;
-        _clearSelectionDependentState();
         // A reason the host gave (video selected, two clips, no sequence)
         // is more useful than the placeholder; shown in the panel's language.
-        var reason = _translateHostReason(err && err.message ? err.message : err);
+        var raw = err && err.message ? err.message : String(err);
+        var reason = _translateHostReason(raw);
+        if (lastSelectionKey !== null) {
+          lastSelectionKey = null;
+          _clearSelectionDependentState();
+        } else {
+          // Still nothing usable: the reason is written again when it is
+          // another one (a Time Remap layer after nothing selected, or after
+          // a message went away), never over a message on show, and the
+          // start text stays while nothing is selected.
+          var shown = selectionStatusDisplay.title || selectionStatusDisplay.textContent;
+          var startText = _selectionPlaceholder();
+          if (/\bis-error\b/.test(selectionStatusDisplay.className) || shown === (reason || startText) ||
+              (shown === startText && (!reason || /^Nothing selected\./.test(raw)))) {
+            return;
+          }
+        }
         _setSelectionStatus(reason || _selectionPlaceholder, "");
       });
+  }
+  // In After Effects the composition is part of the selection: the same
+  // layer in another composition is another clip.
+  function _selectionKeyOf(clipInfo) {
+    return clipInfo.mediaPath + "|" + clipInfo.inPointSeconds + "|" + clipInfo.outPointSeconds + "|" + clipInfo.speed + "|" +
+      window.BeatMarkerLibrary.identityKey(clipInfo.mediaPath) + (clipInfo.compId !== undefined ? "|" + clipInfo.compId : "");
   }
   pollSelection();
   document.addEventListener("change", function (evt) {

@@ -586,24 +586,38 @@
         log("The file name looks like a music video's soundtrack - check the intro and the ending of the result.");
       }
     }
-    function _refreshBeatClickPreview() {
-      // The same "is there a real analysis" condition decides whether the
-      // half/double tempo-correction row (retempoRow) is visible; it is
-      // evaluated here so every call site that changes lastAnalysis gets it.
-      var generation = ++_beatClickPreviewGeneration;
-      retempoRow.style.display = (ctx.lastAnalysis() && ctx.lastAnalysis().beatsArray && ctx.lastAnalysis().beatsArray.length) ? "" : "none";
-      _updateMusicVideoNote();
-      if (!ctx.lastAnalysis() || !ctx.lastAnalysis().beatsArray || !ctx.lastAnalysis().beatsArray.length) {
-        _hideBeatClickPreview(); // also pauses and cancels scheduled clicks
-        return;
+
+    // The file the preview has loaded (null while hidden): a refresh for the
+    // same file - another "1", Shift, a trim - only moves the clicks, and
+    // playback, zoom and position stay.
+    var _beatClickShownPath = null;
+    function _sameTrackRefresh(previewPath) {
+      var times = window.BeatMarkerCuesheet.buildDownbeatsTrack(ctx.lastAnalysis().beatsArray, ctx.lastAnalysis().confidence, ctx.lastAnalysis().phase, ctx.lastAnalysis().downbeatTimes)
+        .events.map(function (e) { return e.t; });
+      _stopScheduledBeatClicks();
+      // Clicks already behind the playhead count as played, so none sounds twice.
+      _beatClickFiredKeys = {};
+      var now = beatClickAudio.currentTime || 0;
+      for (var i = 0; i < times.length; i++) {
+        if (times[i] < now) { _beatClickFiredKeys[times[i].toFixed(3)] = true; }
       }
-      if (!beatClickAudio.paused) {
-        beatClickAudio.pause();
+      _beatClickTimes = times;
+      if (!_beatClickCurrentSamples && ctx.lastDecodedSamplesPath() === previewPath && ctx.lastDecodedSamples()) {
+        _beatClickCurrentSamplesPath = previewPath;
+        _beatClickCurrentSamples = ctx.lastDecodedSamples();
+        _beatClickCurrentBands = _splitFrequencyBands(_beatClickCurrentSamples, window.BeatMarkerAudio.TARGET_SAMPLE_RATE);
+      } else if (!_beatClickCurrentSamples && _beatClickLoadFailed) {
+        // A read that failed is tried again, the view kept.
+        var generation = ++_beatClickPreviewGeneration;
+        _beatClickLoadFailed = false;
+        _loadPreviewPlayback(previewPath, generation);
+        _loadPreviewWaveform(previewPath, generation);
       }
-      var downbeats = window.BeatMarkerCuesheet.buildDownbeatsTrack(ctx.lastAnalysis().beatsArray, ctx.lastAnalysis().confidence, ctx.lastAnalysis().phase, ctx.lastAnalysis().downbeatTimes);
-      _beatClickTimes = downbeats.events.map(function (e) { return e.t; });
-      _resetBeatClickPlaythrough();
-      var previewPath = ctx.lastAnalysis().audioPath;
+      _rebuildBeatClickWaveformForView();
+    }
+    var _beatClickLoadFailed = false;
+
+    function _loadPreviewPlayback(previewPath, generation) {
       if (/\.aiff?$/i.test(previewPath)) {
         _loadAiffPlayback(previewPath, generation).then(function (aiff) {
           if (generation !== _beatClickPreviewGeneration || !ctx.lastAnalysis() || ctx.lastAnalysis().audioPath !== previewPath) {
@@ -619,15 +633,80 @@
           }
         }, function (err) {
           if (generation === _beatClickPreviewGeneration) {
+            _beatClickLoadFailed = true;
             log("Preview: could not prepare this AIFF for playback: " + (err && err.message ? err.message : err));
           }
         });
       } else {
-        var newSrc = "file://" + previewPath;
+        var newSrc = _previewFileUrl(previewPath);
         if (beatClickAudio.getAttribute("src") !== newSrc) {
           beatClickAudio.src = newSrc;
         }
       }
+    }
+
+    function _loadPreviewWaveform(previewPath, generation) {
+      if (_beatClickCurrentSamples) {
+        return;
+      }
+      _loadPreviewSamples(previewPath).then(function (samples) {
+        if (generation !== _beatClickPreviewGeneration || !ctx.lastAnalysis() || ctx.lastAnalysis().audioPath !== previewPath) {
+          return;
+        }
+        _beatClickCurrentSamples = samples;
+        _beatClickCurrentBands = _splitFrequencyBands(samples, window.BeatMarkerAudio.TARGET_SAMPLE_RATE);
+        _rebuildBeatClickWaveformForView();
+      }, function (err) {
+        if (generation === _beatClickPreviewGeneration) {
+          _beatClickLoadFailed = true;
+          log("Preview: could not read the waveform: " + (err && err.message ? err.message : err));
+        }
+      });
+    }
+
+    // The player loads the file through a file URL; each part of the path is
+    // escaped (as the Library player does), so a "#" or "?" in a file name
+    // ("Song F#m.wav") does not cut the URL short.
+    function _previewFileUrl(path) {
+      var p = String(path).replace(/\\/g, "/");
+      if (/^[A-Za-z]:\//.test(p)) {
+        p = "/" + p;
+      }
+      return "file://" + p.split("/").map(function (seg, i) {
+        return (i === 1 && /^[A-Za-z]:$/.test(seg)) ? seg : encodeURIComponent(seg);
+      }).join("/");
+    }
+
+    function _refreshBeatClickPreview() {
+      // The same "is there a real analysis" condition decides whether the
+      // ½× / 2× tempo-correction row (retempoRow) is visible; it is
+      // evaluated here so every call site that changes lastAnalysis gets it.
+      retempoRow.style.display = (ctx.lastAnalysis() && ctx.lastAnalysis().beatsArray && ctx.lastAnalysis().beatsArray.length) ? "" : "none";
+      _updateMusicVideoNote();
+      if (!ctx.lastAnalysis() || !ctx.lastAnalysis().beatsArray || !ctx.lastAnalysis().beatsArray.length) {
+        _hideBeatClickPreview(); // also pauses and cancels scheduled clicks, so no audio plays on behind a hidden row
+        return;
+      }
+      // A new decode of the file (a new Analyze) loads it afresh.
+      var newDecode = ctx.lastDecodedSamplesPath() === ctx.lastAnalysis().audioPath && !!ctx.lastDecodedSamples() &&
+        !!_beatClickCurrentSamples && ctx.lastDecodedSamples() !== _beatClickCurrentSamples;
+      if (_beatClickShownPath === ctx.lastAnalysis().audioPath && !newDecode) {
+        _sameTrackRefresh(_beatClickShownPath);
+        return;
+      }
+      var generation = ++_beatClickPreviewGeneration;
+      if (!beatClickAudio.paused) {
+        beatClickAudio.pause();
+      }
+      var downbeats = window.BeatMarkerCuesheet.buildDownbeatsTrack(ctx.lastAnalysis().beatsArray, ctx.lastAnalysis().confidence, ctx.lastAnalysis().phase, ctx.lastAnalysis().downbeatTimes);
+      _beatClickTimes = downbeats.events.map(function (e) { return e.t; });
+      _resetBeatClickPlaythrough();
+      var previewPath = ctx.lastAnalysis().audioPath;
+      _beatClickShownPath = previewPath;
+      _beatClickLoadFailed = false;
+      _loadPreviewPlayback(previewPath, generation);
+      // Match samples to their source path before drawing. Saved analyses
+      // contain beat times without PCM samples, so reload those below.
       var retainedSamples = _beatClickCurrentSamplesPath === previewPath ? _beatClickCurrentSamples : null;
       _beatClickCurrentSamples = ctx.lastDecodedSamplesPath() === previewPath ? ctx.lastDecodedSamples() : retainedSamples;
       _beatClickCurrentSamplesPath = previewPath;
@@ -646,20 +725,7 @@
       _beatClickZoom = Math.min(BEAT_CLICK_DEFAULT_ZOOM, BEAT_CLICK_ZOOM_MAX);
       _beatClickPanSeconds = 0;
       _rebuildBeatClickWaveformForView();
-      if (!_beatClickCurrentSamples) {
-        _loadPreviewSamples(previewPath).then(function (samples) {
-          if (generation !== _beatClickPreviewGeneration || !ctx.lastAnalysis() || ctx.lastAnalysis().audioPath !== previewPath) {
-            return;
-          }
-          _beatClickCurrentSamples = samples;
-          _beatClickCurrentBands = _splitFrequencyBands(samples, window.BeatMarkerAudio.TARGET_SAMPLE_RATE);
-          _rebuildBeatClickWaveformForView();
-        }, function (err) {
-          if (generation === _beatClickPreviewGeneration) {
-            log("Preview: could not read the waveform: " + (err && err.message ? err.message : err));
-          }
-        });
-      }
+      _loadPreviewWaveform(previewPath, generation);
     }
     // The <audio> element of the panel's browser cannot play AIFF. For an AIFF
     // file the preview plays a WAV made in memory from the samples the panel
@@ -713,6 +779,7 @@
     }
     function _hideBeatClickPreview() {
       _beatClickPreviewGeneration++;
+      _beatClickShownPath = null;
       musicVideoNote.hidden = true;
       if (!beatClickAudio.paused) {
         beatClickAudio.pause();

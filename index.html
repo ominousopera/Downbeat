@@ -28,6 +28,11 @@
       <button id="settingsGearBtn" type="button" class="icon-btn" data-i18n-title="settings.title" aria-label="Settings">⚙</button>
     </div>
   </div>
+  <!-- Saved data that could not be saved or read: one line on every tab,
+       shown only then (js/main.js, _showDataProblem). -->
+  <div class="row g-status-row" id="dataProblemRow" hidden>
+    <span id="dataProblemStatus" class="hint"></span>
+  </div>
 
   <!-- SETTINGS / DIAGNOSTICS (popover, hidden until the gear button is
        clicked) -->
@@ -89,7 +94,7 @@
       <button id="audioOutputFolderBtn" type="button" class="ghost settings-full-btn" data-i18n="output.choose" hidden>Choose folder…</button>
     </div>
     <p id="audioOutputPath" class="hint"></p>
-    <p class="hint" data-i18n="output.hint">Only finished audio uses this folder. Settings, libraries and temporary files stay in Documents/Downbeat.</p>
+    <p class="hint" data-i18n="output.hint">Only finished audio uses this folder. Settings and libraries stay in Documents/Downbeat, temporary files in the system's temp folder.</p>
 
     <hr>
 
@@ -116,7 +121,7 @@
       <button id="deleteDataBtn" type="button" class="ghost settings-full-btn" data-i18n="settings.deleteData">Delete my data</button>
     </div>
     <div class="row settings-hint-row">
-      <span class="hint" data-i18n="settings.deleteDataHint">Removes only the files Downbeat saved itself in Documents/Downbeat: settings, the track library, the Music / SFX library, leftover temp files. Nothing else in that folder is ever touched.</span>
+      <span class="hint" data-i18n="settings.deleteDataHint">Removes only the files Downbeat saved itself in Documents/Downbeat: settings, the track library, the Music / SFX library; and its leftover temp files in the system's temp folder. Nothing else there is ever touched.</span>
     </div>
 
     <hr>
@@ -632,7 +637,7 @@
         <span id="libPaneName" class="g-lib-pane-name"></span>
         <span id="libPaneTime" class="g-lib-pane-time">0:00.00 / 0:00.00</span>
       </div>
-      <canvas id="libPaneWave" class="g-lib-pane-wave" height="44" data-i18n-title="library.paneWaveTitle" title="Click to jump. Drag to select a part; drag the small squares at the top to fade in and out."></canvas>
+      <canvas id="libPaneWave" class="g-lib-pane-wave" height="44" data-i18n-title="library.paneWaveTitle" title="Click to jump. Drag to select a part. The small squares at the top are the fades: sideways for the length, up and down for the curve (double-click: back to 0)."></canvas>
 
       <div id="libPaneSel" class="g-pane-sel" hidden>
         <span id="libPaneSelText" class="hint"></span>
@@ -653,7 +658,7 @@
         <button id="libPanePitchReset" type="button" class="g-link" data-i18n="library.paneReset">Reset</button>
         <!-- In key: pitches each previewed sound into the music clip's key;
              see _libInKeyShift in js/library-tab.js. -->
-        <button id="libPaneInKeyBtn" type="button" class="g-link g-pane-inkey" aria-pressed="false" data-i18n="library.paneInKey" data-i18n-title="library.paneInKeyTitle" title="Pitch every sound you listen to into the music clip's key">In key</button>
+        <button id="libPaneInKeyBtn" type="button" class="g-link g-pane-inkey" aria-pressed="false" data-i18n="library.paneInKey" data-i18n-title="library.paneInKeyTitle" title="Pitch every sound you listen to into the music clip's key; Add then places the file itself at that pitch">In key</button>
         <button id="libPaneAddBtn" type="button" class="g-pane-add" data-i18n="library.paneAdd" data-i18n-title="library.paneAddTitle" title="Put it on the timeline at the playhead - the file itself, with the part, fades, pitch and reverse set on the clip (no copy is made)">Add</button>
       </div>
       <!-- With a pitch on a sound that has a key or note: what it becomes. -->

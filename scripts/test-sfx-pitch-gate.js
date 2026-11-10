@@ -11,9 +11,12 @@ const ROOT = path.join(__dirname, "..");
 const PLATFORM_DIR = process.platform === "win32" ? "win-x64" : process.platform + "-" + process.arch;
 const BUNDLED_NODE = path.join(ROOT, "runtime", "node", PLATFORM_DIR, process.platform === "win32" ? "node.exe" : "node");
 const NODE = fs.existsSync(BUNDLED_NODE) ? BUNDLED_NODE : process.execPath;
-if (process.execPath !== NODE) {
+// Re-run once under the bundled node. The marker in the environment stops a
+// second restart: through a linked runtime folder execPath is the resolved
+// path and never equals NODE, which would restart the test forever.
+if (process.execPath !== NODE && !process.env.DOWNBEAT_TEST_REEXEC) {
   try {
-    execFileSync(NODE, [__filename], { stdio: "inherit" });
+    execFileSync(NODE, [__filename], { stdio: "inherit", env: Object.assign({}, process.env, { DOWNBEAT_TEST_REEXEC: "1" }) });
     process.exit(0);
   } catch (e) {
     process.exit(e.status || 1);

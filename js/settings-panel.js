@@ -70,21 +70,43 @@
     // on its buttons (for example in tests) are not interrupted.
     var settingsPanel = document.getElementById("settingsPanel");
     var settingsBackdrop = document.getElementById("settingsBackdrop");
+    // The tour lets clicks through (its Settings step points at the gear):
+    // while Settings is open the tour steps aside, so Settings is not under
+    // its dark layer and box, and it comes back when Settings closes.
+    function _tourSetAside(on) {
+      if (global.BeatMarkerTour && global.BeatMarkerTour.setAside) { global.BeatMarkerTour.setAside(on); }
+    }
     function openSettingsPanel() {
       settingsPanel.hidden = false;
       settingsBackdrop.hidden = false;
+      _tourSetAside(true);
     }
     function closeSettingsPanel() {
       settingsPanel.hidden = true;
       settingsBackdrop.hidden = true;
+      _tourSetAside(false);
     }
     document.getElementById("settingsGearBtn").addEventListener("click", function () {
       if (settingsPanel.hidden) { openSettingsPanel(); } else { closeSettingsPanel(); }
     });
     document.getElementById("settingsCloseBtn").addEventListener("click", closeSettingsPanel);
     settingsBackdrop.addEventListener("click", closeSettingsPanel);
+    // Esc closes the dialog on top first (Delete my data and the link
+    // question as Cancel), and Settings only when nothing is over it.
     document.addEventListener("keydown", function (e) {
-      if (e.key === "Escape" && !settingsPanel.hidden) { closeSettingsPanel(); }
+      if (e.key !== "Escape") {
+        return;
+      }
+      if (!deleteDataOverlay.hidden) {
+        deleteDataOverlay.hidden = true;
+      } else if (!externalLinkOverlay.hidden) {
+        _pendingExternalUrl = null;
+        externalLinkOverlay.hidden = true;
+      } else if (!textViewerOverlay.hidden) {
+        _closeTextViewer();
+      } else if (!settingsPanel.hidden) {
+        closeSettingsPanel();
+      }
     });
     // Reads ExtensionBundleVersion from CSXS/manifest.xml instead of keeping a
     // second copy of the version in JS.
@@ -206,9 +228,34 @@
         if (isBullet(line)) {
           var ordered = /^\s*\d+\. /.test(line);
           var list = document.createElement(ordered ? "ol" : "ul");
+          // A list that starts later than 1 shows the file's own number.
+          var firstNumber = ordered ? parseInt(line.match(/\d+/)[0], 10) : 1;
+          if (firstNumber > 1) { list.start = firstNumber; }
           var lastLi = null;
           var nested = null;
-          while (i < lines.length && isBullet(lines[i])) {
+          var isContinuation = function (l) { return /^\s{2,}\S/.test(l) && !isBullet(l) && !/^\s*```/.test(l); };
+          while (i < lines.length) {
+            if (!isBullet(lines[i])) {
+              // A blank line and then an indented paragraph still belong to
+              // the step above, so the list goes on after it and the next
+              // step keeps its number instead of starting again at 1.
+              var j = i;
+              while (j < lines.length && !lines[j].trim()) { j++; }
+              if (!lastLi || j === i || j >= lines.length || !isContinuation(lines[j])) {
+                break;
+              }
+              var more = [];
+              while (j < lines.length && isContinuation(lines[j])) {
+                more.push(lines[j].trim());
+                j++;
+              }
+              var cont = document.createElement("p");
+              _appendInline(cont, more.join(" "));
+              lastLi.appendChild(cont);
+              nested = null;
+              i = j;
+              continue;
+            }
             // An indented bullet under a numbered step is its sub-list,
             // not the next step.
             var indented = /^\s+/.test(lines[i]) && lastLi !== null;
@@ -459,7 +506,10 @@
         _showDeleteDataDialog(I18n.t("settings.deleteDataNothing", { path: listing.dataDir }), false);
         return;
       }
-      var names = listing.files.map(function (f) { return "\u2022 " + f.slice(listing.dataDir.length + 1); });
+      // Leftover handoff files in the system's temp folder are shown with their full path.
+      var names = listing.files.map(function (f) {
+        return "\u2022 " + (f.indexOf(listing.dataDir + "/") === 0 ? f.slice(listing.dataDir.length + 1) : f);
+      });
       var message = I18n.t("settings.deleteDataMessage", { files: names.join("\n"), path: listing.dataDir });
       if (listing.kept.length > 0) {
         message += I18n.t("settings.deleteDataKeptNote", { count: listing.kept.length });
@@ -479,6 +529,15 @@
       for (var i = 0; i < deleted.length; i++) {
         log("Deleted " + deleted[i]);
       }
+      // The saved data is gone, so what the panel holds goes too - otherwise
+      // the next analysis (or scan, star or settings change) would quietly
+      // write every old entry back to disk. Also when some file could not be
+      // deleted: the others are gone all the same.
+      if (deleted.length > 0) {
+        window.BeatMarkerLibrary.clear();
+        _library.resetAfterDeleteData();
+        if (ctx.resetSettingsAfterDelete) { ctx.resetSettingsAfterDelete(); }
+      }
       if (!result.ok) {
         log("WARNING: Delete my data: " + (result.error || result.failed.join(", ")));
         _showDeleteDataDialog(result.error
@@ -486,8 +545,6 @@
           : I18n.t("settings.deleteDataFailed", { error: result.failed.join("\n") }), false);
         return;
       }
-      window.BeatMarkerLibrary.clear();
-      _library.resetAfterDeleteData();
       _showDeleteDataDialog(I18n.t("settings.deleteDataDone", { count: deleted.length }), false);
     });
     return {

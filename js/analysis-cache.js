@@ -29,12 +29,19 @@
     if (!isFinite(start) || !isFinite(end) || start < 0 || !(end > start)) {
       throw new Error("The selected clip has no valid source interval.");
     }
-    var first = Math.floor(start * rate), last = Math.min(samples.length, Math.ceil(end * rate));
+    var first = Math.floor(_samplePos(start, rate)), last = Math.min(samples.length, Math.ceil(_samplePos(end, rate)));
     if (!(last > first)) { throw new Error("The selected interval contains no source audio."); }
     return { samples: samples.slice(first, last), startSample: first, endSample: last };
   }
+  // In / out read back through a speed or a stretch differ in the last bits
+  // (1.32 s comes back as 1.320000000001711 s), so sample positions are
+  // rounded to a thousandth of a sample before floor / ceil.
+  function _samplePos(seconds, rate) {
+    return Math.round(Number(seconds) * rate * 1000) / 1000;
+  }
   function scopeKey(scope, material, clipInfo, rate) {
-    return scope === "clip" ? [material, Math.floor(clipInfo.inPointSeconds * rate), Math.ceil(clipInfo.outPointSeconds * rate)].join(":") : material;
+    return scope === "clip" ? [material, Math.floor(_samplePos(clipInfo.inPointSeconds, rate)),
+      Math.ceil(_samplePos(clipInfo.outPointSeconds, rate))].join(":") : material;
   }
   global.BeatMarkerAnalysisCache = { create: create, interval: interval, scopeKey: scopeKey };
 })(typeof window !== "undefined" ? window : globalThis);

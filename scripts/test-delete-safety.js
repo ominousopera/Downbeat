@@ -8,6 +8,10 @@ const path = require("path");
 const assert = require("assert");
 const ROOT = path.join(__dirname, "..");
 const SP = fs.mkdtempSync(path.join(os.tmpdir(), "downbeat-delete-"));
+// The system temp folder (the workers' hand-off files go to its Downbeat
+// folder) is a throwaway one too; os.tmpdir() reads these on every call.
+function useSystemTemp(dir) { process.env.TMPDIR = process.env.TEMP = process.env.TMP = dir; }
+useSystemTemp(SP + "/system-temp");
 global.window = { cep_node: { require: (m) => require(m) } };
 global.SystemPath = { EXTENSION: "extension", MY_DOCUMENTS: "myDocuments" };
 function freshModule(docs) {
@@ -96,6 +100,40 @@ ok("empty / root / drive-root / relative Documents path: refused");
   assert.ok(fs.lstatSync(DB + "/settings.json.lock").isSymbolicLink()); assert.strictEqual(fs.readFileSync(OUT + "/real.lock", "utf8"), "outside");
   assert.strictEqual(JSON.parse(fs.readFileSync(DB + "/settings.json", "utf8")).language, "en");
   ok("link disguised as the settings lock: neither the link nor its target touched, settings saved"); }
+
+// 10. hand-off files in the system temp folder: only Downbeat's own names
+// directly in its Downbeat folder, swept (old ones only) and deleted with
+// the rest; the Documents/Downbeat/tmp fallback is still covered.
+{ const T = SP + "/system-temp10"; const TD = T + "/Downbeat"; const D = SP + "/docs10"; const DB = D + "/Downbeat";
+  useSystemTemp(T);
+  w(TD + "/samples-1-2.raw"); w(TD + "/library-3-4.json"); w(TD + "/skey-7-8.raw");
+  w(TD + "/song.wav", "user"); w(TD + "/samples-final.raw", "user"); w(TD + "/sub/samples-5-6.raw", "nested, not ours");
+  w(DB + "/settings.json"); w(DB + "/tmp/beatthis-9-9.raw");
+  const old = new Date(Date.now() - 86400000);
+  fs.utimesSync(TD + "/skey-7-8.raw", old, old);
+  const { P, cs } = freshModule(D);
+  assert.strictEqual(P.getTempDir(cs), TD.replace(/\\/g, "/"));
+  assert.deepStrictEqual(P.clearLeftoverTempFiles(cs), { ok: true, removed: 1, error: "" });
+  assert.ok(!fs.existsSync(TD + "/skey-7-8.raw") && fs.existsSync(TD + "/samples-1-2.raw"));
+  ok("hand-off files go to the system temp folder; the start-up sweep removes only the old own file there");
+  const preview = P.listUserData(cs);
+  assert.deepStrictEqual(preview.files.map((f) => path.relative(SP, f)).sort(),
+    ["docs10/Downbeat/settings.json", "docs10/Downbeat/tmp/beatthis-9-9.raw", "system-temp10/Downbeat/library-3-4.json", "system-temp10/Downbeat/samples-1-2.raw"]);
+  const r = P.deleteUserData(cs);
+  assert.ok(r.ok); assert.strictEqual(r.deleted.length, 4);
+  for (const keep of ["song.wav", "samples-final.raw", "sub/samples-5-6.raw"]) { assert.ok(fs.existsSync(TD + "/" + keep), "kept " + keep); }
+  ok("Delete my data covers both temp folders; user files and nested look-alikes in the system one are kept"); }
+
+// 11. the system temp Downbeat folder is a link to an outside folder: never
+// entered, and the hand-off files go to Documents/Downbeat/tmp instead
+{ const T = SP + "/system-temp11"; const D = SP + "/docs11"; const OUT = SP + "/outside11";
+  useSystemTemp(T); w(OUT + "/samples-1-1.raw", "outside"); fs.mkdirSync(T, { recursive: true });
+  fs.symlinkSync(OUT, T + "/Downbeat"); w(D + "/Downbeat/settings.json");
+  const { P, cs } = freshModule(D);
+  assert.strictEqual(P.getTempDir(cs), D + "/Downbeat/tmp");
+  const r = P.deleteUserData(cs); assert.ok(r.ok); assert.strictEqual(r.deleted.length, 1);
+  assert.ok(fs.existsSync(OUT + "/samples-1-1.raw"));
+  ok("system temp Downbeat folder swapped for a link: not followed, nothing there deleted, Documents used instead"); }
 console.log("ALL " + n + " DELETE-SAFETY CHECKS PASSED");
 } finally {
   fs.rmSync(SP, { recursive: true, force: true }); // throwaway fixture made above

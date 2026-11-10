@@ -256,6 +256,9 @@
         stopSource();
         state.buffer = buffer;
         state.reversed = null;
+        // A new sound starts forwards at its start: a Reverse kept from the
+        // last one would mirror that start to the end.
+        state.reverse = false;
         state.playing = false;
         state.offset = 0;
         state.region = null;

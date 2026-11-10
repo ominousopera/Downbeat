@@ -90,8 +90,9 @@ what is off. See [Known limits](#known-limits).
 
 - **Bars or Bars + beats.** One marker on the "1" of every bar for a calm,
   strong-beat edit, or on every beat, with each downbeat kept apart, for a fast
-  one. Switch any time; placing again replaces the old markers and never
-  touches yours.
+  one. Switch any time; placing again replaces only that clip's old markers
+  and never touches yours or another clip's, even where clips overlap.
+  **Clear** takes Downbeat's markers off every piece of a cut clip.
 - **On the clip or on the timeline.** Clip markers travel with the clip when
   you move or trim it; timeline markers stay in the sequence.
 - **Frame-accurate by default.** Each marker sits at the start of the video
@@ -107,8 +108,9 @@ what is off. See [Known limits](#known-limits).
   detectors' results with one click.
 - **Copy and paste markers** within the same host (copying never removes
   anything from the source). Positions use
-  the audible clip start and adapt to target trim/speed; comments, duration and
-  supported metadata are preserved.
+  the audible clip start and adapt to target trim/speed; in Premiere, markers
+  pasted onto another clip of the same song keep their place in the song.
+  Comments, duration and supported metadata are preserved.
 - **Add a metronome track.** Render the current grid as a WAV and insert it below
   the selected music; choose the finished-audio folder in Settings.
 
@@ -129,7 +131,7 @@ clip itself to another key, like a sampler. Your audio is never rewritten.
   key** brings the analysis back.
 - **Pitch the clip** starts from the clip's current speed, so two +2 shifts
   give +4. The pitched clip starts without Downbeat's markers (analyze it
-  again); your own markers and the original's stay.
+  again); your own markers come along to it, and the original keeps its own.
 
 ### Library
 
@@ -164,8 +166,11 @@ shrinks to the sounds that fit it.
   (a range, also half and double tempo), show only favorites (★) or only
   pitched sounds, sort by match, name, length or tempo. After a click on a
   row, Space listens and Enter inserts.
-- **Folders you can scope.** Tick folders to search only those. Files that are
-  not there any more are marked, not forgotten, and **Settings → Library →
+- **Folders you can scope.** Tick folders to search only those. Files on a
+  drive that is not connected are marked, not forgotten, and come back with
+  the drive. A file deleted from a folder that is there leaves the list at
+  the next scan, unless it has a star or a key you set by hand; a moved file
+  keeps its analysis and star. **Settings → Library →
   Save a copy / Load a copy** backs the whole library up. Music and SFX use
   separate, non-overlapping audio folders; a whole drive, card or network share
   can be added, the system disk cannot. Unreadable
@@ -207,8 +212,9 @@ Everything runs on your computer. The panel makes no network calls except the
 explicit release checks and optional background notifications (off by
 default), and `scripts/check-code.js` fails the build if any other code that
 could is added. Saved data
-(settings, track library, temporary files) lives in `Documents/Downbeat`,
-never inside the plugin's own folder. Report a vulnerability privately through
+(settings, track library) lives in `Documents/Downbeat`; temporary files go to
+a `Downbeat` folder in the system's temp folder (`Documents/Downbeat/tmp` when
+that cannot be used). Nothing is written inside the plugin's own folder. Report a vulnerability privately through
 the repository's Security tab; see [`SECURITY.md`](SECURITY.md).
 </details>
 
@@ -239,6 +245,7 @@ shortlist to audition, not a promise that two sounds will blend.
 - **Long files.** Analyze reads the whole file and manages about 30 minutes
   of audio; for a longer one (a DJ mix, a concert) save the part you need as
   a file of its own. Detect key and the Library scan have no such limit.
+  Audio shorter than 2 seconds, or silent, is not analyzed.
 - **After Effects.** Downbeat is built around Premiere Pro, where every feature
   is available. After Effects has a smaller set:
   - Markers go on whole video frames only: no sample-accurate **Exact** timing
@@ -394,8 +401,9 @@ not connect to the internet. Allow it permanently (not "once" or
 
 No. Your files are never modified, and no processed copy of them is written.
 Sounds go on the timeline as your original file, with the trim, fades, pitch
-and reverse set on the clip itself. Downbeat writes settings, the track library
-and short-lived temporary files in <code>Documents/Downbeat</code>;
+and reverse set on the clip itself. Downbeat writes settings and the track
+library in <code>Documents/Downbeat</code>, and short-lived temporary files in
+a <code>Downbeat</code> folder of the system's temp folder;
 <b>Settings → Delete my data</b> removes them. Generated metronome WAVs use
 the <b>Finished audio</b> destination and are kept by Delete my data.
 </details>
@@ -415,7 +423,9 @@ At speeds between whole semitones there is no exact Camelot target.
 
 Use Marker tools → Copy markers, select the target, then Paste markers here.
 Copying never removes markers from the source. Transfer
-uses audible offsets rather than absolute source time, preserves supported
+uses audible offsets rather than absolute source time; in Premiere, pasted onto
+another clip of the same file, markers keep their place in the song, so beat
+markers stay on the beat whatever the two trims. It preserves supported
 metadata in the same host, and skips starts outside the target clip. A duration
 can extend past the clip end. Changing the selection or timing during a host
 request refuses the operation before anything changes.

@@ -191,8 +191,11 @@ const layer4 = a4.comp.layers[0];
 let ah4 = mocks.loadHost(a4.context);
 a4.comp.markerProperty.setValueAtTime(1.5, new mocks.MarkerValue("Verse"));
 r = placeSeqKnown(ah4, [1, 3, 5], ["D", "b", "b"], {});
-check("After Effects: a composition placement returns its key and times",
-  r.ok && r.data.placedKey && r.data.placedTimes && r.data.placedTimes.length === 3, JSON.stringify(r.data));
+// After Effects tags each composition marker with its layer's id instead:
+// no times to keep, so the panel forgets any it kept for the layer.
+check("After Effects: a composition placement returns its key, no times, and tags its markers with the layer",
+  r.ok && r.data.placedKey && r.data.placedTimes === null &&
+  a4.comp.markerProperty.keys.filter(function (k) { return k.v.params.DownbeatLayer === String(layer4.id); }).length === 3, JSON.stringify(r.data));
 const memoryA4 = {}; memoryA4[r.data.placedKey] = r.data.placedTimes;
 ah4 = mocks.loadHost(a4.context);
 layer4.startTime = 20; layer4.inPoint = 20; layer4.outPoint = 30;

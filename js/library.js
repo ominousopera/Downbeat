@@ -44,15 +44,62 @@
   }
 
   function _keySlot(entry, scopeKey, create) {
-    if (!scopeKey || scopeKey.indexOf(":") < 0) { return entry; }
+    if (!scopeKey) { return entry; }
     entry.intervalKeys = Array.isArray(entry.intervalKeys) ? entry.intervalKeys : [];
+    if (scopeKey.indexOf(":") < 0) { return _fileSlot(entry, scopeKey, create); }
     var slot = entry.intervalKeys.filter(function (r) { return r.scopeKey === scopeKey; })[0];
+    // A part read back a sample or two off (float rounding of in / out) is
+    // the same part.
+    if (!slot && !create) { slot = _nearSlot(entry.intervalKeys, scopeKey); }
     if (!slot && create) {
       slot = { scopeKey: scopeKey };
       entry.intervalKeys.push(slot);
-      if (entry.intervalKeys.length > 12) { entry.intervalKeys.shift(); }
+      entry.intervalKeys = _limitParts(entry.intervalKeys);
     }
     return slot || null;
+  }
+  // "music:3528:58212" -> material and first / last sample; null for a
+  // whole-file key ("music").
+  function _parseScope(scopeKey) {
+    var p = String(scopeKey).split(":");
+    return p.length === 3 ? { material: p[0], first: Number(p[1]), last: Number(p[2]) } : null;
+  }
+  function _nearSlot(list, scopeKey) {
+    var want = _parseScope(scopeKey), best = null, bestGap = Infinity;
+    if (!want) { return null; }
+    list.forEach(function (r) {
+      var got = r && _parseScope(r.scopeKey);
+      if (!got || got.material !== want.material) { return; }
+      var gap = Math.max(Math.abs(got.first - want.first), Math.abs(got.last - want.last));
+      if (gap <= 2 && gap < bestGap) { best = r; bestGap = gap; }
+    });
+    return best;
+  }
+  // At most 12 detected part keys per file; the oldest detected one goes
+  // first. A key the user typed is never pushed out, and neither is the
+  // other mode's whole-file key (see _fileSlot).
+  function _limitParts(list) {
+    var dropping = list.filter(function (r) { return _parseScope(r.scopeKey) && !r.confirmedKey; }).length - 12;
+    return list.filter(function (r) {
+      if (dropping > 0 && _parseScope(r.scopeKey) && !r.confirmedKey) { dropping--; return false; }
+      return true;
+    });
+  }
+  // The whole-file key of each mode (Music, Sound effect). The entry itself
+  // holds the mode written last, as every list of the library reads it; the
+  // other mode waits in intervalKeys under its bare name, so a key set by
+  // hand in one mode neither shows up in the other nor is lost there.
+  var FILE_KEY_FIELDS = ["key", "scale", "strength", "camelot", "material", "detectedKey", "confirmedKey"];
+  function _fileSlot(entry, material, create) {
+    if (!entry.material || entry.material === material) { return entry; }
+    var waiting = entry.intervalKeys.filter(function (r) { return r.scopeKey === material; })[0] || null;
+    if (!create) { return waiting; }
+    var held = { scopeKey: entry.material };
+    FILE_KEY_FIELDS.forEach(function (k) { held[k] = entry[k] === undefined ? null : entry[k]; entry[k] = waiting ? waiting[k] : null; });
+    entry.intervalKeys = entry.intervalKeys.filter(function (r) { return r !== waiting && r.scopeKey !== held.scopeKey; });
+    if (held.camelot || held.detectedKey || held.confirmedKey) { entry.intervalKeys.push(held); }
+    entry.material = material;
+    return entry;
   }
   function _applyKey(slot) {
     var result = slot.detectedKey || {};
@@ -90,6 +137,23 @@
   function clearConfirmedKey(mediaPath, scopeKey) {
     var entry = get(mediaPath), slot = entry && _keySlot(entry, scopeKey, false);
     if (slot) { slot.confirmedKey = null; _applyKey(slot); _touch(entry); }
+  }
+  // The key of a part, also under another part's scope: a pitched copy plays
+  // the same part of the file, but its in / out can read back a frame off.
+  // Nothing is written when the other part already has a key of its own.
+  function carryKey(mediaPath, fromScope, toScope) {
+    var entry = get(mediaPath);
+    if (!entry || !fromScope || fromScope === toScope || fromScope.indexOf(":") < 0 || !toScope || toScope.indexOf(":") < 0) { return false; }
+    var from = _keySlot(entry, fromScope, false);
+    if (!from || !from.camelot || _keySlot(entry, toScope, false)) { return false; }
+    var to = _keySlot(entry, toScope, true);
+    to.material = from.material || null;
+    to.detectedKey = from.detectedKey ? Object.assign({}, from.detectedKey) :
+      (from.confirmedKey ? null : { key: from.key, scale: from.scale, strength: from.strength, camelot: from.camelot, material: from.material });
+    to.confirmedKey = from.confirmedKey ? Object.assign({}, from.confirmedKey) : null;
+    _applyKey(to);
+    _touch(entry);
+    return true;
   }
 
   function confirmBpm(mediaPath, label, bpm) {
@@ -284,14 +348,18 @@
         : (raw.beatGrid === undefined ? (entry.downbeatTimes ? "refined" : null) : validBeatGrid(raw.beatGrid));
       entry.confidence = typeof entry.confidence === "number" && isFinite(entry.confidence) ? entry.confidence : null;
       entry.phase = Number.isInteger(entry.phase) && entry.phase >= 0 && entry.phase <= 3 ? entry.phase : 0;
-      var slots = [entry].concat(Array.isArray(entry.intervalKeys) ? entry.intervalKeys.slice(-12) : []);
-      entry.intervalKeys = slots.slice(1).filter(function (slot) { return slot && typeof slot.scopeKey === "string" && /^(music|sfx):[0-9]+:[0-9]+$/.test(slot.scopeKey); });
-      slots.forEach(function (slot) {
-        if (!slot || !slot.confirmedKey || slot.confirmedKey.source !== "user" ||
+      // Parts ("music:in:out") and the other mode's whole-file key ("sfx").
+      var parts = (Array.isArray(entry.intervalKeys) ? entry.intervalKeys : []).filter(function (slot) {
+        return slot && typeof slot.scopeKey === "string" && /^(music|sfx)(:[0-9]+:[0-9]+)?$/.test(slot.scopeKey) &&
+          slot.scopeKey !== entry.material;
+      });
+      [entry].concat(parts).forEach(function (slot) {
+        if (!slot.confirmedKey || slot.confirmedKey.source !== "user" ||
             !/^([1-9]|1[0-2])[AB]$/.test(slot.confirmedKey.camelot)) {
-          if (slot) { slot.confirmedKey = null; }
+          slot.confirmedKey = null;
         }
       });
+      entry.intervalKeys = _limitParts(parts);
       if (!entry.confirmedBpm || entry.confirmedBpm.source !== "user" ||
           typeof entry.confirmedBpm.value !== "number" || !isFinite(entry.confirmedBpm.value) ||
           entry.confirmedBpm.value <= 0 || entry.confirmedBpm.value > 999) { entry.confirmedBpm = null; }
@@ -336,6 +404,7 @@
     getKey: getKey,
     confirmKey: confirmKey,
     clearConfirmedKey: clearConfirmedKey,
+    carryKey: carryKey,
     upsertKey: upsertKey,
     upsertAnalysis: upsertAnalysis,
     setBeatGrid: setBeatGrid,

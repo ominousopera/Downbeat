@@ -49,7 +49,13 @@ listing = lib.listAudioFiles({
   lstatSync: () => ({ isDirectory: () => true })
 }, "music");
 assert.strictEqual(lib.syncFiles("music", listing, []).removed, 0);
+// Successfully enumerated empty folders still remove genuinely gone files;
+// one with a star or a key set by hand stays (shown "file not found") until
+// they are taken off.
 listing = lib.listAudioFiles({ readdirSync: () => [] }, "music");
+assert.strictEqual(lib.syncFiles("music", listing, []).removed, 0);
+assert.strictEqual(lib.getState().files[file].fav, true);
+lib.setFavorite(file, false); lib.clearConfirmed(file);
 assert.strictEqual(lib.syncFiles("music", listing, []).removed, 1);
 lib.syncFiles("music", found, []);
 lib.setResult(file, { ok: false, error: "temporary failure" });

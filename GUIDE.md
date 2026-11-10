@@ -30,14 +30,17 @@ Windows 10 or 11 (x64). Windows on Arm is not supported yet.
 
    Placing again — or choosing another beat as the "1" after placing,
    or switching between the clip and the timeline — replaces Downbeat's
-   earlier markers instead of adding a second set. Markers you added
+   earlier markers instead of adding a second set. Only the set placed for
+   this clip is replaced: Downbeat's markers of another clip stay, also where
+   the two clips overlap, after a move, a trim or a cut, and after Edit →
+   Undo. Markers you added
    yourself are never touched, even ones named D or b. A Downbeat marker
    whose comment or length you change becomes yours too (in After Effects
    also its color). After Effects holds one marker per moment, so a beat
    that falls exactly on one of your markers is left out there (the log
    counts it). To start over, **Clear** removes
-   Downbeat's markers from the clip — from every piece of it after a cut —
-   and leaves yours.
+   Downbeat's markers from the clip — from every piece of it after a cut,
+   whichever piece is selected — and leaves yours and other clips'.
 5. Cut at the markers in Premiere: with snapping on (S), the Razor tool (C)
    snaps to markers. Each marker sits on the start of the video frame its
    beat begins in, so a cut lands on the beat or just before it, never
@@ -54,21 +57,35 @@ Numbered sections, top to bottom:
   note under the clip asks you to check the markers in the intro and the
   ending: clips often have talking or sound effects there. The song itself
   analyzes like any track, and lyric videos and "Official Audio" uploads
-  get no note.
+  get no note. When something cannot be done, the line with the clip's name
+  says why, in full, until your next click, key press or selection: for
+  example when **Place markers** has no beat inside the clip, or the clip has
+  no audio file of its own (a nested sequence, a multicam or a merged clip).
+  Audio shorter than 2 seconds, or silent, is refused there as well, rather
+  than given a made-up grid. The technical details go to the log (Settings →
+  Diagnostics → Copy log).
 - **02 / Tempo** — top to bottom, one label per line:
   - the **BPM** the analysis found, in large type; when the clip plays at a
     speed other than 100%, a line under it gives the tempo as it plays
     (BPM × speed);
   - **Custom BPM** — type a tempo and click **Use** to place an exactly
-    even grid at it instead (**Undo** brings the analysis back);
+    even grid at it instead (**Undo** brings the analysis back). The grid
+    is counted from the clip's start: a beat and a "1" fall there. It also
+    reaches back to the start of the file, and when you lengthen the clip
+    it goes on at the same tempo, so a later trim keeps the same grid. The
+    clip line then shows that BPM;
   - **Half / double** — **½×** or **2×** when the tempo came out at half
-    or double the real one;
+    or double the real one. On a **Refined** grid the result is a **Basic**
+    one (the **Beat grid** line lights Basic); the opposite click brings
+    the Refined grid back. The BPM shown and saved follows the change;
   - **Beat grid: Refined / Basic** — shown when the second detector ran
     or could help; see "Second beat detector" below;
   - **The "1" is beat 1 2 3 4** picks which beat counts as the first of
     the bar when the analysis picked the wrong one: 1 is where the
     analysis put it (and puts it back), 2, 3 or 4 move the "1" to that
-    beat.
+    beat. A click here or on **Shift** made just as another clip gets
+    selected is refused ("The selected clip changed"): select the clip and
+    click again.
 - **03 / Markers** — **Type**: **Bars** puts one marker on the "1" of every
   bar; **Bars + beats** also puts a marker on the other beats of each bar, and
   the "1" of each bar stays a downbeat. **Place on**: Clip or Timeline.
@@ -83,7 +100,8 @@ Numbered sections, top to bottom:
   current beat grid: a mono 44.1 kHz WAV with every beat and an accent on
   each "1", following your "1", the grid choices and the clip's trim and
   speed. It starts with the music, not at the playhead, and goes under it:
-  in Premiere on an unlocked audio track below the music with room for the
+  in Premiere on an audio track below the music that is not locked or
+  muted and has room for the
   whole WAV (add a track if none is free), in After Effects on a new layer
   right below the music layer. The music stays audible. Where the WAV is
   saved is set in **Settings → Finished audio**; if it cannot be inserted,
@@ -95,6 +113,10 @@ is being analyzed is refused. A saved entry whose beat data cannot be used
 keeps its key, and its beat grid needs a new Analyze. A tempo correction
 (**½×**, **2×**, **Refined**) still running when you select another clip or
 start a new analysis is dropped, so it never replaces the newer grid.
+Selecting a clip of the same file again in the same session — after a trim,
+or after another clip — brings back the grid you had: the chosen "1",
+**Custom BPM** with its **Undo**, and **Basic** or **Refined** (Basic at
+once, with no new analysis). The panel keeps this for the last 12 files.
 
 ## Second beat detector (Beat This!)
 
@@ -110,7 +132,9 @@ fraction.
 **Tempo → Beat grid** shows which result is in use: **Refined** (the
 second detector was applied) or **Basic** (the usual result only). Listen
 to the markers: if they miss the beats, click the other word. Basic comes
-back at once; Refined runs the second detector again (a few seconds).
+back at once; Refined runs the second detector again (a few seconds). If
+the second detector does not finish, Basic stays in use, the **Beat grid**
+line says so, and a click on **Refined** tries again.
 
 On a track that is hard to read, the line under **Beat grid** says so and
 suggests **Refined**, which is often more accurate there.
@@ -148,19 +172,22 @@ After Analyze, a small waveform preview appears with a play button and a
 click on every downbeat, so you can check the detection by ear before
 placing or cutting anything. Scroll to pan, Alt (Option on Mac) + scroll to
 zoom, or use the +/−/Fit buttons. Track and Click have separate volume
-sliders.
+sliders. Choosing a "1", **Shift** or a trim of the clip keeps it playing at
+the same zoom.
 
 ## Detect key
 
 Runs independently of Analyze. First pick **Music** or **Sound effect**:
-the two need different analysis settings. The result is shown on the
+the two need different analysis settings, and each keeps its own result for
+a file. The result is shown on the
 Camelot wheel and in traditional notation, with the keys that mix well
 with it.
 
 **Analyze: Whole file / Selected clip** sets what is measured: the whole
 file, or only the part of it the selected clip uses (its in and out points).
-A different trim gets its own result. Beat analysis and the preview are not
-affected. A very short part, or one where the music changes key, can give an
+A different trim gets its own result (the last 12 parts of a file are kept;
+a key you set by hand for a part is always kept). Beat analysis and the
+preview are not affected. A very short part, or one where the music changes key, can give an
 unreliable key.
 
 Under the result, a line tells you how far to trust it. In **Music** mode
@@ -176,7 +203,8 @@ analysis window that hears low notes better, and no AI model (it is
 trained on music and does worse there). The chord progression is the
 second opinion. Sounds shorter than 10 seconds get a note saying so, since
 a key from so little audio is less reliable. If you already know the key,
-you can set the source key by hand (Source override). It is kept for that
+you can set the source key by hand (Source override): type its Camelot code,
+such as 8A or 11B (anything else gets a short hint). It is kept for that
 file and part; **Use detected key**, next to **Detect key**, brings the
 detected key back. Replacing the audio file clears its analysis and its
 hand-set key.
@@ -187,22 +215,33 @@ cents and speed percent — and says so when a target cannot be reached, for
 example minor to major. **Pitch the clip** does it for you, the way
 the Library preview pitches (like a sampler: higher also plays faster and
 shorter): it puts the selected clip's own file, the part the timeline
-uses, on a free track at the clip's own place, at the speed that gives
-the shift — no copy is made, it is still your file where it lies. The
-original stays where it was, switched off (Disable in Premiere, its sound
-off in After Effects) — switch it back on to undo.
+uses, on a free track at the clip's own place (never a locked or muted
+one), at the speed that gives the shift — no copy is made, it is still your
+file where it lies. The original stays where it was, switched off (Disable
+in Premiere, its sound off in After Effects) — switch it back on to undo.
+A clip that is already switched off is refused: an earlier pitched copy of
+it may still be playing, so select the clip that plays. In Premiere only the
+sound goes in, never a file's picture; a file with several mono channels
+needs a free track for each, every part gets the new speed, and the
+original's other channels are switched off with it (never deleted).
 
 **Pitch the clip** sits next to the semitones / cents / speed numbers (below
 them in a narrow panel). Each shift adds to the clip's current speed: +2 and
 then another +2 gives 125.99%, and going back to the original key returns
 100%. The speed shown is the clip's final speed, and the BPM line goes from
 the current tempo to the new one. If the selection or the speed changes
-before you click, check the new numbers and click again. Afterwards the new
+before you click, check the new numbers and click again (moving the clip, or
+adding a layer above it, does not count as a change). Afterwards the new
 clip (layer) is selected, so the next **Detect key** hears its speed; if the
-host cannot select it, the panel asks you to. The new clip starts without
-Downbeat's markers: place them again for its speed. Your own markers, the
-original clip and the timeline markers are left as they are; in Premiere the
-new clip has its own project item, so clearing it cannot clear the original.
+host cannot select it, the panel asks you to. With **Analyze: Selected
+clip**, it keeps the key of that part. The new clip starts without
+Downbeat's markers: place them again for its speed. Your own markers come
+along to it, at the same place in the sound; the original clip keeps its
+markers. Downbeat's timeline markers placed for the original now belong to
+the new clip: **Place markers** or **Clear** on it replaces that whole set,
+also past its shorter end. In Premiere the new clip has its own project
+item, so clearing it cannot clear the original. A pitch that is refused
+leaves no unused item in the project.
 
 **Source key** is what Detect key measured in the file (or the selected
 part); it does not change with speed: an A minor file stays 8A. **Timeline
@@ -217,7 +256,7 @@ Maintain Audio Pitch are not part of this calculation.
 
 ## Library tab: Music and SFX
 
-Add audio folders, or a whole drive, memory card or network share; only the system disk cannot be added whole. Music and SFX folders must not overlap. A scan lists up to 50,000 files at a time; for more, add smaller folders. Files that failed are tried again by the next Start scan, and a folder that cannot be read keeps the records it already had. If you replace a file at the same path, its preview is read again before it is inserted.
+Add audio folders, or a whole drive, memory card or network share; only the system disk cannot be added whole. Music and SFX folders must not overlap; a folder that is in both anyway is listed in one section only, and the panel says so (nothing is deleted). A scan skips the recycle and snapshot folders of the system and of network drives (`$RECYCLE.BIN`, `System Volume Information`, `#recycle`, `@Recycle`, `@eaDir`, `#snapshot` and the like), so a deleted sound does not come back as a Library sound. A scan lists up to 50,000 files at a time; for more, add smaller folders. Files that failed are tried again by the next Start scan, and a folder that cannot be read keeps the records it already had. If you replace a file at the same path, its preview is read again before it is inserted.
 
 Two sections, **Music** and **SFX**, each built from folders on your
 computer.
@@ -234,11 +273,16 @@ computer.
   ("Key C#min", "F# minor", "120bpm", "8A - 128 - …", a Camelot key and a
   tempo). What a name says wins over detection, and a file whose name gives
   everything needed (the key, plus the tempo for music) is not analyzed at
-  all. A name that gives only the root note ("Ping G", or a folder named "G")
-  keeps that note and takes major/minor from the analysis. Such values are
-  marked "from the file name" in the list. Short forms like "Am" count only in
-  an unambiguous spot ("_Am_", "(Am)", or next to a BPM), because in plain
-  text they are usually words.
+  all. A name that gives only the root note right beside its BPM tag
+  ("Loopable D_90 bpm"), or a folder named after a note, keeps that note and
+  takes major/minor from the analysis. A folder named just "A" to "G" counts
+  only when the folders beside it are notes too, one of them sharp, flat or
+  with a mode (A, A#, B, C…), as in a pack sorted by note, not a library
+  sorted by first letter. A folder's note never gives a key to a sound with
+  no clear pitch. Such values are marked "from the file name" in the list.
+  Short forms like "Am" count only in an unambiguous spot ("_Am_", "(Am)", or
+  right beside the BPM tag: "Loop 120bpm Am"), because in plain text they are
+  usually words: a title like "Am I Ready Yet 120 BPM" is analyzed.
 - **How sure a music key is.** The key comes from three methods. The row says
   "key agreed" when at least two of them gave it, and "key uncertain" (in red)
   when all three differed; check those by ear. Keys read from a file name and
@@ -263,17 +307,26 @@ computer.
   place on your computer; it never copies it. A file that was moved,
   renamed or deleted, or that sits on a drive that is not connected,
   shows as **file not found** (dimmed, Play and Insert off), and an added
-  folder that is not there shows "— not found" in the tree. Nothing is
-  forgotten: when the drive is connected again, everything comes back by
-  itself, with its analysis and favorites. Start scan never removes the
-  sounds of a folder that is missing; it only removes files that are gone
-  from a folder that is there. To drop a folder for good, use its ×.
+  folder that is not there shows "— not found" in the tree. When the drive
+  is connected again, everything comes back by itself, with its analysis
+  and favorites; the panel notices it when you click back into the panel or
+  click a dimmed row. Start scan never removes the sounds of a folder that
+  is missing: their files wait, and the panel says how many. It removes
+  only files that are gone from a folder that is there, and even then keeps
+  a sound with a star or a key you set by hand (shown **file not found**):
+  a starred one until you take the star off, one with a hand-set key until
+  you remove its folder with ×. A file moved to another place in the same
+  section, with the same name, size and date, keeps its analysis and star.
+  To drop a folder for good, use its ×.
 
 To find something:
 
 - **Search** — looks in file names and folder names, at the start of
   words ("hit" finds "Big Hit", not "white"; "trac" finds "Tractor").
-  Every word you type must match. It also knows sound-effect synonyms
+  Every word you type must match. Words with a hyphen or an apostrophe
+  ("sci-fi", "sub-drop", "don't") and names with accents are found as you
+  type them. A search by name also lists sounds still waiting for analysis
+  or that could not be read (a key or BPM filter needs an analysis). It also knows sound-effect synonyms
   and sound categories: **swoosh** also finds whoosh, swish and fly-by
   files, **hit** also finds impact, punch and thud (and the UCS impact
   categories), **riser** also finds uplifter and build-up. Put a minus
@@ -297,7 +350,9 @@ To find something:
   together fine.
 - **Match clip** (a button) fills in the key and BPM of
   the currently selected clip, calculated from saved source analysis and
-  playback speed, so you get sounds that fit it. **Reset** clears every filter.
+  playback speed, so you get sounds that fit it. When the selected clip has
+  no key or tempo (another clip, or none), Match clip turns off and says
+  why. **Reset** clears every filter.
 - **Sort** — best match, name, length, or tempo (Music).
 - **★** on a row marks a favorite; **Favorites** shows just your favorites.
   Favorites are saved with the library.
@@ -307,12 +362,17 @@ To find something:
 Best matches come first. The list shows the first 300 files, and **Show
 300 more** at the bottom adds the next ones; once you pick a key it shows
 every match (up to 3,000). Click a row to choose a file; **Space** then
-listens and **Enter** inserts it. Click ▶ to listen. **Insert** (or a double-click
-on the row) puts the file on the timeline at the playhead: in Premiere on
-the first audio track that is empty for the whole sound — nothing is
+listens and **Enter** inserts it, on any row shown, like **Insert**. Click ▶ to listen. **Insert** (or a double-click
+on the row) puts the file on the timeline at the playhead, once per double
+click; a double click on ▶ or ★ never inserts. In Premiere it goes on
+the first audio track that is empty for the whole sound and not locked or
+muted — nothing is
 overwritten; if there is no such track, it says so — and in After Effects
 as a new layer at the current time. The file is imported into a
-"Downbeat" bin (folder, in After Effects) once and reused after that.
+"Downbeat" bin (folder, in After Effects) once and reused after that. In
+Premiere, In and Out points you set on that sound in the bin stay as they
+were after an insert, and an insert of the whole sound places the whole
+sound, not only your In to Out.
 When the preview pane below shows that same sound and you have set fades, a
 part, a pitch or Reverse there, **Insert**, the double-click and **Enter**
 put it on the timeline with those, exactly like the pane's own **Add**.
@@ -337,7 +397,8 @@ and stays in view while the list scrolls:
 - **Loop**, **Reverse** and the volume (**Vol**, remembered);
 - **Pitch − / +** in semitones, up to 12 either way, like a sampler: higher
   also plays faster and shorter, lower slower and longer. **Reset** goes
-  back to 0. A new file starts at 0, forwards. For a sound with a key or
+  back to 0. Each new sound starts at 0, forwards, with no part and no
+  fades. For a sound with a key or
   note, a line under it says what the pitch turns it into ("Key: 8A A
   minor → 10A B minor");
 - **In key** — pitches every sound you listen to into the key of the
@@ -345,7 +406,10 @@ and stays in view while the list scrolls:
   speed); **Add** then places the file itself at that pitch. A sound goes the shortest way to the clip's key; a major sound
   on a minor song goes to the song's relative major (the same Camelot number,
   which mixes with it) — no pitch shift can turn major into minor. Sounds with
-  no clear key play as they are. Click it again to switch it off;
+  no clear key play as they are. **Insert**, a double click and **Enter**
+  on a row give a sound that pitch too, even before the pane has loaded it.
+  When the selected clip has no key, In key turns off and says why. Click it
+  again to switch it off;
 - **Add** puts it on the timeline at the playhead, like Insert. With a
   selected part and / or fades (no pitch, no Reverse) it inserts the
   **original file, trimmed to the part, with fades you can still change on the
@@ -369,14 +433,18 @@ scrolls. When the panel is at least 900 px wide, the preview pane sits to
 the right of the list, with a taller waveform.
 
 **The keyboard** (Space, Enter) works after a click on a row of the
-Library — not while you type in the search or BPM fields.
+Library — not while you type in the search or BPM fields, and not while
+Settings, a dialog or a dropdown is open. Other keys (J K L, Delete,
+Ctrl / Cmd shortcuts) go to Premiere or After Effects as usual.
 
 The pane plays WAV (8 to 32-bit, 32/64-bit float) and AIFF / AIFF-C with
 the plugin's own reader, in stereo at their own sample rate. MP3, M4A /
 AAC, FLAC and OGG go through the panel's decoder, at the sample rate
 stored in the file, so nothing is resampled. A file too long to hold here
-(roughly over 10 minutes of 96 kHz stereo) plays as is, without pitch or
-reverse.
+(roughly over 10 minutes of 96 kHz stereo once decoded; an MP3 decodes to
+many times its size) says "Too long to load here" and plays as is, without
+pitch or reverse. A too-long AIFF cannot be played here at all, but
+**Insert** still puts it on the timeline.
 
 For speed the scan reads part of each file: a track of up to 100 seconds
 whole, a longer one for 90 seconds starting 30 seconds in (so a long intro
@@ -402,7 +470,7 @@ memory. Select a different clip — in the same sequence or another one — and
 **Paste markers here** re-creates them at the right position. Copying never
 removes anything; delete unwanted markers in the host itself.
 
-Only markers inside the selected clip’s audible range are transferred. Positions are relative to its audible start and map to the target trim and speed. Names, comments, durations and supported host metadata are preserved; markers starting outside the target are skipped; durations may extend beyond its end. Transfers stay within the same host.
+Only markers inside the selected clip’s audible range are transferred. Positions are relative to its audible start and map to the target trim and speed. In Premiere, markers pasted onto another clip of the same file keep their place in the song, whatever the two trims, so beat markers stay on the beat. Names, comments, durations and supported host metadata are preserved; markers starting outside the target are skipped; durations may extend beyond its end. Transfers stay within the same host.
 
 ## Settings
 
@@ -419,17 +487,20 @@ The gear icon, top right:
   - **Load a copy…** brings it back without scanning again. It adds to
     what is already there and never removes anything, so it is also the
     way to move a library to a reinstalled plugin (on another computer,
-    files at other paths are dropped on the next Start scan).
-  - **Clear** empties the library (click it twice to confirm): the added
+    files at other paths are dropped on the next Start scan). Stars and
+    keys set by hand come back too, also on sounds the library already
+    has, and the panel says how many.
+  - **Clear** empties the library (click it, then click again to confirm;
+    a quick double click does not count): the added
     folders, every scanned sound, favorites and analyzed clips. Your audio
     files and folders on disk are never touched. Close and reopen the
     Downbeat panel afterwards.
 - **Finished audio** — where new WAVs (the metronome track) are saved:
   Documents/Downbeat/processed, a Downbeat/processed folder next to the saved
   project (save the project first), or a folder you choose. A change applies
-  to new files only; nothing is moved or overwritten. Settings, libraries and
-  temporary files stay in Documents/Downbeat, and Delete my data keeps these
-  WAVs. Pitch and Reverse never render audio.
+  to new files only; nothing is moved or overwritten. Settings and libraries
+  stay in Documents/Downbeat, temporary files in the system's temp folder,
+  and Delete my data keeps these WAVs. Pitch and Reverse never render audio.
 - **Updates** — **Check now** is the first action and makes a one-time
   request even when background notifications are off. **Tell me when a new
   version is out** enables a check every three days; it does not download or
@@ -440,9 +511,13 @@ The gear icon, top right:
   The panel does not download packages or launch an installer.
 - **Delete my data** — removes the settings, both libraries (the analyzed
   clips, and Music / SFX with their folders and analysis results) and any
-  leftover temp files Downbeat saved in Documents/Downbeat, and nothing else —
-  your audio files are never touched. It lists the exact files before deleting
-  anything.
+  leftover temp files Downbeat saved (see "Where does Downbeat keep its
+  data" below), and nothing else — your audio files are never touched. It
+  lists the exact files before deleting anything; if the list is long,
+  scroll it to reach the buttons. Afterwards only the panel language stays
+  (and the tour is not shown again); every other setting is back to its
+  default. If some file cannot be deleted, the panel says so: close and
+  reopen it, then try again.
 - **Diagnostics** — **Copy log** puts the whole log on the clipboard:
   that is the thing to send when reporting a problem. Make the problem
   happen in the same session first, then copy the log and send it with the
@@ -460,9 +535,17 @@ says so until you click **Got it** — and sound work is easier in Premiere
 Pro. Otherwise it works the same way, with a layer in place of a clip:
 
 - Select the audio layer in the composition's timeline (an audio file, or
-  a video with sound). Analyze and Detect key read that layer's file.
+  a video with sound). Analyze and Detect key read that layer's file. The
+  clip line names the composition that will be changed and the file
+  ("Comp > Song.wav"); after a click in the Project panel it can be another
+  composition than the one on screen. A layer Downbeat cannot use (Time
+  Remap, reversed, a video with no sound, a precomp) gets its reason there.
 - **Place markers** puts layer markers on it, so they move with the layer
-  — or, with **Place on: Timeline**, composition markers.
+  — or, with **Place on: Timeline**, composition markers. Each composition
+  marker also carries the layer it was placed for (a second parameter,
+  "DownbeatLayer", seen only in the Marker dialog), so Place and Clear on
+  one layer never take another layer's markers. After **Split Layer**,
+  **Clear** on any piece clears every piece.
   To cut there, **J** and **K** jump the playhead to the previous or next
   marker, and **Edit → Split Layer** (⌘⇧D on Mac, Ctrl+Shift+D on Windows)
   splits the layer at the playhead.
@@ -478,7 +561,8 @@ Pro. Otherwise it works the same way, with a layer in place of a clip:
 - **Copy/paste markers** works between layers, in the same or another
   composition.
 - **Pitch the clip** puts the pitched layer right above the layer it was
-  made from and switches that layer's sound off; a sound from the Library
+  made from and switches that layer's sound off; your own layer markers
+  come along to it, Downbeat's do not. A sound from the Library
   goes in as a new layer on top, at the current time.
 
 ## FAQ
@@ -527,7 +611,8 @@ Type: Bars + beats is a safer choice there.
 Analyze reads the whole file, and the beat analysis manages about 30
 minutes of audio. A longer file (a DJ mix, a concert recording) stops with
 a message saying so: save the part you need as a file of its own and
-analyze that. Detect key and the Library scan have no such limit.
+analyze that. Detect key and the Library scan have no such limit. At the
+other end, audio shorter than 2 seconds, or silent, is not analyzed.
 
 **Is my audio or project data ever uploaded anywhere?**
 No. Analysis and the Library run entirely on your machine. The only
@@ -541,27 +626,40 @@ in a copy of Node.js that comes inside the plugin (signed by the Node.js
 Foundation): it starts `analyze-worker.js`, `beatthis-worker.js` or
 `skey-worker.js` from the plugin's `worker` folder. It works on your computer
 only and does not connect to the internet. Allow it permanently (not "once"
-or "temporarily") and the questions stop.
+or "temporarily") and the questions stop. If the system or a security app
+blocks it, the clip line says so: allow Downbeat there and try again.
 
 **Where does Downbeat keep its data, and how do I remove it?**
-In the folder Documents/Downbeat: your settings, the library (which folders
-you added and what each file analyzed to — never the audio itself), and
-short-lived temp files used during analysis (each one is deleted as soon as
-its analysis finishes). **Settings → Delete my data** removes exactly those
-files and nothing else; if you put anything of your own in that folder, it
-stays. Uninstalling the plugin does not touch Documents, so press Delete my
-data first if you want everything gone.
+In the folder Documents/Downbeat: your settings and the library (which
+folders you added and what each file analyzed to — never the audio itself).
+The short-lived temp files used during analysis go to a "Downbeat" folder in
+the system's temp folder, so they are not offered to OneDrive or iCloud
+(Documents/Downbeat/tmp when the system's temp folder cannot be used). Each
+one is deleted as soon as its analysis finishes, and also when the panel is
+closed or reloaded while an analysis runs; a stuck analysis ends by itself
+after its time limit. Leftovers a few hours old are cleared at a later
+start. **Settings →
+Delete my data** removes exactly those files and nothing else; if you put
+anything of your own in those folders, it stays. Uninstalling the plugin
+does not touch Documents, so press Delete my data first if you want
+everything gone.
 
 Each file is saved by writing a new copy and swapping it in, so a crash or a
 full disk mid-save leaves the previous version whole. If a saved file still
 cannot be read, Downbeat keeps its contents next to it as
 `<name>.unreadable-<date>-<time>.json` (never saved over), says so on the
-Library tab and starts that part empty. If Windows refuses the save (another
+Library tab and starts that part empty. Unreadable settings are said in a
+line under the header, with the name of the kept copy, and the defaults are
+used; if settings.json cannot be opened at all, that line says settings are
+not saved until Premiere or After Effects restarts, and the first-run
+questions and the tour do not start. When a save fails, a line under the
+header says so until that file saves again. If Windows refuses the save (another
 program, such as OneDrive or an antivirus, holds the file), the new data stays
 next to it as `<name>.unsaved-<date>-<time>.json`; every start takes such
 copies in, and Downbeat removes one only after a later save has written its
 data. Premiere Pro and After Effects can run Downbeat at the same time: each panel takes in what the other saved before saving its own changes,
-and a setting changed in both at the same moment is not lost; after Delete
+and a setting changed in both at the same moment is not lost, nor are the
+stars, hand-set keys and **Shift** values of either; after Delete
 my data in one, the other panel empties itself instead of saving
 the old data again. Analyses of songs on a disconnected drive are kept until
 the drive is back.

@@ -15,8 +15,9 @@ pinned updater module.
 
 What is worth reporting: anything that lets a crafted audio file, file name,
 folder, project or saved settings file make the panel run code, read or write
-files outside the explicitly selected audio destination or `Documents/Downbeat`,
-or delete a file that is not Downbeat's
+files outside the explicitly selected audio destination, `Documents/Downbeat`
+or the `Downbeat` folder in the system's temp folder (where the analysis
+helpers' temporary audio copies go), or delete a file that is not Downbeat's
 own (**Settings > Delete my data** is meant to touch only the files it lists).
 
 Please report it privately through GitHub's "Report a vulnerability" button
