@@ -187,7 +187,16 @@ check("delete dialog opens", registry.deleteDataOverlay.hidden === false);
 check("delete dialog lists the plugin's own files", /settings\.json/.test(preview) && /library\.json/.test(preview) && /sound-library\.json/.test(preview));
 check("delete dialog does not list the foreign file", !/not-ours\.txt/.test(preview));
 check("delete dialog offers a Delete button", registry.deleteDataConfirmBtn.hidden === false);
+// A click right after the dialog opened, or the second click of a double
+// click, is not an answer to it; a click a moment later is.
 registry.deleteDataConfirmBtn._fire("click");
+check("a click right after the dialog opened deletes nothing", fs.existsSync(path.join(DATA, "settings.json")));
+const realNow = Date.now;
+Date.now = function () { return realNow() + 1000; };
+registry.deleteDataConfirmBtn._fire("click", { detail: 2, target: registry.deleteDataConfirmBtn, preventDefault: function () {} });
+check("the second click of a double click deletes nothing", fs.existsSync(path.join(DATA, "settings.json")));
+registry.deleteDataConfirmBtn._fire("click");
+Date.now = realNow;
 check("own files are gone",
       !fs.existsSync(path.join(DATA, "settings.json")) && !fs.existsSync(path.join(DATA, "library.json")) &&
       !fs.existsSync(path.join(DATA, "sound-library.json")));

@@ -486,11 +486,18 @@
     var deleteDataMessage = document.getElementById("deleteDataMessage");
     var deleteDataConfirmBtn = document.getElementById("deleteDataConfirmBtn");
     var deleteDataCancelBtn = document.getElementById("deleteDataCancelBtn");
+    // The second click of a double click on Delete my data (or one before the
+    // list of files can be read) is not an answer to the dialog, even when the
+    // Delete button opens right under the pointer. Same rule as the Library's
+    // Clear button.
+    var DELETE_CONFIRM_MIN_MS = 600;
+    var _deleteDataShownAt = 0;
     function _showDeleteDataDialog(message, canConfirm) {
       deleteDataMessage.textContent = message;
       deleteDataConfirmBtn.hidden = !canConfirm;
       setTranslatedText(deleteDataCancelBtn, canConfirm ? "settings.deleteDataCancel" : "settings.deleteDataClose");
       deleteDataOverlay.hidden = false;
+      _deleteDataShownAt = Date.now();
     }
     document.getElementById("deleteDataBtn").addEventListener("click", function () {
       if (ctx.bridge().tempFilesInFlight() > 0) {
@@ -519,7 +526,10 @@
     deleteDataCancelBtn.addEventListener("click", function () {
       deleteDataOverlay.hidden = true;
     });
-    deleteDataConfirmBtn.addEventListener("click", function () {
+    deleteDataConfirmBtn.addEventListener("click", function (evt) {
+      if ((evt && evt.detail > 1) || Date.now() - _deleteDataShownAt < DELETE_CONFIRM_MIN_MS) {
+        return;
+      }
       if (ctx.bridge().tempFilesInFlight() > 0) {
         _showDeleteDataDialog(I18n.t("settings.deleteDataBusy"), false);
         return;

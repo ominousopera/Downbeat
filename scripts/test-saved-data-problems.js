@@ -87,12 +87,14 @@ if (process.argv[2] === "child") {
     await wait(200);
     if (scenario === "delete") {
       r.deleteDataBtn._fire("click");
+      await wait(650);
       r.deleteDataConfirmBtn._fire("click");
       result.done = r.deleteDataMessage.textContent;
       setTarget("sequence");
       result.settings = readJson(settingsFile);
     } else if (scenario === "partial") {
       r.deleteDataBtn._fire("click");
+      await wait(650);
       r.deleteDataConfirmBtn._fire("click");
       result.done = r.deleteDataMessage.textContent;
       result.folders = global.window.BeatMarkerSoundLibrary.getFolders("music");
