@@ -108,14 +108,18 @@ function reportLeftovers(label, offenders) {
   offenders.slice(0, 15).forEach(function (o) { console.error("       " + o.where + ": \"" + o.text.slice(0, 90) + "\""); });
 }
 const CYRILLIC = /[\u0400-\u04FF]/;
+// English strings that have a different Russian translation, still showing.
+const englishOnly = {};
+Object.keys(EN).forEach(function (k) { if (RU[k] && RU[k] !== EN[k] && /[a-z]{3,}/i.test(EN[k])) { englishOnly[EN[k].trim()] = k; } });
+// Straight after a Russian start, before any language button: text set while
+// the saved settings are applied (Settings' audio output line) is in Russian
+// too.
+reportLeftovers("a Russian start has no English text left over", allShownTexts().filter(function (o) { return englishOnly[o.text]; }));
 clickLanguage("en");
 reportLeftovers("English UI has no Russian text left over", allShownTexts().filter(function (o) { return CYRILLIC.test(o.text); }));
 clickLanguage("es");
 reportLeftovers("Spanish UI has no Russian text left over", allShownTexts().filter(function (o) { return CYRILLIC.test(o.text); }));
 clickLanguage("ru");
-// English strings that have a different Russian translation, still showing.
-const englishOnly = {};
-Object.keys(EN).forEach(function (k) { if (RU[k] && RU[k] !== EN[k] && /[a-z]{3,}/i.test(EN[k])) { englishOnly[EN[k].trim()] = k; } });
 reportLeftovers("Russian UI has no English text left over", allShownTexts().filter(function (o) { return englishOnly[o.text]; }));
 clickLanguage("en");
 // The Guide opens rendered, not as raw Markdown.

@@ -75,6 +75,7 @@ function ownPr(list, a, b) {
   const later = p.audioTrack.clips[1];
   select(p.audioTrack.clips, a); placeSeq(h, every(100.5, 110, 2));
   check("Premiere: after a cut, placing again on one piece keeps the markers over the other", ownPr(seq, 110.001, 120) === 5, String(ownPr(seq, 110.001, 120)));
+  check("Premiere: ... including the one at the cut, the later piece's first beat", ownPr(seq, 109.999, 110.001) === 1, String(ownPr(seq, 109.999, 110.001)));
   select(p.audioTrack.clips, later); const r = clear(h);
   check("Premiere: Clear on the later piece clears every piece and names the earlier piece's set",
     ownPr(seq, 100, 120) === 0 && r.data.forgetKeys.length === 1, JSON.stringify(r.data));
@@ -138,6 +139,7 @@ function ownAe(prop, a, b) {
   select(comp.layers, a); placeSeq(h, every(201, 209, 2));
   check("After Effects: after Split Layer, placing again on one piece keeps the markers over the other",
     split.ok && ownAe(cm, 210.001, 220) === 5, ownAe(cm, 210.001, 220) + "");
+  check("After Effects: ... including the one at the split, the second piece's first beat", ownAe(cm, 209.999, 210.001) === 1, ownAe(cm, 209.999, 210.001) + "");
   second.markers.setValueAtTime(215, mocks.ownAeMarkerValue("D"));
   select(comp.layers, second); const r = clear(h);
   check("After Effects: Clear on a piece clears every piece, layer markers included",

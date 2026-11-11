@@ -395,7 +395,9 @@ function _dbAeCompPlan(comp, layer, mode) {
                 take = Math.abs(t - legacy.t[b]) < 0.0005;
             }
         } else if (mine[tag]) {
-            if (!take) {
+            // One on this layer's out point is the first beat of a piece that
+            // starts there (Split Layer on a marker): it stays with that piece.
+            if (!take || (mode !== "clear" && t >= Math.max(layer.inPoint, layer.outPoint) - 0.0005)) {
                 take = true;
                 for (var q = 0; q < pieces.length && mode !== "clear"; q++) {
                     if (_dbAeHolds(pieces[q], t, layer)) { take = false; break; }

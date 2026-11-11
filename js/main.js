@@ -476,6 +476,9 @@
     I18n.setLanguage(lang);
     I18n.applyStaticTranslations();
     setActiveLanguageButtons(lang);
+    // Texts set before the first call, while the saved settings are applied
+    // (Settings' audio output line), are translated again here.
+    _retranslateTexts();
     if (!isInitialBoot) {
       refreshDynamicTranslations();
       persistSettings({ language: lang });

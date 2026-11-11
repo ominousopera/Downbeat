@@ -570,9 +570,11 @@ function _dbTimelinePlan(sequence, clip, mode) {
                 if (owner && !_dbSameClip(owner, clip) && _dbClipHolds(owner, t, clip)) { held = true; }
             }
             var take = inRange;
+            // A marker on this clip's end point is the first beat of a piece
+            // that starts there (a cut on a marker): it stays with that piece.
             if (held) {
                 take = false;
-            } else if (ours && !inRange && mode !== "clear") {
+            } else if (ours && mode !== "clear" && (!inRange || t >= clip.end.seconds - 0.0005)) {
                 take = true;
                 for (var p = 0; p < pieces.length; p++) {
                     if (_dbClipHolds(pieces[p], t, clip)) { take = false; break; }
