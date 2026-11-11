@@ -65,6 +65,7 @@ try {
       assert.strictEqual(fake.comp.layers[0], originalLayer);
       assert.strictEqual(fake.comp.layers[1].source.file.fsName, first);
       assert.strictEqual(originalLayer.audioEnabled, undefined);
+      assert.deepStrictEqual(fake.state.undoNames, ["Downbeat: add metronome"], "Edit > Undo names the metronome step");
     } else {
       assert.strictEqual(result.data.target, 1);
       assert.strictEqual(fake.audioTrack.clips.length, 1);

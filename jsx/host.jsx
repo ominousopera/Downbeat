@@ -49,7 +49,7 @@ function insertMetronomeTrack(mediaPathJson, durationSeconds, referenceJson) {
             throw new Error("The selected music changed. Select the analyzed clip and try again.");
         }
         if (!(durationSeconds > 0) || !isFinite(durationSeconds)) { throw new Error("Invalid metronome duration."); }
-        var opts = { atSeconds: clip.clipStartSeconds, outSec: durationSeconds, underTrack: clip.trackIndex + 1, belowLayerIndex: clip.trackIndex };
+        var opts = { atSeconds: clip.clipStartSeconds, outSec: durationSeconds, underTrack: clip.trackIndex + 1, belowLayerIndex: clip.trackIndex, purpose: "metronome" };
         return insertAudioAtPlayhead(mediaPathJson, durationSeconds, JSON.stringify(opts));
     } catch (e) { result.error = e.message ? e.message : String(e); }
     return JSON.stringify(result);
@@ -1097,27 +1097,43 @@ function _dbRestorePremiereMarker(marker, transfer) {
     else if (m.type === "WebLink") { marker.setTypeAsWebLink(m.url || "", m.frameTarget || ""); }
     else if (m.type !== "Comment") { throw new Error("Unsupported marker type."); }
 }
-// Whether `markers` already held, before this paste, a marker equal to
+// Whether the collection already held, before this paste, a marker equal to
 // `transfer`: same start, end, name, comments, type and color. Markers this
-// paste created are passed in `fresh` and never count, so two source markers
+// paste created are not in the index and never count, so two source markers
 // that differ only in length both arrive, and so does one that differs from
 // a target marker only in color.
-function _dbHasSameMarker(markers, transfer, fresh) {
-    var data = transfer.data;
+// The markers are read once, before the paste, into lists by start time in
+// whole milliseconds (_dbMarkerIndex), so a long paste does not walk the
+// whole collection for every pasted marker.
+function _dbMarkerIndex(markers) {
+    var index = {};
     var m = markers.getFirstMarker();
     while (m) {
-        var isFresh = false;
-        for (var f = 0; f < fresh.length; f++) { if (fresh[f].marker === m) { isFresh = true; break; } }
-        var end = m.end && typeof m.end.seconds === "number" ? m.end.seconds : m.start.seconds;
-        if (!isFresh && Math.abs(m.start.seconds - transfer.time) < 0.0005 &&
-                Math.abs(end - (transfer.time + transfer.duration)) < 0.0005 &&
-                String(m.name || "") === String(data.label || "") &&
-                String(m.comments || "") === String(data.comments || "") &&
-                (m.type === undefined || data.type === undefined || String(m.type) === String(data.type)) &&
-                (data.color === undefined || !m.getColorByIndex || Number(m.getColorByIndex()) === Number(data.color))) {
-            return true;
-        }
+        var key = String(Math.round(m.start.seconds * 1000));
+        if (!index.hasOwnProperty(key)) { index[key] = []; }
+        index[key].push(m);
         m = markers.getNextMarker(m);
+    }
+    return index;
+}
+function _dbHasSameMarker(index, transfer) {
+    var data = transfer.data;
+    var at = Math.round(transfer.time * 1000);
+    for (var d = -1; d <= 1; d++) {
+        var key = String(at + d);
+        var list = index.hasOwnProperty(key) ? index[key] : [];
+        for (var i = 0; i < list.length; i++) {
+            var m = list[i];
+            var end = m.end && typeof m.end.seconds === "number" ? m.end.seconds : m.start.seconds;
+            if (Math.abs(m.start.seconds - transfer.time) < 0.0005 &&
+                    Math.abs(end - (transfer.time + transfer.duration)) < 0.0005 &&
+                    String(m.name || "") === String(data.label || "") &&
+                    String(m.comments || "") === String(data.comments || "") &&
+                    (m.type === undefined || data.type === undefined || String(m.type) === String(data.type)) &&
+                    (data.color === undefined || !m.getColorByIndex || Number(m.getColorByIndex()) === Number(data.color))) {
+                return true;
+            }
+        }
     }
     return false;
 }
@@ -1171,10 +1187,11 @@ function pasteMarkersData(dataJson, referenceJson) {
             }
         }
         var groups = [plan.sequenceMarkers, plan.clipMarkers];
+        var before = [_dbMarkerIndex(collections[0]), _dbMarkerIndex(collections[1])];
         for (var g = 0; g < groups.length; g++) {
             for (var i = 0; i < groups[g].length; i++) {
                 var transfer = groups[g][i];
-                if (_dbHasSameMarker(collections[g], transfer, created)) {
+                if (_dbHasSameMarker(before[g], transfer)) {
                     kept++;
                     continue;
                 }

@@ -240,6 +240,8 @@ try {
     check("After Effects: the pitched layer carries the editor's marker at the same place in the sound, not Downbeat's",
       r.ok && added !== L && keys.length === 1 && keys[0].v.comment === "Drop" && Math.abs(keys[0].t - want) < 1e-6 &&
       Math.abs(keys[0].v.duration - 2 / rate) < 1e-6 && keys[0].v.label === 3 && L.markers.keys.length === 2, JSON.stringify(keys));
+    check("After Effects: Edit > Undo names the step as a pitch change, not as a sound insert",
+      ae.state.undoNames[ae.state.undoNames.length - 1] === "Downbeat: change pitch", JSON.stringify(ae.state.undoNames));
   })();
 } catch (e) {
   failures++;

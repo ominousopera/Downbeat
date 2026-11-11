@@ -1259,6 +1259,14 @@
       if (_libInserting || _libMissing(item.path)) {
         return;
       }
+      // FLAC and OGG play in the listening pane, but neither Premiere nor
+      // After Effects imports them, and an import attempt puts up the host's
+      // own "File format not supported" dialog: the panel says so instead.
+      if (/\.(flac|ogg|oga|opus)$/i.test(item.path)) {
+        setTranslatedText(libScanStatus, "library.insertFormat", { app: ctx.hostIsAe() ? "After Effects" : "Premiere Pro" });
+        log("Library: " + item.name + " not inserted - the host does not import FLAC / OGG.");
+        return;
+      }
       if (libPlayingPath) {
         libPreviewAudio.pause();
         libPlayingPath = null;
@@ -2472,7 +2480,14 @@
         log("Library scan (" + section + "): " + dir + " is not there now (a drive that is not connected?) - its sounds stay in the library as they are.");
       });
       var found = SL.listAudioFiles(fs, section);
-      var partial = found.incomplete && found.incomplete.length;
+      // A folder that is not there at all (an unplugged drive) has its own
+      // line and log above; only a folder that is there but could not be
+      // read counts as partial. Counting the missing one too would make
+      // every scan with one unplugged drive end on "could not be fully read",
+      // hiding the result and the "waits for a folder" line.
+      var partial = (found.incomplete || []).filter(function (p) {
+        return !offline.some(function (d) { return SL.isUnder(p, d); });
+      }).length;
       var capped = !!found.capped;
       var sync = SL.syncFiles(section, found, offline);
       if (capped) { log("Library scan (" + section + ") stopped at " + SL.MAX_FILES_PER_SCAN + " files: the folders hold more; add smaller folders instead."); }

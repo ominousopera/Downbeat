@@ -3567,6 +3567,7 @@
   var selectionStatusDisplay = document.getElementById("selectionStatusDisplay");
   var lastSelectionKey = null; // mediaPath|inPoint|outPoint, or null when nothing valid is selected
   var wasBusy = false; // true while a real Analyze/Detect key run is in flight
+  var _lastHostRefusal = null; // the host's refusal at the last poll; null after a usable clip
   // `text` may be a function that builds the line, so a language switch can
   // rebuild it (refreshDynamicTranslations -> _rebuildSelectionStatus);
   // "already analyzed" / "not analyzed yet" are translated parts of it.
@@ -3954,6 +3955,7 @@
     }
     getClipInfo()
       .then(function (clipInfo) {
+        _lastHostRefusal = null;
         var key = _selectionKeyOf(clipInfo);
         if (key === lastSelectionKey) {
           return;
@@ -3967,6 +3969,11 @@
         // is more useful than the placeholder; shown in the panel's language.
         var raw = err && err.message ? err.message : String(err);
         var reason = _translateHostReason(raw);
+        // Another refusal than at the last poll is another selection (a
+        // Time Remap layer after a precomp): its reason replaces even the
+        // error an action put up for the layer selected before.
+        var otherRefusal = _lastHostRefusal !== null && raw !== _lastHostRefusal;
+        _lastHostRefusal = raw;
         if (lastSelectionKey !== null) {
           lastSelectionKey = null;
           _clearSelectionDependentState();
@@ -3977,7 +3984,7 @@
           // start text stays while nothing is selected.
           var shown = selectionStatusDisplay.title || selectionStatusDisplay.textContent;
           var startText = _selectionPlaceholder();
-          if (/\bis-error\b/.test(selectionStatusDisplay.className) || shown === (reason || startText) ||
+          if ((/\bis-error\b/.test(selectionStatusDisplay.className) && !otherRefusal) || shown === (reason || startText) ||
               (shown === startText && (!reason || /^Nothing selected\./.test(raw)))) {
             return;
           }

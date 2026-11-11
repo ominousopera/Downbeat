@@ -133,6 +133,20 @@ function sleep(ms) { const end = Date.now() + ms; while (Date.now() < end) { /* 
   check("... and a marker deleted since the copy comes back at its own place in the song", r.ok && r.data.created === 1 && /2=Chorus/.test(list()), list());
 })();
 
+// ---- Paste duplicate check: markers found by time before the paste ----
+(function () {
+  const fake = mocks.makePremiereHost({ mediaPath: "/music/other.wav", durationSec: 20, clipStart: 0 });
+  const host = mocks.loadHost(fake.context);
+  const info = JSON.parse(host.run("getSelectedAudioInfo()")).data;
+  const verse = function (t) { return { label: "Verse", comments: "", localSeconds: t, duration: 0, type: "Comment" }; };
+  const here = fake.sequence.markers.createMarker(1.2344); here.name = "Verse"; here.comments = "";
+  const data = { version: 2, host: "premiere", clipName: "song.wav", mediaPath: "/music/song.wav",
+    sequenceMarkers: [verse(1.2348), verse(3), verse(3)], clipMarkers: [] };
+  const r = JSON.parse(host.run("pasteMarkersData(" + arg(data) + "," + arg(info) + ")"));
+  check("Paste: a marker 0.4 ms off one already there (across a millisecond) is kept, two equal pasted markers are both made",
+    r.ok && r.data.created === 2 && r.data.kept === 1 && fake.sequence.markers.list.length === 3, JSON.stringify(r.data || r.error));
+})();
+
 // ---- Re-placing timeline markers after the clip moved ----
 (function () {
   const fake = mocks.makePremiereHost({ mediaPath: "/music/Song.mp3", durationSec: 20, clipStart: 10 });

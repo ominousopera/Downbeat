@@ -33,10 +33,14 @@ fs.mkdirSync(SFX);
 const BOOM = path.join(SFX, "boom.wav");
 writeWav(BOOM, 2);
 const st = fs.statSync(BOOM);
+const PAD = path.join(SFX, "pad.flac");
+fs.writeFileSync(PAD, "flac stand-in");
 fs.writeFileSync(path.join(DOCS, "Downbeat", "settings.json"), JSON.stringify({ language: "ru", onboardingCompleted: true, updateCheck: false }));
 fs.writeFileSync(path.join(DOCS, "Downbeat", "sound-library.json"), JSON.stringify({ version: 1, folders: { music: [], sfx: [SFX] },
   files: { [BOOM]: { path: BOOM, section: "sfx", name: "boom.wav", size: st.size, mtimeMs: Math.round(st.mtimeMs),
-    status: "done", v: 3, durationSec: 2, camelot: "8A", key: "A", scale: "minor" } } }));
+    status: "done", v: 3, durationSec: 2, camelot: "8A", key: "A", scale: "minor" },
+    [PAD]: { path: PAD, section: "sfx", name: "pad.flac", size: 13, mtimeMs: Math.round(fs.statSync(PAD).mtimeMs),
+      status: "done", v: 3, durationSec: 2 } } }));
 
 // One audio track, the music on it from 0 to 60 s, the playhead at 30 s.
 const fake = mocks.makePremiereHost({ mediaPath: "/music/song.wav", durationSec: 60, clipStart: 0, audioTrackCount: 1, playheadSeconds: 30, insertDurationSec: 2 });
@@ -61,12 +65,22 @@ wait(600).then(function () {
     log.split("\n").filter(function (l) { return /could not insert/.test(l); }).join(" | "));
   check("nothing was placed", fake.sequence.audioTracks[0].clips.length === 1);
   const keys = ["library.insertNoFreeTrack", "library.insertOffline", "library.insertGone", "library.insertNotImported",
-    "library.insertNotPlaced", "library.insertNoLength"];
+    "library.insertNotPlaced", "library.insertNoLength", "library.insertFormat"];
   ["en", "ru", "es"].forEach(function (lang) {
     I18n.setLanguage(lang);
     const missing = keys.filter(function (k) { const t = I18n.t(k); return !t || t === k; });
     check("every insert refusal has a " + lang + " text", missing.length === 0, missing.join(", "));
   });
+  I18n.setLanguage("ru");
+  // A FLAC: the host never imports it, so the panel says why without asking.
+  document._fire("keydown", { key: "ArrowDown", target: document.body });
+  document._fire("keydown", { key: "Enter", target: document.body });
+  return wait(400);
+}).then(function () {
+  const I18n = window.BeatMarkerI18n;
+  check("a FLAC is refused by the panel itself, in Russian", $.libScanStatus.textContent === I18n.t("library.insertFormat", { app: "Premiere Pro" }),
+    $.libScanStatus.textContent);
+  check("... and nothing reached the timeline", fake.sequence.audioTracks[0].clips.length === 1);
   fs.rmSync(WORK, { recursive: true, force: true });
   if (failures) {
     console.error("\n" + failures + " insert-error check(s) failed");

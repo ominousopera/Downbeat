@@ -286,6 +286,8 @@ waitFor(function () { return /Folder added/.test($.libScanStatus.textContent); }
         rows().length === 2 && rows().every(function (x) { return /file not found/.test(rowText(x)) && /BPM/.test(rowText(x)); }) &&
         /not there now/.test(logText()), rows().map(rowText).join(" | "));
       check("... and the folder tree marks it not found", root && /not found/.test(rowText(root)), root ? rowText(root) : "no root row");
+      check("... and the scan does not end on \"could not be fully read\" for an unplugged folder",
+        $.libScanStatus.textContent && !/could not be fully read/.test($.libScanStatus.textContent), $.libScanStatus.textContent);
       fs.renameSync(MUSIC + " (unplugged)", MUSIC);
       return new Promise(function (r) { setTimeout(r, 3200); });
     }).then(function () {

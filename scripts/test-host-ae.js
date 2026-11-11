@@ -73,6 +73,15 @@ check("nothing selected is a clear error", !r.ok && /Nothing selected/.test(r.er
 clip.selected = true;
 r = call("getSelectedAudioInfo()");
 check("a video-only layer is not taken for audio", !r.ok && /no audio/.test(r.error), r.error);
+// A layer whose file went missing: After Effects reports no audio for it.
+clip.selected = false;
+const lost = new Layer(comp, { name: "lost.wav", startTime: 0, inPoint: 0, outPoint: 5, hasAudio: false,
+  source: { file: { fsName: "/music/lost.wav" }, footageMissing: true }, selected: true });
+comp.layers.push(lost);
+r = call("getSelectedAudioInfo()");
+check("a layer whose file is missing says so, not \"no audio\"", !r.ok && /media file is missing/.test(r.error), r.error);
+comp.layers.pop();
+clip.selected = true;
 song.selected = true;
 r = call("getSelectedAudioInfo()");
 check("audio + video layers selected: the audio one is used", r.ok && r.data.layerName === "song.mp3");

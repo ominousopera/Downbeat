@@ -117,7 +117,7 @@ function makeAeHost(opts) {
   comp.layers.push(layer);
   comp.layers.push(new Layer(comp, { name: "video.mp4", startTime: 0, inPoint: 0, outPoint: comp.duration, hasVideo: true,
     source: { file: { fsName: "/video/video.mp4" }, footageMissing: false } }));
-  const state = { undoDepth: 0 };
+  const state = { undoDepth: 0, undoNames: [] };
   comp.time = opts.compTime || 0;
   // Library insert: a new layer goes on top, starting at comp time 0 until
   // the host moves it.
@@ -144,7 +144,7 @@ function makeAeHost(opts) {
     BridgeTalk: { appName: "aftereffects" },
     app: {
       project: project,
-      beginUndoGroup: function () { state.undoDepth++; },
+      beginUndoGroup: function (name) { state.undoDepth++; state.undoNames.push(name); },
       endUndoGroup: function () { state.undoDepth--; }
     }
   };

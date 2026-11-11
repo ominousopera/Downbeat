@@ -114,6 +114,17 @@ function pass(m) { console.log("  PASS " + (++n) + ": " + m); }
     panel.runIntervals(); await idle();
     assert.strictEqual(line.title, I18n.t("selection.hostNoMediaFile"));
     pass("a host refusal is shown in Russian");
+
+    // 6. Analyze on that refused clip puts up an error; it stays while the
+    // same clip stays selected, and another refused layer replaces it.
+    await analyze();
+    const actionError = line.title;
+    panel.runIntervals(); await idle();
+    assert.strictEqual(line.title, actionError, "the action's error stays while the same refusal comes back");
+    hostAnswer = { ok: false, error: "The selected layer uses Time Remapping. Downbeat supports constant positive Time Stretch - turn Time Remap off first." };
+    panel.runIntervals(); await idle();
+    assert.ok(/Time Remap/.test(line.title) && line.title !== actionError, "another refused layer names its own reason: " + line.title);
+    pass("an error for one refused layer does not stick over the next refused layer");
     console.log("ok - " + n + " clip-line message checks passed");
   } finally {
     cp.execFile = originalExecFile;

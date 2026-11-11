@@ -94,6 +94,14 @@ function _dbAeLayerHasFile(layer) {
         return false;
     }
 }
+
+function _dbAeSourceMissing(layer) {
+    try {
+        return !!(layer.source && layer.source.footageMissing);
+    } catch (e) {
+        return false;
+    }
+}
 // Exactly one selected layer with audio. Returns the layer.
 function _dbAeSelectedAudioLayerOrThrow(comp) {
     var sel = comp.selectedLayers;
@@ -113,6 +121,10 @@ function _dbAeSelectedAudioLayerOrThrow(comp) {
         }
     }
     if (withAudio.length === 0) {
+        // A layer whose file is missing reports no audio: name the real cause.
+        if (sel.length === 1 && _dbAeSourceMissing(sel[0])) {
+            throw new Error("The selected layer's media file is missing. Relink it first.");
+        }
         throw new Error("The selected layer has no audio. Select an audio layer instead.");
     }
     if (withAudio.length > 1) {
@@ -869,7 +881,10 @@ function dbAeInsertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
         // Set to "speedFailed" or "trimFailed" when the layer did not come out as asked.
         var failure = null;
         var reverseLayout = null; // what the reversed layer's check saw (for the log)
-        var layer = _dbAeWithUndo("Downbeat: insert sound", function () {
+        // The step's name in Edit > Undo and the History says what was done.
+        var undoName = opts && opts.purpose === "metronome" ? "Downbeat: add metronome" :
+            opts && opts.muteSelected ? "Downbeat: change pitch" : "Downbeat: insert sound";
+        var layer = _dbAeWithUndo(undoName, function () {
             if (!item) {
                 item = app.project.importFile(new ImportOptions(file));
                 if (!folder) {
