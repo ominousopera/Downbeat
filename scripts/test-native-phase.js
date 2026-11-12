@@ -2,7 +2,7 @@
 // Exercise phase controls against native times and detailed beat accents.
 const assert = require("assert");
 const fs = require("fs"), path = require("path"), vm = require("vm");
-const acorn = require("./vendor/acorn-8.15.0.js");
+const acorn = require("./vendor/acorn-8.19.0.js");
 const root = process.env.DOWNBEAT_ROOT || path.join(__dirname, "..");
 const main = fs.readFileSync(path.join(root, "js/main.js"), "utf8");
 const functions = {};

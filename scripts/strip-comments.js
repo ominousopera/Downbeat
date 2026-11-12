@@ -18,7 +18,7 @@ const crypto = require("crypto");
 
 const VENDOR = path.join(__dirname, "vendor");
 const PINNED = {
-  "acorn-8.15.0.js": "fdb08546776ec6228b03e8d02b40d4ab3255bae5f401adba7ff5dad927ac5c9c",
+  "acorn-8.19.0.js": "b95392d79457d0357555c5ed3e56302d074b92dff119bcf3b44179500b10e9df",
   "esprima-4.0.1.js": "6c36c0e60387f5398f98f68ac76ae832688b32fa9162eae4cc9b6b2cad5f554e"
 };
 for (const name of Object.keys(PINNED)) {
@@ -28,7 +28,7 @@ for (const name of Object.keys(PINNED)) {
     process.exit(1);
   }
 }
-const acorn = require(path.join(VENDOR, "acorn-8.15.0.js"));
+const acorn = require(path.join(VENDOR, "acorn-8.19.0.js"));
 const esprima = require(path.join(VENDOR, "esprima-4.0.1.js"));
 
 const LEGAL = "Downbeat - (c) 2026 Nikita Kolesov - AGPL-3.0, see LICENSE and NOTICE.md";

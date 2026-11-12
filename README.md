@@ -496,7 +496,9 @@ make the plugin better.
 ## License
 
 AGPL-3.0, see [`LICENSE`](LICENSE). Third-party components:
-[`NOTICE.md`](NOTICE.md). Guide: [English](GUIDE.md) ·
+[`NOTICE.md`](NOTICE.md). The weights of the S-KEY key model
+(`models/skey.onnx`) are not covered by the AGPL: their authors limit them to
+non-commercial research use (details in `NOTICE.md`). Guide: [English](GUIDE.md) ·
 [Russian](GUIDE.ru.md) · [Spanish](GUIDE.es.md). Contributing:
 [`CONTRIBUTING.md`](CONTRIBUTING.md). Development: [`DEVELOPMENT.md`](DEVELOPMENT.md).
 

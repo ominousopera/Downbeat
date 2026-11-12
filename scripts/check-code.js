@@ -9,7 +9,7 @@ const fs = require("fs");
 const path = require("path");
 const { execFileSync } = require("child_process");
 const ROOT = path.join(__dirname, "..");
-const acorn = require(path.join(__dirname, "vendor", "acorn-8.15.0.js"));
+const acorn = require(path.join(__dirname, "vendor", "acorn-8.19.0.js"));
 const THIRD_PARTY = /^(js\/lib\/|js\/CSInterface\.js$|jsx\/json2\.js$|scripts\/vendor\/|js\/ucs-data\.js$|assets\/)/;
 const GLOBALS = new Set(("window document console Math JSON Promise setTimeout clearTimeout setInterval clearInterval " +
   "requestAnimationFrame cancelAnimationFrame Date Number String Boolean Array Object Error TypeError RangeError RegExp " +

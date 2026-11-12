@@ -5,7 +5,8 @@ Public License v3.0** (full text in `LICENSE`), © 2026 Nikita Kolesov. The
 third-party components below keep their own licenses, listed with each
 one: essentia.js is AGPL-3.0 itself; the rest are MIT, ISC, BSD, Apache-2.0
 or public domain, except `js/CSInterface.js`, which is under Adobe's own CEP
-terms. Downbeat is an independent project, not made, endorsed or sponsored
+terms, and the S-KEY model weights (`models/skey.onnx`), which upstream
+restricts to non-commercial research use (see that section). Downbeat is an independent project, not made, endorsed or sponsored
 by Adobe.
 
 Update policy: components are pinned by hand and never auto-updated.
@@ -65,18 +66,17 @@ Re-verify (diff and rehash) before any change.
 
 (Not in the repository; created by `scripts/fetch-node-runtime.sh`.)
 
-- Source: the official `nodejs.org/dist/` builds of v24.22.1 (the 24.x
-  security release of 2026-10-21), fetched by `scripts/fetch-node-runtime.sh`
+- Source: the official `nodejs.org/dist/` builds of v24.22.3 (the 24.x
+  security release of 2026-11-10), fetched by `scripts/fetch-node-runtime.sh`
   (hashes hardcoded in that script; compare with
-  `https://nodejs.org/dist/v24.22.1/SHASUMS256.txt` before updating it).
+  `https://nodejs.org/dist/v24.22.3/SHASUMS256.txt` before updating it).
   The signature on SHASUMS256.txt was verified against the Node.js release
   key `5BE8A3F6C8A5C01D106C0AD820B1A390B168D356` (listed in the Node.js
-  README and in `github.com/nodejs/release-keys`); the release post for
-  v24.22.1 gives the same hashes.
+  README and in `github.com/nodejs/release-keys`).
 - sha256 of the official archives (only the bare executable is extracted):
-  - `node-v24.22.1-darwin-arm64.tar.gz`: `89c682593d76cd44233fa53b1563264e7de9cbb189cad169135c5b4fadfbc0a7`
-  - `node-v24.22.1-darwin-x64.tar.gz`: `d132557e7ee2b85af08b0c8c34338e65c6430f2238d01f727728ef42dc83b035`
-  - `node-v24.22.1-win-x64.zip`: `d2046d28c2c3dcd211ac5145c0bf30e2047ef9dfb306693c8c6e2eccd8b95fa5`
+  - `node-v24.22.3-darwin-arm64.tar.gz`: `ff6e17d4874b76d272212b908cc020d6e815fba5a6c7eaaa06add725840307fd`
+  - `node-v24.22.3-darwin-x64.tar.gz`: `977614af0504c81045e7fd85596dbca0e5f951b96681516dadafedcca8c447f7`
+  - `node-v24.22.3-win-x64.zip`: `e612af99f626ab415ea225af6bce5c971feb448cb5cae250bb1c3fa50c5f7d9f`
 - License: MIT (Node.js itself; it bundles other permissive components such
   as V8, libuv and OpenSSL, listed in Node's own `LICENSE`).
 - Why bundled: the panel starts the analysis workers as real Node
@@ -93,7 +93,7 @@ Re-verify (diff and rehash) before any change.
 
 (Not in the repository; created by `scripts/fetch-beatthis-runtime.sh`.)
 
-- Source: the npm package `onnxruntime-web`, version `1.27.0`. Upstream:
+- Source: the npm package `onnxruntime-web`, version `1.31.1`. Upstream:
   `github.com/microsoft/onnxruntime`. The transitive dependencies resolve
   through the committed `package.json` / `package-lock.json` in
   `scripts/beatthis-runtime-src/`; that lockfile, with its integrity
@@ -127,11 +127,19 @@ Re-verify (diff and rehash) before any change.
   exported with `scripts/skey-export/export_skey_onnx.py`, which checks the
   exported graph against the upstream PyTorch one (max abs difference
   < 1e-4, same argmax).
-- License: **MIT** (Copyright (c) Deezer), the only license the repository
-  states; the checkpoint is published in the same repository and names no
-  separate license of its own. Only the export needs nnAudio 0.3.3 (MIT);
-  the plugin runs just the ONNX file, through the onnxruntime-web listed
-  above.
+- License: the code is **MIT** (Copyright (c) Deezer SA), text below.
+  **The model weights are not under MIT.** At the commit above the
+  repository stated no separate license for the checkpoint, but since
+  2026-10-27 (upstream commit 80d9590e150b836a341dfc6dbf05aa20bc81d10b,
+  which changed only the README) the upstream README says the MIT license
+  does not apply to the weights in `skey.pt` and that they may be used only
+  for non-commercial research purposes. `models/skey.onnx` is a conversion
+  of those weights, so the same terms apply to it. Downbeat's AGPL-3.0 does
+  not cover this file. Downbeat uses it for one of the key opinions on
+  music and for music keys in the Library scan; check Deezer's terms
+  (`github.com/deezer/skey`) before using those for anything other than
+  non-commercial research. Only the export needs nnAudio 0.3.3 (MIT); the
+  plugin runs just the ONNX file, through the onnxruntime-web listed above.
 
 ## models/mel_spectrogram.onnx, models/beat_this_own_export.onnx (Beat This!)
 
@@ -186,7 +194,7 @@ Re-verify (diff and rehash) before any change.
 
 ## scripts/vendor/ (acorn and esprima)
 
-- What: acorn 8.15.0 (`acorn-8.15.0.js`, MIT) and esprima 4.0.1
+- What: acorn 8.19.0 (`acorn-8.19.0.js`, MIT) and esprima 4.0.1
   (`esprima-4.0.1.js`, BSD-2-Clause), JavaScript parsers used only by the
   build checks (`scripts/check-code.js`, `scripts/strip-comments.js`).
   They are build-time tools and are never shipped in the package.
@@ -201,7 +209,7 @@ that carry their own `LICENSE` file (`protobufjs`, `@protobufjs/*`,
 for the components that do not are reproduced here, so every copy of
 Downbeat carries them.
 
-### onnxruntime-web 1.27.0 and onnxruntime-common 1.27.0 (MIT)
+### onnxruntime-web 1.31.1 and onnxruntime-common 1.31.1 (MIT)
 
 ```
 MIT License
@@ -253,7 +261,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### S-KEY (MIT)
+### S-KEY code (MIT; not the model weights, see above)
 
 ```
 MIT License
@@ -279,7 +287,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### Node.js v24.22.1 (MIT)
+### Node.js v24.22.3 (MIT)
 
 Only the bare `node` / `node.exe` executable is bundled. Node.js's own
 license, as published in its `LICENSE` file:
@@ -313,8 +321,8 @@ SOFTWARE.
 The executable also contains third-party components (V8, libuv, OpenSSL,
 ICU, zlib, and others) under their own permissive licenses. Their notices
 are listed in full in the `LICENSE` file at the root of the official
-release: `https://github.com/nodejs/node/blob/v24.22.1/LICENSE` (the same
-file ships inside every `node-v24.22.1-*` archive from nodejs.org).
+release: `https://github.com/nodejs/node/blob/v24.22.3/LICENSE` (the same
+file ships inside every `node-v24.22.3-*` archive from nodejs.org).
 
 ### guid-typescript 1.0.9 (ISC)
 

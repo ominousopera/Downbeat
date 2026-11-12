@@ -79,11 +79,21 @@ Release notes and packages for every version are on the
 - Settings' "Ready audio" hint is in the panel's language right after the
   start.
 
+### License
+
+- `NOTICE.md` and the README state the current upstream terms of the S-KEY
+  key model: its code is MIT, but its authors limit the model weights
+  (`models/skey.onnx`) to non-commercial research use.
+
 ### Requirements
 
 - Unchanged: Premiere Pro 2025 (25.0) or After Effects 2025 (25.0) or
   newer, macOS 13.5 or newer (Apple Silicon and Intel), Windows 10 or 11
   (x64).
+- The bundled Node.js, which runs the analysis on your computer, is 24.22.3,
+  the security release of November 2026.
+- The ONNX runtime that runs the beat and key models is 1.31.1; it gives
+  exactly the same results as the one in 1.0.5.
 
 ## 1.0.5
 
