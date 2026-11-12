@@ -372,7 +372,9 @@ as a new layer at the current time. The file is imported into a
 "Downbeat" bin (folder, in After Effects) once and reused after that. In
 Premiere, In and Out points you set on that sound in the bin stay as they
 were after an insert, and an insert of the whole sound places the whole
-sound, not only your In to Out.
+sound, not only your In to Out. FLAC and OGG files can be listened to but not
+inserted: Premiere Pro and After Effects do not import them, so the panel
+says so; save the sound as WAV or MP3 to insert it.
 When the preview pane below shows that same sound and you have set fades, a
 part, a pitch or Reverse there, **Insert**, the double-click and **Enter**
 put it on the timeline with those, exactly like the pane's own **Add**.

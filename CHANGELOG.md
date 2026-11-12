@@ -3,6 +3,88 @@
 Release notes and packages for every version are on the
 [Releases](https://github.com/ominousopera/Downbeat/releases) page.
 
+## 1.0.6
+
+### Markers
+
+- Downbeat's markers belong to their clip. Place and Clear leave the markers
+  of other clips alone, and Clear reaches every piece of a clip that was
+  cut.
+- After Effects with a non-English interface handles layer markers the same
+  way as in English.
+- After a cut made exactly on a marker (Razor in Premiere Pro, Split Layer
+  in After Effects), placing markers on the left piece again keeps the right
+  piece's first marker.
+- Paste is much faster on long songs: a few hundred markers take seconds,
+  not half a minute.
+
+### Analyze
+
+- The "1", **Beat grid** (Refined / Basic) and the Undo of **Custom BPM**
+  stay after a trim or after the clip is selected again.
+- A **Custom BPM** grid counts from the clip's start and follows a clip that
+  was made longer.
+- Audio that is too short or silent is refused with a message that says so.
+
+### Pitch and inserts
+
+- A muted track counts as busy, so nothing is placed on it.
+- Media with picture goes in as audio only, and media with several audio
+  channels is placed only where all its tracks are free.
+- A clip that is switched off is refused.
+- In Premiere Pro, the In and Out you set on the sound in the bin stay as
+  they were, and a refused pitch change leaves nothing behind in the bin.
+- After Effects carries the layer's own markers onto the pitched copy.
+- After Effects names the undo steps **Downbeat: add metronome** and
+  **Downbeat: change pitch**.
+
+### Library
+
+- Keys are read from file names more strictly: a key taken from a title
+  word or a one-letter folder name goes back to analysis. Stars stay.
+- A search for a word with a hyphen or an apostrophe ("sci-fi", "don't")
+  finds it, and accented names are found however the accents are stored.
+- A missing file with a star or a key you set keeps its record, and a moved
+  file keeps its record.
+- Recycle folders on Synology and QNAP network drives are skipped.
+- A star set in one program while the other one scans is kept in both.
+- **Clear** ignores a double click, and one click inserts a sound once.
+- Shortcuts are ignored while a dialog is open and work after a click in
+  the Library.
+- FLAC and OGG files can be listened to but not inserted: the panel says so
+  instead of Premiere Pro showing its own "File format not supported"
+  dialog.
+- A scan with a folder on an unplugged drive ends with its normal summary
+  instead of "could not be fully read".
+
+### Saved data
+
+- **Delete my data** keeps only the language and whether you saw the tour,
+  and a double click does not answer its dialog.
+- With Premiere Pro and After Effects open together, **Shift** values and
+  the record of placed markers are merged song by song.
+- A failed save stays visible until a save succeeds, and **Save a copy**
+  writes a temporary file first and then renames it.
+
+### Background work and messages
+
+- Temporary audio goes to the system's temp folder.
+- The analysis workers start hidden on Windows, stop when the panel closes
+  and end at their own time limit.
+- Analysis failures and the host's refusals are short sentences in the
+  panel's language; the full text stays in the log.
+- A layer whose media file is missing says so instead of "has no audio",
+  and the clip line shows the reason for a newly selected layer even while
+  an earlier error is on screen.
+- Settings' "Ready audio" hint is in the panel's language right after the
+  start.
+
+### Requirements
+
+- Unchanged: Premiere Pro 2025 (25.0) or After Effects 2025 (25.0) or
+  newer, macOS 13.5 or newer (Apple Silicon and Intel), Windows 10 or 11
+  (x64).
+
 ## 1.0.5
 
 ### The "1" of each bar
