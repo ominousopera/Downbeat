@@ -1934,20 +1934,151 @@ function _dbTrackEmptyAt(track, startSeconds, span) {
 
 // The first audio track from `firstTrack` on where `count` tracks in a row
 // (media with several mono channels takes a track for each) are open and
-// have nothing between startSeconds and startSeconds + span, or -1.
-function _dbFreeAudioTrack(sequence, firstTrack, startSeconds, span, count) {
+// have nothing between startSeconds and startSeconds + span, or -1. With
+// `kind` ("mono", "stereo", "5.1": what each clip of the item is) a track
+// must also take that kind of clip: a mono track only mono clips, a 5.1
+// track only 5.1 ones. Premiere refuses a stereo clip on a 5.1 track, and
+// a script's overwrite puts a stereo clip on a mono track, where it is
+// heard folded to mono. Tracks whose type cannot be read take any clip.
+function _dbFreeAudioTrack(sequence, firstTrack, startSeconds, span, count, kind) {
     var need = count > 1 ? Math.floor(count) : 1;
+    var types = kind ? _dbAudioTrackTypes(sequence) : null;
     for (var t = firstTrack; t + need <= sequence.audioTracks.numTracks; t++) {
         var free = true;
         for (var k = t; k < t + need && free; k++) {
             var track = sequence.audioTracks[k];
-            free = !_dbTrackClosed(track) && _dbTrackEmptyAt(track, startSeconds, span);
+            free = !_dbTrackClosed(track) && _dbTrackEmptyAt(track, startSeconds, span) &&
+                (!types || _dbTrackTakes(types[k], kind));
         }
         if (free) {
             return t;
         }
     }
     return -1;
+}
+
+function _dbTrackTakes(trackType, kind) {
+    if (trackType === "Mono") {
+        return kind === "mono";
+    }
+    if (trackType === "5.1") {
+        return kind === "5.1";
+    }
+    return kind !== "5.1"; // standard (stereo) and adaptive tracks
+}
+
+// What each clip of the item is: "mono" (a mono file, or one clip per
+// channel of a dual-mono camera file), "5.1", else "stereo" - also when
+// this Premiere cannot say, so the clip keeps off mono and 5.1 tracks.
+function _dbItemAudioKind(item) {
+    try {
+        var mapping = item.getAudioChannelMapping;
+        if (typeof mapping === "function") {
+            mapping = item.getAudioChannelMapping();
+        }
+        if (mapping) {
+            var clips = Number(mapping.audioClipsNumber);
+            var type = Number(mapping.audioChannelsType); // 0 mono, 1 stereo, 2 5.1
+            if (type === 0 || (isFinite(clips) && clips > 1)) {
+                return "mono";
+            }
+            if (type === 2) {
+                return "5.1";
+            }
+        }
+    } catch (mapErr) {
+        // stereo below
+    }
+    return "stereo";
+}
+
+// The type of each audio track of the sequence ("Stereo", "Mono", "5.1",
+// ...), by track index, or null when it cannot be read. The scripting API
+// does not give a track's channel type; the sequence's Final Cut Pro XML
+// export does (premiereTrackType). Exported once into the system's temp
+// folder, read and removed; a track's type never changes, so the answer is
+// kept for the sequence until its list of tracks changes.
+var _dbTrackTypeCache = {};
+function _dbAudioTrackTypes(sequence) {
+    var n = sequence.audioTracks.numTracks;
+    var key = "";
+    try {
+        key = String(sequence.sequenceID);
+        for (var i = 0; i < n; i++) {
+            key += "|" + String(sequence.audioTracks[i].id);
+        }
+    } catch (keyErr) {
+        key = "";
+    }
+    if (key && _dbTrackTypeCache.hasOwnProperty(key)) {
+        return _dbTrackTypeCache[key];
+    }
+    var types = null;
+    if (typeof sequence.exportAsFinalCutProXML === "function" && Folder.temp) {
+        var xmlPath = Folder.temp.fsName + "/downbeat-tracks-" + new Date().getTime() + "-" + Math.floor(Math.random() * 1000000) + ".xml";
+        try {
+            if (sequence.exportAsFinalCutProXML(xmlPath, 1)) {
+                var xmlFile = new File(xmlPath);
+                if (xmlFile.exists) {
+                    xmlFile.encoding = "UTF-8";
+                    if (xmlFile.open("r")) {
+                        var text = xmlFile.read();
+                        xmlFile.close();
+                        var found = _dbXmlAudioTrackTypes(text);
+                        types = found.length === n ? found : null;
+                    }
+                }
+            }
+        } catch (exportErr) {
+            types = null;
+        }
+        try {
+            var leftover = new File(xmlPath);
+            if (leftover.exists) { leftover.remove(); }
+        } catch (removeErr) { /* the system clears its temp folder */ }
+    }
+    if (key) {
+        _dbTrackTypeCache[key] = types;
+    }
+    return types;
+}
+
+// The premiereTrackType of each audio track of the top sequence in a Final
+// Cut Pro XML export. Premiere writes a stereo track as two XML tracks (one
+// per channel, currentExplodedTrackIndex 0 and 1) and a 5.1 track as six,
+// so a track starts at index 0. Tracks of a nested sequence inside a clip
+// are not the sequence's own and are skipped.
+function _dbXmlAudioTrackTypes(text) {
+    var tagRe = /<(\/?)([A-Za-z_][\w.:\-]*)((?:[^>"']|"[^"]*"|'[^']*')*?)(\/?)>/g;
+    var stack = [];
+    var sequences = 0;
+    var types = [];
+    var m;
+    while ((m = tagRe.exec(text)) !== null) {
+        var name = m[2];
+        if (m[1] === "/") {
+            while (stack.length) {
+                var top = stack.pop();
+                if (top === "sequence") { sequences--; }
+                if (top === name) { break; }
+            }
+            continue;
+        }
+        var len = stack.length;
+        if (name === "track" && sequences === 1 && len >= 3 && stack[len - 1] === "audio" &&
+            stack[len - 2] === "media" && stack[len - 3] === "sequence") {
+            var part = /currentExplodedTrackIndex="(\d+)"/.exec(m[3]);
+            var type = /premiereTrackType="([^"]*)"/.exec(m[3]);
+            if (!part || part[1] === "0") {
+                types.push(type ? type[1] : "");
+            }
+        }
+        if (m[4] !== "/") {
+            stack.push(name);
+            if (name === "sequence") { sequences++; }
+        }
+    }
+    return types;
 }
 
 // How many audio clips the item lays down: camera dual mono or a poly WAV
@@ -2185,9 +2316,15 @@ function _dbItemMediaEnd(item) {
 
 // The refusal when no audio track is free: an insert at the clip's own
 // place (Pitch the clip, the metronome) cannot be helped by moving the
-// playhead, so it does not say so.
-function _dbNoFreeTrackText(length, opts) {
-    if (opts && typeof opts.atSeconds === "number") {
+// playhead, so it does not say so. `byType`: tracks were free there, but
+// mono or 5.1 ones that do not take this clip.
+function _dbNoFreeTrackText(length, opts, byType) {
+    var here = opts && typeof opts.atSeconds === "number";
+    if (byType) {
+        return "No free audio track at " + (here ? "the clip's place" : "the playhead") + " takes this " + length.toFixed(1) +
+            " s sound: mono and 5.1 tracks take only their own kind of clip. Add a standard audio track" + (here ? "." : " or move the playhead.");
+    }
+    if (here) {
         return "No free audio track at the clip's place for this " + length.toFixed(1) + " s sound. Add an audio track.";
     }
     return "No free audio track at the playhead for this " + length.toFixed(1) + " s sound. Add an audio track or move the playhead.";
@@ -2354,9 +2491,11 @@ function insertAudioAtPlayhead(mediaPathJson, durationSeconds, optsJson) {
                     }
                 }
                 if (!refused) {
-                    target = _dbFreeAudioTrack(sequence, firstTrack, startSeconds, Math.max(length, laid), clipCount);
+                    var span = Math.max(length, laid);
+                    target = _dbFreeAudioTrack(sequence, firstTrack, startSeconds, span, clipCount, _dbItemAudioKind(placeItem));
                     if (target === -1) {
-                        throw new Error(_dbNoFreeTrackText(length, opts));
+                        throw new Error(_dbNoFreeTrackText(length, opts,
+                            _dbFreeAudioTrack(sequence, firstTrack, startSeconds, span, clipCount) !== -1));
                     }
                     before = _dbAllClips(sequence);
                     sequence.audioTracks[target].overwriteClip(placeItem, position);

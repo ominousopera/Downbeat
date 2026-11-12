@@ -5,6 +5,7 @@
 // properties keyed in comp time, duplicate() above the original, and a Scale
 // property. Used by test-host-ae.js and test-self-test.js.
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const vm = require("vm");
 // DOWNBEAT_ROOT: build-zxp.sh points this at the staged release copy.
@@ -105,6 +106,11 @@ function ImportOptions(file) { this.file = file; }
 function MockFile(p) { this.fsName = String(p); this.exists = fs.existsSync(String(p)); }
 MockFile.nextSave = null;
 MockFile.nextOpen = null;
+// Reading and removing a file, as host.jsx does with the sequence's XML export.
+MockFile.prototype.open = function (mode) { return mode !== "r" || fs.existsSync(this.fsName); };
+MockFile.prototype.read = function () { return fs.readFileSync(this.fsName, "utf8"); };
+MockFile.prototype.close = function () { return true; };
+MockFile.prototype.remove = function () { try { fs.unlinkSync(this.fsName); return true; } catch (e) { return false; } };
 MockFile.prototype.saveDlg = function () { return MockFile.nextSave ? new MockFile(MockFile.nextSave) : null; };
 MockFile.openDialog = function () { return MockFile.nextOpen ? new MockFile(MockFile.nextOpen) : null; };
 // A comp holding the audio file as one selected layer (source 0 at comp
@@ -251,6 +257,19 @@ function makePremiereHost(opts) {
     markers: new MarkerCollection(),
     getSettings: function () { return { videoFrameRate: { ticks: String(TICKS_PER_SECOND / fps) } }; }
   };
+  // opts.audioTrackTypes ("Stereo", "Mono", "5.1" per audio track): the
+  // tracks get ids and the sequence a Final Cut Pro XML export that names
+  // them, written as Premiere writes it (opts.exportCount counts calls).
+  if (opts.audioTrackTypes) {
+    sequence.sequenceID = "seq-" + (++pclipSerial);
+    allAudio.forEach(function (t, i) { t.id = i + 2; });
+    opts.exportCount = 0;
+    sequence.exportAsFinalCutProXML = function (p) {
+      opts.exportCount++;
+      fs.writeFileSync(p, premiereXml(opts.audioTrackTypes));
+      return true;
+    };
+  }
   function razorTrack(track, timecode) {
     const p = timecode.split(":").map(Number);
     const t = ((p[0] * 60 + p[1]) * 60 + p[2]) + p[3] / fps;
@@ -276,6 +295,11 @@ function makePremiereHost(opts) {
           const importedMarkers = new MarkerCollection();
           const it = { type: 1, name: path.basename(p), getMediaPath: function () { return p; },
             getMarkers: function () { return importedMarkers; } };
+          // opts.channelMapping: what ProjectItem.getAudioChannelMapping()
+          // answers (audioChannelsType 0 mono, 1 stereo, 2 5.1).
+          if (opts.channelMapping) {
+            it.getAudioChannelMapping = function () { return opts.channelMapping; };
+          }
           // opts.mediaLength: the item reports where its media ends, as
           // Premiere's ProjectItem.getOutPoint() does with no out mark set.
           if (typeof opts.mediaLength === "number") {
@@ -355,12 +379,35 @@ function makePremiereHost(opts) {
   };
   return { context: context, sequence: sequence, audioTrack: audioTrack, clipMarkers: clipMarkers, rootItem: rootItem, playhead: playhead };
 }
+// A sequence's export as Premiere writes it: each audio track split into
+// one XML track per channel (currentExplodedTrackIndex), its type on each,
+// and a clip on A1 holding a nested sequence with tracks of its own (mono),
+// which are not the sequence's tracks.
+function premiereXml(types) {
+  const counts = { Stereo: 2, Mono: 1, "5.1": 6 };
+  const nested = '<clipitem id="clipitem-9"><name>Nested</name><sequence id="sequence-2"><name>Nested</name><media>' +
+    '<audio><track premiereTrackType="Mono" currentExplodedTrackIndex="0" totalExplodedTrackCount="1"><enabled>TRUE</enabled></track></audio>' +
+    '</media></sequence></clipitem>';
+  let audio = "";
+  types.forEach(function (type, i) {
+    const n = counts[type] || 2;
+    for (let k = 0; k < n; k++) {
+      audio += '<track TL.SQTrackShy="0" PannerName="' + (type === "Mono" ? "Pan" : "Balance") + '" currentExplodedTrackIndex="' + k +
+        '" totalExplodedTrackCount="' + n + '" premiereTrackType="' + type + '">' + (i === 0 && k === 0 ? nested : "") +
+        '<enabled>TRUE</enabled><outputchannelindex>' + (k + 1) + '</outputchannelindex></track>';
+    }
+  });
+  return '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE xmeml>\n<xmeml version="4"><sequence id="sequence-1"><name>Main</name>' +
+    '<media><video><format/><track><enabled>TRUE</enabled></track></video><audio><numOutputChannels>2</numOutputChannels>' + audio +
+    '</audio></media></sequence></xmeml>';
+}
+
 // Loads the real host.jsx (with host-ae.jsx inlined for its #include) into a
 // fresh VM context around `hostContext`. Returns evalScript(script, cb)
 // shaped like CSInterface's: a thrown script answers "EvalScript error.".
 function loadHost(hostContext) {
   const ctx = Object.assign({ JSON: JSON, Math: Math, Number: Number, String: String, isNaN: isNaN, Error: Error,
-    Folder: {}, File: MockFile, $: { os: "Macintosh OS 15.0" } }, hostContext);
+    Folder: { temp: { fsName: os.tmpdir() } }, File: MockFile, $: { os: "Macintosh OS 15.0" } }, hostContext);
   vm.createContext(ctx);
   const hostAe = fs.readFileSync(path.join(ROOT, "jsx", "host-ae.jsx"), "utf8");
   const host = fs.readFileSync(path.join(ROOT, "jsx", "host.jsx"), "utf8");

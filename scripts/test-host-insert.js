@@ -74,6 +74,43 @@ try {
   r = JSON.parse(mocks.loadHost(pAt.context).run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + js(({ atSeconds: 3 })) + ")"));
   check("Premiere: no free track at the clip's place says so, without the playhead advice",
     !r.ok && /^No free audio track at the clip's place for this 5\.0 s sound\. Add an audio track\.$/.test(r.error), r.error);
+  // Track types: a stereo sound placed on a mono track is heard folded to
+  // mono, and Premiere refuses it on a 5.1 track. A1 holds the music; A2 is
+  // mono, A3 5.1, A4 standard.
+  function tempXmls() { return fs.readdirSync(os.tmpdir()).filter(function (n) { return /^downbeat-tracks-/.test(n); }).length; }
+  const xmlsBefore = tempXmls();
+  const typedOpts = { mediaPath: "/music/song.mp3", durationSec: 60, clipStart: 0, audioTrackCount: 4, playheadSeconds: 10,
+    insertDurationSec: 5, audioTrackTypes: ["Stereo", "Mono", "5.1", "Stereo"] };
+  const typed = mocks.makePremiereHost(typedOpts);
+  const typedHost = mocks.loadHost(typed.context);
+  const tt = typed.sequence.audioTracks;
+  r = JSON.parse(typedHost.run("insertAudioAtPlayhead(" + js(sound) + ", 5)"));
+  check("Premiere: a stereo sound passes the mono and the 5.1 track and goes to the standard one",
+    r.ok && r.data.where === "A4" && tt[1].clips.length === 0 && tt[2].clips.length === 0 && tt[3].clips.length === 1, JSON.stringify(r.data || r.error));
+  typed.playhead.seconds = 30;
+  r = JSON.parse(typedHost.run("insertAudioAtPlayhead(" + js(sound) + ", 5)"));
+  check("... the track types are read once for the sequence (one export for two inserts), and the tracks of a nested sequence are not counted",
+    r.ok && r.data.where === "A4" && typedOpts.exportCount === 1, JSON.stringify(r.data || r.error) + ", exports " + typedOpts.exportCount);
+  check("... and the export leaves no file in the temp folder", tempXmls() === xmlsBefore, tempXmls() + " vs " + xmlsBefore);
+  const onlyOdd = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60, clipStart: 0, audioTrackCount: 3, playheadSeconds: 10,
+    insertDurationSec: 5, audioTrackTypes: ["Stereo", "Mono", "5.1"] });
+  const oddHost = mocks.loadHost(onlyOdd.context);
+  r = JSON.parse(oddHost.run("insertAudioAtPlayhead(" + js(sound) + ", 5)"));
+  check("Premiere: only a mono and a 5.1 track free: refused with the reason, nothing placed",
+    !r.ok && /^No free audio track at the playhead takes this 5\.0 s sound: mono and 5\.1 tracks take only their own kind of clip\. Add a standard audio track or move the playhead\.$/.test(r.error) &&
+    onlyOdd.sequence.audioTracks[1].clips.length === 0 && onlyOdd.sequence.audioTracks[2].clips.length === 0, r.error);
+  r = JSON.parse(oddHost.run("insertAudioAtPlayhead(" + js(sound) + ", 5, " + js(({ atSeconds: 10 })) + ")"));
+  check("... at the clip's place (Pitch the clip) without the playhead advice",
+    !r.ok && /^No free audio track at the clip's place takes this 5\.0 s sound: .* Add a standard audio track\.$/.test(r.error), r.error);
+  const monoSound = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60, clipStart: 0, audioTrackCount: 3, playheadSeconds: 10,
+    insertDurationSec: 5, audioTrackTypes: ["Stereo", "Mono", "5.1"], channelMapping: { audioChannelsType: 0, audioClipsNumber: 1 } });
+  r = JSON.parse(mocks.loadHost(monoSound.context).run("insertAudioAtPlayhead(" + js(sound) + ", 5)"));
+  check("Premiere: a mono sound may go onto the mono track", r.ok && r.data.where === "A2", JSON.stringify(r.data || r.error));
+  const unreadable = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60, clipStart: 0, audioTrackCount: 3, playheadSeconds: 10,
+    insertDurationSec: 5, audioTrackTypes: ["Stereo", "Mono"] });
+  r = JSON.parse(mocks.loadHost(unreadable.context).run("insertAudioAtPlayhead(" + js(sound) + ", 5)"));
+  check("Premiere: an export that does not match the tracks counts as unknown types: the first free track, as before",
+    r.ok && r.data.where === "A2", JSON.stringify(r.data || r.error));
   const rounded = mocks.makePremiereHost({ mediaPath: "/music/song.mp3", durationSec: 60,
     playheadSeconds: 150, audioTrackCount: 2, insertDurationSec: 10.33, quantizeImportedTrim: true });
   const roundedHost = mocks.loadHost(rounded.context);

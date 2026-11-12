@@ -8,8 +8,8 @@
 // less reliable" warning shows.
 // Checks:
 //   - Analyze applies Refined and saves "refined"; Basic saves "basic";
-//   - after a restart the saved grid is not reopened, and neither the
-//     warning nor the Beat grid line shows until Analyze;
+//   - after a restart the saved grid is back on screen with its BPM, the
+//     warning and the Beat grid line, and a switch analyzes it again;
 //   - after selecting another clip and coming back, the saved word is lit;
 //     Basic works with no Basic grid in memory and Refined with no decoded
 //     audio in memory (both analyze the clip again);
@@ -113,15 +113,18 @@ function clipFor(mediaPath) {
       process.stderr.write(second.stderr || "");
       check("the restarted panel passes its checks", second.status === 0, "exit " + second.status);
     } else {
-      // A grid from an earlier session is not reopened: no warning and no
-      // Beat grid line until Analyze.
+      // The grid saved by the first panel is on screen again: its BPM in
+      // the box and the clip line, its word lit, the warning shown.
       const warned = function () { return R.gridConfidenceRow.style.display !== "none"; };
-      check("after a restart the saved grid waits for Analyze, with no warning or switch",
-        !rowShown() && !warned() && R.bpmDisplay.textContent === "-",
-        "row " + rowShown() + ", warning " + warned() + ", " + R.bpmDisplay.textContent + " BPM");
-      R.analyzeBtn._fire("click"); await idle();
-      check("Analyze after the restart applies Refined", lit() === "Refined" && warned() && analyses === 1,
-        lit() + ", Analyze runs " + analyses);
+      check("after a restart the saved grid is back, with its BPM, warning and switch",
+        lit() === "Basic" && rowShown() && warned() && shown() === 137 && analyses === 0 &&
+          /137\.0 BPM/.test(R.selectionStatusDisplay.title),
+        lit() + ", row " + rowShown() + ", warning " + warned() + ", " + R.bpmDisplay.textContent + " BPM, line " +
+          R.selectionStatusDisplay.title);
+      R.gridRefinedBtn._fire("click"); await idle();
+      check("Refined after the restart (no audio in memory) analyzes again and applies",
+        lit() === "Refined" && warned() && shown() === 120 && analyses === 1,
+        lit() + ", " + R.bpmDisplay.textContent + " BPM, Analyze runs " + analyses);
 
       // Another clip analyzed meanwhile: the audio in memory is that clip's.
       await select(other);

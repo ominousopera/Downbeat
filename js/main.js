@@ -256,7 +256,8 @@
     bridge: function () { return _bridge; },
     csInterface: function () { return csInterface; },
     initialSettings: function () { return initialSettings; },
-    resetSettingsAfterDelete: resetSettingsAfterDelete
+    resetSettingsAfterDelete: resetSettingsAfterDelete,
+    dialogsChanged: function () { _registerKeyInterest(); }
   });
   function closeSettingsPanel() {
     return _settingsPanel.closeSettingsPanel.apply(null, arguments);
@@ -562,18 +563,55 @@
   // its .tab-content.
   var tabButtons = document.querySelectorAll(".tab-btn");
   var tabContents = document.querySelectorAll(".tab-content");
-  // Keys the panel takes from the host while the Library tab is shown
-  // (arrows, Space, Return / Enter), for its keyboard navigation; other tabs
-  // give them back. Key codes are the system's own, and one system's codes
-  // are other keys on the other (Windows reads 76 as L), so each gets its own.
-  function _libKeyInterest() {
+  // Keys the panel takes from the host: while the Library tab is shown the
+  // arrows, Space and Return / Enter, for its keyboard navigation (other
+  // tabs give them back); while Settings or one of its dialogs is open, Esc,
+  // which closes the one on top (settings-panel.js) - without it Premiere
+  // and After Effects keep Esc even with the panel in front. Key codes are
+  // the system's own, and one system's codes are other keys on the other
+  // (Windows reads 76 as L), so each gets its own. "" when none: CEP
+  // rejects "[]".
+  function _keyInterest(tabId) {
     var osName = "";
     try { osName = String(csInterface.getOSInformation() || ""); } catch (osErr) { osName = ""; }
     if (!osName && typeof navigator !== "undefined") {
       osName = String(navigator.platform || "");
     }
-    var codes = /^\s*win/i.test(osName) ? [38, 40, 32, 13] : [126, 125, 49, 36, 76];
-    return JSON.stringify(codes.map(function (c) { return { keyCode: c }; }));
+    var win = /^\s*win/i.test(osName);
+    var codes = tabId === "library" ? (win ? [38, 40, 32, 13] : [126, 125, 49, 36, 76]) : [];
+    if (_panelDialogOpen()) {
+      codes.push(win ? 27 : 53);
+    }
+    return codes.length ? JSON.stringify(codes.map(function (c) { return { keyCode: c }; })) : "";
+  }
+  function _panelDialogOpen() {
+    var ids = ["settingsPanel", "textViewerOverlay", "externalLinkOverlay", "deleteDataOverlay"];
+    for (var d = 0; d < ids.length; d++) {
+      var el = document.getElementById(ids[d]);
+      if (el && !el.hidden) {
+        return true;
+      }
+    }
+    return false;
+  }
+  // Asked again only when the keys change: closing a dialog with Esc while
+  // Settings stays open asks for the same Esc, and asking again during the
+  // key press can leave a floating panel window without the keyboard, so a
+  // second Esc would not reach Settings.
+  var _keyInterestAsked = null;
+  function _registerKeyInterest() {
+    var interest = _keyInterest(activeTabId);
+    if (interest === _keyInterestAsked) {
+      return;
+    }
+    if (typeof csInterface !== "undefined" && csInterface && typeof csInterface.registerKeyEventsInterest === "function") {
+      try {
+        csInterface.registerKeyEventsInterest(interest);
+        _keyInterestAsked = interest;
+      } catch (keyErr) {
+        log("Keyboard keys could not be requested from the host: " + keyErr);
+      }
+    }
   }
   // Idempotent: switching to the tab that is already active does nothing
   // (no scroll reset). That matters because js/tour.js calls this on every
@@ -605,14 +643,7 @@
     if (clipLine && slot && clipLine.parentNode !== slot && typeof slot.appendChild === "function") {
       slot.appendChild(clipLine);
     }
-    if (typeof csInterface !== "undefined" && csInterface && typeof csInterface.registerKeyEventsInterest === "function") {
-      try {
-        // An empty string removes the interest; CEP rejects "[]".
-        csInterface.registerKeyEventsInterest(tabId === "library" ? _libKeyInterest() : "");
-      } catch (keyErr) {
-        log("Keyboard keys for the Library could not be requested from the host: " + keyErr);
-      }
-    }
+    _registerKeyInterest();
     var alreadyActive = false;
     for (var i = 0; i < tabContents.length; i++) {
       var isMatch = tabContents[i].getAttribute("data-tab") === tabId;
@@ -3617,6 +3648,12 @@
   function _selectionPlaceholder() {
     return I18n.t("selection.placeholder");
   }
+  // The start text comes from index.html as plain text, which a
+  // right-aligned line would cut from the left in a narrow panel. Written
+  // like every other clip line, it is shortened with "..." at its end and
+  // follows a language change.
+  selectionStatusDisplay.removeAttribute("data-i18n");
+  _setSelectionStatus(_selectionPlaceholder, "");
   // Flashes the actual error (already a specific, human-readable message
   // from the host, for example nothing selected, a video clip selected, or
   // more than one clip selected) into the selection-status
@@ -3661,6 +3698,8 @@
   var _insertReasonKeys = [
     [/^No free audio track at the playhead for this ([0-9.]+) s sound\./, "library.insertNoFreeTrack", "seconds"],
     [/^No free audio track at the clip's place for this ([0-9.]+) s sound\./, "library.insertNoFreeTrackHere", "seconds"],
+    [/^No free audio track at the playhead takes this ([0-9.]+) s sound:/, "library.insertNoFreeTrackKind", "seconds"],
+    [/^No free audio track at the clip's place takes this ([0-9.]+) s sound:/, "library.insertNoFreeTrackKindHere", "seconds"],
     [/^Premiere keeps this file offline in the project\./, "library.insertOffline", null],
     [/^The file is not there any more: (.*)$/, "library.insertGone", "path"],
     [/^Premiere did not import the file\./, "library.insertNotImported", null],
@@ -3809,14 +3848,14 @@
 
   // The clip line: the file's name - in After Effects with the composition
   // that will be changed, which need not be the one on screen - the BPM of
-  // the grid kept for it since the panel opened, and the key.
+  // the grid saved for it, and the key.
   function _clipLineName(clipInfo) {
     var name = basename(clipInfo.mediaPath);
     return clipInfo.compName ? clipInfo.compName + " > " + name : name;
   }
   function _showClipLine(clipInfo, entry) {
     var statusParts = [_clipLineName(clipInfo)];
-    if (entry && entry.beatsArray && entry.clipInfo && entry.bpm) {
+    if (entry && entry.beatsArray && entry.bpm) {
       var bpmText = entry.bpm.toFixed(1);
       statusParts.push(function () { return bpmText + " BPM (" + I18n.t("selection.alreadyAnalyzed") + ")"; });
     }
@@ -3856,7 +3895,10 @@
       _updatePhaseShiftUi();
       _setBpmText(entry.bpm.toFixed(2));
       beatCountDisplay.textContent = String(kept.beatsArray.length);
-    } else if (entry && entry.beatsArray && entry.clipInfo) {
+    } else if (entry && entry.beatsArray) {
+      // Also an entry saved before the panel opened or by the other host:
+      // the grid is kept in the file's own seconds, so it is laid on the
+      // clip's live position like any other (no clipInfo is saved).
       lastAnalysis = {
         beatsArray: entry.beatsArray,
         confidence: entry.confidence,
@@ -3892,9 +3934,8 @@
     }
     // The phase warning needs values the library does not save, so it shows
     // only for a grid kept since the panel opened. The saved confidence shows
-    // the grid warning only while that grid is on screen: an entry from an
-    // earlier session is not reopened (it needs a new Analyze), and its warning
-    // and Beat grid line would offer a switch with no grid behind it.
+    // the grid warning only while that grid is on screen, so the Beat grid
+    // line never offers a switch with no grid behind it.
     _updatePhaseUncertainHint(kept ? kept.phaseMarginRatio : null);
     _updatePhaseAgreementHint(kept);
     _updateGridConfidenceHint(lastAnalysis ? lastAnalysis.confidence : null);

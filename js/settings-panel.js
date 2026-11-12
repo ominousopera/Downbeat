@@ -70,6 +70,14 @@
     // on its buttons (for example in tests) are not interrupted.
     var settingsPanel = document.getElementById("settingsPanel");
     var settingsBackdrop = document.getElementById("settingsBackdrop");
+    // Settings and its dialogs (the text viewer, the link question, Delete
+    // my data) open and close only through here: while one is open main.js
+    // asks the host for Esc, which the handler below needs (the hosts keep
+    // Esc otherwise, even with the panel in front).
+    function _setDialog(el, open) {
+      el.hidden = !open;
+      if (ctx.dialogsChanged) { ctx.dialogsChanged(); }
+    }
     // The tour lets clicks through (its Settings step points at the gear):
     // while Settings is open the tour steps aside, so Settings is not under
     // its dark layer and box, and it comes back when Settings closes.
@@ -77,12 +85,12 @@
       if (global.BeatMarkerTour && global.BeatMarkerTour.setAside) { global.BeatMarkerTour.setAside(on); }
     }
     function openSettingsPanel() {
-      settingsPanel.hidden = false;
+      _setDialog(settingsPanel, true);
       settingsBackdrop.hidden = false;
       _tourSetAside(true);
     }
     function closeSettingsPanel() {
-      settingsPanel.hidden = true;
+      _setDialog(settingsPanel, false);
       settingsBackdrop.hidden = true;
       _tourSetAside(false);
     }
@@ -98,10 +106,10 @@
         return;
       }
       if (!deleteDataOverlay.hidden) {
-        deleteDataOverlay.hidden = true;
+        _setDialog(deleteDataOverlay, false);
       } else if (!externalLinkOverlay.hidden) {
         _pendingExternalUrl = null;
-        externalLinkOverlay.hidden = true;
+        _setDialog(externalLinkOverlay, false);
       } else if (!textViewerOverlay.hidden) {
         _closeTextViewer();
       } else if (!settingsPanel.hidden) {
@@ -144,7 +152,7 @@
       } else {
         textViewerBody.textContent = content;
       }
-      textViewerOverlay.hidden = false;
+      _setDialog(textViewerOverlay, true);
     }
     // Handles just what those files use: #/##/### headings, paragraphs, "-"
     // and "1." lists (with indented continuation lines), | tables |,
@@ -293,7 +301,7 @@
       }
     }
     function _closeTextViewer() {
-      textViewerOverlay.hidden = true;
+      _setDialog(textViewerOverlay, false);
     }
     document.getElementById("textViewerCloseBtn").addEventListener("click", _closeTextViewer);
     textViewerOverlay.addEventListener("click", function (evt) {
@@ -344,11 +352,11 @@
       _pendingExternalUrl = url;
       setTranslatedText(externalLinkMessage, "settings.externalLinkMessage", { url: url });
       externalLinkRememberCheckbox.checked = false;
-      externalLinkOverlay.hidden = false;
+      _setDialog(externalLinkOverlay, true);
     }
     document.getElementById("externalLinkCancelBtn").addEventListener("click", function () {
       _pendingExternalUrl = null;
-      externalLinkOverlay.hidden = true;
+      _setDialog(externalLinkOverlay, false);
     });
     document.getElementById("externalLinkOpenBtn").addEventListener("click", function () {
       if (_pendingExternalUrl) {
@@ -358,7 +366,7 @@
         persistSettings({ skipExternalLinkConfirm: true });
       }
       _pendingExternalUrl = null;
-      externalLinkOverlay.hidden = true;
+      _setDialog(externalLinkOverlay, false);
     });
     document.getElementById("feedbackBtn").addEventListener("click", function () {
       _confirmAndOpenUrl("https://linktr.ee/nkolesov");
@@ -496,7 +504,7 @@
       deleteDataMessage.textContent = message;
       deleteDataConfirmBtn.hidden = !canConfirm;
       setTranslatedText(deleteDataCancelBtn, canConfirm ? "settings.deleteDataCancel" : "settings.deleteDataClose");
-      deleteDataOverlay.hidden = false;
+      _setDialog(deleteDataOverlay, true);
       _deleteDataShownAt = Date.now();
     }
     document.getElementById("deleteDataBtn").addEventListener("click", function () {
@@ -524,7 +532,7 @@
       _showDeleteDataDialog(message, true);
     });
     deleteDataCancelBtn.addEventListener("click", function () {
-      deleteDataOverlay.hidden = true;
+      _setDialog(deleteDataOverlay, false);
     });
     deleteDataConfirmBtn.addEventListener("click", function (evt) {
       if ((evt && evt.detail > 1) || Date.now() - _deleteDataShownAt < DELETE_CONFIRM_MIN_MS) {

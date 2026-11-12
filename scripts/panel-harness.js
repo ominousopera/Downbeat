@@ -200,8 +200,16 @@ global.document = {
   },
   execCommand: function () { return true; }
 };
-global.addEventListener = function () {};
+// Window listeners are kept too: window._fireWindow("focus") is the panel
+// window getting the focus back (from the other host, say).
+const windowListeners = {};
+global.addEventListener = function (type, fn) { (windowListeners[type] = windowListeners[type] || []).push(fn); };
 global.removeEventListener = function () {};
+global._fireWindow = function (type, evt) {
+  const e = Object.assign({ type: type, preventDefault: function () {}, stopPropagation: function () {} }, evt || {});
+  (windowListeners[type] || []).forEach(function (fn) { fn(e); });
+  return e;
+};
 global.requestAnimationFrame = function () { return 0; };
 global.cancelAnimationFrame = function () {};
 global.scrollTo = function () {};

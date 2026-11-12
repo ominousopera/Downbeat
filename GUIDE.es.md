@@ -129,7 +129,10 @@ Si en la misma sesión vuelves a seleccionar un clip del mismo archivo —tras
 un recorte o después de otro clip—, vuelve la cuadrícula que tenías: el
 «uno» elegido, **BPM propio** con su **Deshacer**, y **Básica** o
 **Afinada** (Básica al instante, sin un análisis nuevo). El panel lo
-recuerda para los últimos 12 archivos.
+recuerda para los últimos 12 archivos. Tras reiniciar el programa, y con
+una canción analizada en el otro programa, al seleccionar el clip vuelven
+su tempo y su cuadrícula guardados; cambiar entre **Básica** y **Afinada**
+analiza antes el clip de nuevo.
 
 ## Segundo detector de tiempos (Beat This!)
 
@@ -235,7 +238,8 @@ cuando un destino no se puede alcanzar, por ejemplo de menor a mayor.
 igual que cambia el tono la vista previa de la biblioteca (como un
 sampler: más agudo también suena más rápido y más corto): coloca el
 propio archivo del clip seleccionado, la parte que usa la línea de
-tiempo, en una pista libre (nunca una bloqueada o silenciada) en el lugar
+tiempo, en una pista libre (nunca una bloqueada o silenciada, y un clip
+estéreo nunca en una pista mono o 5.1) en el lugar
 del clip, a la velocidad que da
 ese cambio; no se crea ninguna copia, sigue siendo tu archivo donde
 está. El original se queda donde estaba, desactivado (Desactivar en
@@ -408,7 +412,8 @@ Pulsa ▶ para escuchar. **Insertar** (o
 un doble clic en la fila) pone el archivo en la línea de tiempo en el
 cursor, una vez por doble clic; un doble clic en ▶ o ★ nunca inserta. En
 Premiere va a la primera pista de audio que esté libre durante todo el
-sonido y no esté bloqueada ni silenciada —no se sobrescribe nada; si no
+sonido, no esté bloqueada ni silenciada y admita sus canales (un sonido
+estéreo se salta las pistas mono y 5.1) —no se sobrescribe nada; si no
 hay una pista así, lo
 dice—, y en After Effects como una capa nueva en el tiempo actual. El
 archivo se importa una vez a una bandeja «Downbeat» (carpeta, en After

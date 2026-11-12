@@ -169,8 +169,19 @@
           return null;
         }
       }
+      var clearedBefore = _libClearedAt();
       var changed = fresh.changed ? SL.absorb(fresh.value) : false;
-      return _takeInKeptCopies(fresh) || changed;
+      changed = _takeInKeptCopies(fresh) || changed;
+      if (_libClearedAt() > clearedBefore) {
+        // The other host cleared the library: the line under the list says
+        // so instead of speaking of the old list (a scan's result, a folder).
+        setTranslatedText(libScanStatus, "library.clearedElsewhere");
+      }
+      return changed;
+    }
+    function _libClearedAt() {
+      var at = SL.getState().clearedAt || {};
+      return Math.max(at.music || 0, at.sfx || 0);
     }
     // After a load or a check that recovered the file (see "A save Windows
     // refused" in js/persistence.js): the older kept copies are taken in

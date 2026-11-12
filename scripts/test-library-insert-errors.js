@@ -44,7 +44,7 @@ fs.writeFileSync(path.join(DOCS, "Downbeat", "sound-library.json"), JSON.stringi
 
 // One audio track, the music on it from 0 to 60 s, the playhead at 30 s.
 const fake = mocks.makePremiereHost({ mediaPath: "/music/song.wav", durationSec: 60, clipStart: 0, audioTrackCount: 1, playheadSeconds: 30, insertDurationSec: 2 });
-const host = mocks.loadHost(fake.context);
+let host = mocks.loadHost(fake.context);
 const panel = bootPanel({ docsDir: DOCS, evalScript: function (script, cb) { host.evalScript(script, cb); }, realTimeouts: true, realIntervals: false });
 const $ = panel.registry;
 
@@ -64,7 +64,8 @@ wait(600).then(function () {
   check("the log keeps the host's English text", /could not insert boom\.wav: No free audio track at the playhead/.test(log),
     log.split("\n").filter(function (l) { return /could not insert/.test(l); }).join(" | "));
   check("nothing was placed", fake.sequence.audioTracks[0].clips.length === 1);
-  const keys = ["library.insertNoFreeTrack", "library.insertOffline", "library.insertGone", "library.insertNotImported",
+  const keys = ["library.insertNoFreeTrack", "library.insertNoFreeTrackHere", "library.insertNoFreeTrackKind",
+    "library.insertNoFreeTrackKindHere", "library.insertOffline", "library.insertGone", "library.insertNotImported",
     "library.insertNotPlaced", "library.insertNoLength", "library.insertFormat"];
   ["en", "ru", "es"].forEach(function (lang) {
     I18n.setLanguage(lang);
@@ -81,6 +82,20 @@ wait(600).then(function () {
   check("a FLAC is refused by the panel itself, in Russian", $.libScanStatus.textContent === I18n.t("library.insertFormat", { app: "Premiere Pro" }),
     $.libScanStatus.textContent);
   check("... and nothing reached the timeline", fake.sequence.audioTracks[0].clips.length === 1);
+  // Free tracks at the playhead, but a mono and a 5.1 one: the refusal
+  // says why, in Russian too.
+  const typed = mocks.makePremiereHost({ mediaPath: "/music/song.wav", durationSec: 60, clipStart: 0, audioTrackCount: 3, playheadSeconds: 30,
+    insertDurationSec: 2, audioTrackTypes: ["Stereo", "Mono", "5.1"] });
+  host = mocks.loadHost(typed.context);
+  document._fire("keydown", { key: "ArrowUp", target: document.body });
+  document._fire("keydown", { key: "Enter", target: document.body });
+  return wait(600).then(function () { return typed; });
+}).then(function (typed) {
+  const I18n = window.BeatMarkerI18n;
+  const status = $.libScanStatus.textContent;
+  check("free mono and 5.1 tracks only: the panel says they do not take the sound, in Russian",
+    status === I18n.t("library.insertFailed", { error: I18n.t("library.insertNoFreeTrackKind", { seconds: "2.0" }) }) && /[\u0400-\u04ff]/.test(status), status);
+  check("... and nothing reached the mono or the 5.1 track", typed.sequence.audioTracks[1].clips.length === 0 && typed.sequence.audioTracks[2].clips.length === 0);
   fs.rmSync(WORK, { recursive: true, force: true });
   if (failures) {
     console.error("\n" + failures + " insert-error check(s) failed");

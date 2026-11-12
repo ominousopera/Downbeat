@@ -25,6 +25,9 @@ Release notes and packages for every version are on the
 - A **Custom BPM** grid counts from the clip's start and follows a clip that
   was made longer.
 - Audio that is too short or silent is refused with a message that says so.
+- A song analyzed before shows its tempo and beat grid again after the
+  program is restarted, and a song analyzed in the other program shows them
+  too, without a new **Analyze**.
 
 ### Pitch and inserts
 
@@ -37,6 +40,9 @@ Release notes and packages for every version are on the
 - After Effects carries the layer's own markers onto the pitched copy.
 - After Effects names the undo steps **Downbeat: add metronome** and
   **Downbeat: change pitch**.
+- In Premiere Pro a stereo sound or pitched copy is not placed on a mono or
+  5.1 track: it goes to the next standard track, or the panel says that the
+  free tracks there take only their own kind of clip.
 
 ### Library
 
@@ -48,6 +54,8 @@ Release notes and packages for every version are on the
   file keeps its record.
 - Recycle folders on Synology and QNAP network drives are skipped.
 - A star set in one program while the other one scans is kept in both.
+- After **Clear** in the other program, the line under the list says the
+  library was cleared there instead of keeping its old text.
 - **Clear** ignores a double click, and one click inserts a sound once.
 - Shortcuts are ignored while a dialog is open and work after a click in
   the Library.
@@ -78,6 +86,19 @@ Release notes and packages for every version are on the
   an earlier error is on screen.
 - The hint under **Settings → Finished audio** is in the panel's language
   right after the start.
+
+### Panel
+
+- **Esc** closes Settings and the dialog on top of it (**Delete my data**,
+  a link, the guide) in Premiere Pro and After Effects.
+- In the narrowest panel the clip line moves under its heading instead of
+  being cut to its last word, **Place markers** keeps whole words, and the
+  Library's search box keeps room for what you type.
+- The start line ("Select an audio clip on the timeline…") is shortened at
+  its end in a narrow panel instead of losing its first words.
+- In the clip line a long file name is shortened first (its start stays),
+  then the BPM and key after it, instead of the line being cut from the
+  left.
 
 ### License
 

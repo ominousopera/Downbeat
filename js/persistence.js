@@ -1088,8 +1088,8 @@
       return { ok: false, error: e.message ? e.message : String(e), keptCopy: e.keptCopy || null };
     }
   }
-  // Loaded entries never have `clipInfo` (see save() above). They still
-  // appear in the track library display, since bpm/key/camelot are known.
+  // Loaded entries never have `clipInfo` (see save() above): the panel lays
+  // a loaded grid on the clip's live position when the clip is selected.
   function load(csInterface) {
     try {
       if (!window.cep_node) {

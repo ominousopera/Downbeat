@@ -259,8 +259,9 @@
   }
   // Replaces the in-memory map with entries loaded from disk (see
   // js/persistence.js load()). Loaded entries never have `clipInfo`: it is
-  // timeline-position data and is not persisted, so callers read a clip's
-  // current position fresh from the host.
+  // timeline-position data and is not persisted, so the panel reads a
+  // clip's current position fresh from the host and lays the saved grid
+  // (in the file's own seconds) on it.
   function loadEntries(list) {
     entries = {};
     if (!Array.isArray(list)) { return; }

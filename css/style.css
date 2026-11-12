@@ -1584,10 +1584,6 @@ input[type="text"]:focus, input[type="number"]:focus, input[type="password"]:foc
 /* The main button takes the room left and wraps its own text when a
    language makes the three labels wider than the panel (Russian). */
 .g-actions .g-main { flex: 1; min-width: 0; text-align: left; letter-spacing: 1.5px; overflow-wrap: anywhere; }
-/* At the narrowest panel a long word (Russian) still fits its button. */
-@media (max-width: 320px) {
-  .g-actions .g-main { letter-spacing: 0.5px; gap: 6px; }
-}
 .g-actions button.ghost,
 .g-actions #clearMarkersBtn {
   flex: 0 0 auto;
@@ -1739,7 +1735,9 @@ input.lib-search { font-size: 13px; padding-bottom: 4px; }
 }
 .g-find-row input.lib-search {
   flex: 1;
-  min-width: 0;
+  /* The synonyms hint after it gives way, not the typed words, also with a
+     longer "Find" label (Spanish) in a 280 px panel. */
+  min-width: 50%;
   border-bottom: none;
   padding: 2px 0;
   font-size: 15px;
@@ -1883,8 +1881,13 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { background: var(--acce
 .g-clip-slot .selection-status.is-error { color: var(--danger); }
 #selectionStatusRow { display: none; }
 .g-transport .mini-player-time { min-width: 0; text-align: left; font-size: 9.5px; letter-spacing: 1px; }
-.g-clip-slot .sel-name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.g-clip-slot .sel-info { flex: 0 0 auto; }
+/* The name gives way first, down to 4em; only then the state after it
+   ("not analyzed yet", the BPM) is cut. The name's huge shrink factor does
+   that; the state keeps a factor of 1, since factors that add up to less
+   than 1 shrink by only that part of the overflow, and a state that does
+   not shrink pushes the name out to the left. */
+.g-clip-slot .sel-name { flex: 0 100000 auto; min-width: 4em; overflow: hidden; text-overflow: ellipsis; }
+.g-clip-slot .sel-info { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 /* The Library's on / off filters (★, Pitched, ½× and 2×) read as switches: a
    small square before the label, filled orange when on. */
@@ -1931,7 +1934,12 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { background: var(--acce
 /* The clip line in a heading: normal case, smaller and dimmer than the
    heading itself, with room after it, so it does not run into the heading
    ("01 / KEY & CAMELOT") as one long capitalized line. */
-.g-clip-slot { margin-left: 16px; max-width: 62%; }
+.g-clip-slot { margin-left: 16px; }
+/* Beside its heading while the heading leaves it about 16em, on a line of
+   its own under it otherwise, so a long heading in a narrow panel does not
+   cut the clip line down to its last word. */
+.g-sec-head.g-clip-head { flex-wrap: wrap; row-gap: 2px; }
+.g-clip-head .g-clip-slot { flex: 1 1 16em; max-width: 100%; }
 .g-clip-slot .selection-status,
 .g-clip-slot .selection-status.has-clip,
 .g-clip-slot .selection-status.has-cache {
@@ -2471,3 +2479,12 @@ p.hint { margin: 0 0 var(--space-row); }
 .pitch-action-result { flex: 1 1 220px; min-width: 0; }
 .pitch-action .pitch-readout { margin: 0; }
 button.pitch-apply { flex: 0 1 auto; width: auto; max-width: 100%; gap: var(--space-row); padding: 8px 12px; }
+
+/* The narrowest panel (280 px): the Place markers bar keeps whole words.
+   Tighter letters and padding give the main button room for its longest
+   word (Russian); kept last so the size rules above do not undo it. */
+@media (max-width: 320px) {
+  .g-actions .g-main { letter-spacing: 0; padding-left: 8px; padding-right: 8px; gap: 4px; }
+  .g-actions button.ghost,
+  .g-actions #clearMarkersBtn { padding: 0 7px; letter-spacing: 0.4px; }
+}

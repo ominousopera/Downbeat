@@ -117,6 +117,9 @@ Selecting a clip of the same file again in the same session — after a trim,
 or after another clip — brings back the grid you had: the chosen "1",
 **Custom BPM** with its **Undo**, and **Basic** or **Refined** (Basic at
 once, with no new analysis). The panel keeps this for the last 12 files.
+After a restart, and for a song analyzed in the other program, selecting
+the clip brings back its saved tempo and grid; switching **Basic** /
+**Refined** there analyzes the clip again first.
 
 ## Second beat detector (Beat This!)
 
@@ -216,7 +219,7 @@ example minor to major. **Pitch the clip** does it for you, the way
 the Library preview pitches (like a sampler: higher also plays faster and
 shorter): it puts the selected clip's own file, the part the timeline
 uses, on a free track at the clip's own place (never a locked or muted
-one), at the speed that gives the shift — no copy is made, it is still your
+one, and a stereo clip never on a mono or 5.1 track), at the speed that gives the shift — no copy is made, it is still your
 file where it lies. The original stays where it was, switched off (Disable
 in Premiere, its sound off in After Effects) — switch it back on to undo.
 A clip that is already switched off is refused: an earlier pitched copy of
@@ -365,8 +368,9 @@ every match (up to 3,000). Click a row to choose a file; **Space** then
 listens and **Enter** inserts it, on any row shown, like **Insert**. Click ▶ to listen. **Insert** (or a double-click
 on the row) puts the file on the timeline at the playhead, once per double
 click; a double click on ▶ or ★ never inserts. In Premiere it goes on
-the first audio track that is empty for the whole sound and not locked or
-muted — nothing is
+the first audio track that is empty for the whole sound, not locked or
+muted and of a kind that takes it (a stereo sound skips mono and 5.1
+tracks) — nothing is
 overwritten; if there is no such track, it says so — and in After Effects
 as a new layer at the current time. The file is imported into a
 "Downbeat" bin (folder, in After Effects) once and reused after that. In

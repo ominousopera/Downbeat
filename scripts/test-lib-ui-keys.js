@@ -67,12 +67,41 @@ function codes(list) { return JSON.stringify(list.map(function (c) { return { ke
 const EV = { stopPropagation: function () {}, preventDefault: function () {} };
 
 (async function () {
+  const startLine = $.selectionStatusDisplay;
+  check("the start text is a clip line like the others (shortened at its end, not cut from the left)",
+    startLine.title === window.BeatMarkerI18n.t("selection.placeholder") && !startLine.getAttribute("data-i18n") &&
+    startLine.children.some(function (c) { return /sel-name/.test(c.className || ""); }), startLine.title);
   tab("library");
   check("macOS: the Library asks for the arrows, Space, Return and keypad Enter in Mac key codes",
     asked[asked.length - 1] === codes([126, 125, 49, 36, 76]), asked[asked.length - 1]);
   tab("analyze");
   check("another tab gives the keys back with an empty string (CEP rejects \"[]\")", asked[asked.length - 1] === "", asked[asked.length - 1]);
+  // Esc: the hosts keep it unless asked for, so Settings and its dialogs
+  // would not close with it, in either host.
+  $.settingsGearBtn._fire("click");
+  check("macOS: open Settings asks for Esc (53)", asked[asked.length - 1] === codes([53]), asked[asked.length - 1]);
+  key("Escape", document.body);
+  check("Esc closes Settings and gives Esc back", $.settingsPanel.hidden === true && asked[asked.length - 1] === "",
+    "hidden " + $.settingsPanel.hidden + ", asked " + asked[asked.length - 1]);
+  $.settingsGearBtn._fire("click");
+  const askedBefore = asked.length;
+  $.feedbackBtn._fire("click"); // the link question, over Settings
+  key("Escape", document.body);
+  check("Esc closes the dialog on top, Settings stays open, and Esc is not asked for again (the same keys)",
+    $.externalLinkOverlay.hidden === true && $.settingsPanel.hidden === false && asked.length === askedBefore,
+    "dialog hidden " + $.externalLinkOverlay.hidden + ", settings hidden " + $.settingsPanel.hidden + ", asks " + (asked.length - askedBefore));
+  key("Escape", document.body);
+  check("... and a second Esc closes Settings", $.settingsPanel.hidden === true && asked[asked.length - 1] === "", asked[asked.length - 1]);
+  tab("library");
+  $.settingsGearBtn._fire("click");
+  check("on the Library, open Settings asks for the list keys and Esc", asked[asked.length - 1] === codes([126, 125, 49, 36, 76, 53]), asked[asked.length - 1]);
+  $.settingsCloseBtn._fire("click");
+  check("closed Settings leaves the list keys only", asked[asked.length - 1] === codes([126, 125, 49, 36, 76]), asked[asked.length - 1]);
+  tab("analyze");
   osName = "Windows 11 64-bit";
+  $.settingsGearBtn._fire("click");
+  check("Windows: open Settings asks for Esc as 27", asked[asked.length - 1] === codes([27]), asked[asked.length - 1]);
+  $.settingsCloseBtn._fire("click");
   tab("library");
   check("Windows: the same keys in Windows key codes", asked[asked.length - 1] === codes([38, 40, 32, 13]), asked[asked.length - 1]);
   await wait(20);
