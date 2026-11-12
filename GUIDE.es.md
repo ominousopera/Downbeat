@@ -417,8 +417,8 @@ que pusiste a ese sonido en la bandeja quedan como estaban después de una
 inserción, y una inserción del sonido entero coloca el sonido entero, no
 solo de tu entrada a tu salida. Los archivos FLAC y OGG se pueden escuchar
 pero no insertar: Premiere Pro y After Effects no los importan, y el panel lo
-dice; guarda el sonido como WAV o MP3 para insertarlo. Si el panel de vista previa de abajo muestra
-ese mismo sonido y has puesto allí fundidos, una parte, un tono o Reverso,
+dice; guarda el sonido como WAV o MP3 para insertarlo. Si el panel de vista
+previa de abajo muestra ese mismo sonido y has puesto allí fundidos, una parte, un tono o Reverso,
 **Insertar**, el doble clic e **Intro** lo ponen en la línea de tiempo con
 todo eso, igual que el botón **Añadir** del propio panel.
 
@@ -747,5 +747,8 @@ que vuelve.
 **¿Downbeat es gratis? ¿Puedo ver el código fuente?**
 Sí a las dos. Downbeat es software libre bajo la GNU AGPL-3.0 (Ajustes →
 Licencia tiene el texto completo), que te permite usarlo, estudiarlo,
-compartirlo y cambiarlo. El código fuente completo está en GitHub,
+compartirlo y cambiarlo. Un archivo incluido tiene otras condiciones: los
+pesos del modelo de tonalidad S-KEY (models/skey.onnx), que sus autores
+limitan a la investigación no comercial (Ajustes → Licencias de terceros).
+El código fuente completo está en GitHub,
 y los archivos del plugin instalado son código normal y legible.

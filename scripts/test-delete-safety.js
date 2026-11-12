@@ -89,7 +89,7 @@ ok("empty / root / drive-root / relative Documents path: refused");
 { const D = SP + "/docs7"; const { P, cs } = freshModule(D);
   assert.ok(P.saveSettings(cs, { language: "en" }).ok); assert.ok(fs.existsSync(D + "/Downbeat/settings.json"));
   ok("settings save recreates the folder after a delete"); }
-// 9. a link named settings.json.lock (a settings save takes the lock):
+// a link named settings.json.lock (a settings save takes the lock):
 // never removed or followed, and the save still goes through
 { const D = SP + "/docs9"; const DB = D + "/Downbeat"; const OUT = SP + "/outside9";
   w(OUT + "/real.lock", "outside"); fs.mkdirSync(DB, { recursive: true });
@@ -101,7 +101,7 @@ ok("empty / root / drive-root / relative Documents path: refused");
   assert.strictEqual(JSON.parse(fs.readFileSync(DB + "/settings.json", "utf8")).language, "en");
   ok("link disguised as the settings lock: neither the link nor its target touched, settings saved"); }
 
-// 10. hand-off files in the system temp folder: only Downbeat's own names
+// hand-off files in the system temp folder: only Downbeat's own names
 // directly in its Downbeat folder, swept (old ones only) and deleted with
 // the rest; the Documents/Downbeat/tmp fallback is still covered.
 { const T = SP + "/system-temp10"; const TD = T + "/Downbeat"; const D = SP + "/docs10"; const DB = D + "/Downbeat";
@@ -124,7 +124,7 @@ ok("empty / root / drive-root / relative Documents path: refused");
   for (const keep of ["song.wav", "samples-final.raw", "sub/samples-5-6.raw"]) { assert.ok(fs.existsSync(TD + "/" + keep), "kept " + keep); }
   ok("Delete my data covers both temp folders; user files and nested look-alikes in the system one are kept"); }
 
-// 11. the system temp Downbeat folder is a link to an outside folder: never
+// the system temp Downbeat folder is a link to an outside folder: never
 // entered, and the hand-off files go to Documents/Downbeat/tmp instead
 { const T = SP + "/system-temp11"; const D = SP + "/docs11"; const OUT = SP + "/outside11";
   useSystemTemp(T); w(OUT + "/samples-1-1.raw", "outside"); fs.mkdirSync(T, { recursive: true });

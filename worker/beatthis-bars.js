@@ -68,7 +68,7 @@ function tempoStates(beatFrames) {
   }
   const taus = Array.from(seen).sort((a, b) => a - b);
   const K = taus.length;
-  // logTransition[from * K + to], each row normalised to sum to 1.
+  // logTransition[from * K + to], each row normalized to sum to 1.
   const logTransition = new Float64Array(K * K);
   for (let from = 0; from < K; from++) {
     let max = -Infinity;

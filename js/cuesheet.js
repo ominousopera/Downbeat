@@ -6,7 +6,7 @@
 (function (global) {
   "use strict";
   // A tiny cuesheet for the self-test: 8 beats at 120 BPM (0.5 s apart),
-  // starting 1 s into the source file. Labelled "b" like every marker
+  // starting 1 s into the source file. Labeled "b" like every marker
   // Downbeat places, so Clear markers (which removes only Downbeat's own
   // markers) cleans them up.
   var TEST_CUESHEET = {
@@ -398,7 +398,7 @@
     };
   }
   // Drops each "1" that comes less than 1.5 beats after another, so two
-  // neighbouring beats are never both marked as the start of a bar. Times
+  // neighboring beats are never both marked as the start of a bar. Times
   // are never moved and no "1" is added. The limit is in time at the local
   // tempo (0.375 of a 4-beat bar), not in beat count, because the beat list
   // can miss or add a beat; "1"s two beats apart are kept, since that is a

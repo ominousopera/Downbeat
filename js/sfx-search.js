@@ -137,7 +137,7 @@
   // The folders the user added to the section. A file's searchable folder
   // words are its folders from the added folder down (the added folder's own
   // name included), never the path above it ("Users", the user's name).
-  // Without a root (an older caller) the last three folders.
+  // Without a root (a caller that passes none) the last three folders.
   var roots = [];
   function setRoots(list) {
     var next = (list || []).map(function (r) { return _norm(r).replace(/[\\/]+$/, ""); });

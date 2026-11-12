@@ -239,9 +239,9 @@ shortlist to audition, not a promise that two sounds will blend.
   pitch, so they get no key. The key of a tonal effect is a hint, and sounds
   shorter than 10 seconds get a note that it is less reliable.
 - **File formats.** Analyze reads WAV, AIFF, MP3, M4A / AAC and the audio of
-  MP4 / MOV; other formats need converting first. Files your host cannot import
-  (for example FLAC and OGG in Premiere Pro) can be scanned and previewed in the
-  Library, but not inserted.
+  MP4 / MOV; other formats need converting first. FLAC and OGG files can be
+  scanned and previewed in the Library, but not inserted: Premiere Pro and
+  After Effects do not import them.
 - **Long files.** Analyze reads the whole file and manages about 30 minutes
   of audio; for a longer one (a DJ mix, a concert) save the part you need as
   a file of its own. Detect key and the Library scan have no such limit.
@@ -448,9 +448,9 @@ lists the keys that go well with the one it found.
 Any folder with audio files (WAV, AIFF, MP3, M4A, AAC, FLAC, OGG), added as
 <b>Music</b> or <b>SFX</b>. A scan reads the key and, for music, the tempo.
 Sound effects get no tempo; most of them have no pitch either, so they show
-"no clear pitch" and are skipped by a key search. Files your host cannot import
-(for example FLAC and OGG in Premiere Pro) can be scanned and previewed, but
-not inserted. A whole drive, memory card or network share can be added (not
+"no clear pitch" and are skipped by a key search. FLAC and OGG files can be
+scanned and previewed, but not inserted (Premiere Pro and After Effects do not
+import them). A whole drive, memory card or network share can be added (not
 the system disk); keep Music and SFX folders separate. Start scan retries failed files. A folder that
 cannot be read keeps its saved records; Cancel stops queued work. If a file is
 replaced at the same path, its preview reloads before insertion.
@@ -498,8 +498,8 @@ make the plugin better.
 AGPL-3.0, see [`LICENSE`](LICENSE). Third-party components:
 [`NOTICE.md`](NOTICE.md). The weights of the S-KEY key model
 (`models/skey.onnx`) are not covered by the AGPL: their authors limit them to
-non-commercial research use (details in `NOTICE.md`). Guide: [English](GUIDE.md) ·
-[Russian](GUIDE.ru.md) · [Spanish](GUIDE.es.md). Contributing:
+non-commercial research use (details in `NOTICE.md`). Guide:
+[English](GUIDE.md) · [Russian](GUIDE.ru.md) · [Spanish](GUIDE.es.md). Contributing:
 [`CONTRIBUTING.md`](CONTRIBUTING.md). Development: [`DEVELOPMENT.md`](DEVELOPMENT.md).
 
 Built with the help of Claude Code.

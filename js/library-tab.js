@@ -1259,9 +1259,10 @@
       if (_libInserting || _libMissing(item.path)) {
         return;
       }
-      // FLAC and OGG play in the listening pane, but neither Premiere nor
-      // After Effects imports them, and an import attempt puts up the host's
-      // own "File format not supported" dialog: the panel says so instead.
+      // FLAC and Ogg files (.ogg, and .oga / .opus should they be listed)
+      // play in the listening pane, but neither Premiere nor After Effects
+      // imports them, and an import attempt puts up the host's own "File
+      // format not supported" dialog: the panel says so instead.
       if (/\.(flac|ogg|oga|opus)$/i.test(item.path)) {
         setTranslatedText(libScanStatus, "library.insertFormat", { app: ctx.hostIsAe() ? "After Effects" : "Premiere Pro" });
         log("Library: " + item.name + " not inserted - the host does not import FLAC / OGG.");
@@ -1734,7 +1735,7 @@
       if (hd) {
         var size = Math.round(LIB_PANE_HANDLE * dpr);
         g.fillStyle = _libPaneColor("--text", "#e8e6e1");
-        // Each square sits centred on the point where its fade turns (the
+        // Each square sits centered on the point where its fade turns (the
         // fade-in's end, the fade-out's start), as on a Premiere clip, and
         // stays inside the part at its edges.
         var placeHandle = function (fx) {
@@ -1963,7 +1964,7 @@
           // Like the fade handle on a clip in Premiere: sideways the length,
           // up / down the curve (-100..100; 2.5 per px, up = louder longer).
           // Moves count from where the handle was taken, so grabbing it a
-          // pixel off its centre does not make it jump.
+          // pixel off its center does not make it jump.
           var curve = LP.clampCurve(paneDrag.curve0 - (evt.clientY - paneDrag.y0) * 2.5);
           var dSec = (p.f - paneDrag.f0) * D;
           if (paneDrag.mode === "fadeIn") {

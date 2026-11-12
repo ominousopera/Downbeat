@@ -122,9 +122,8 @@
       _applyConfirmed(state.files[path]);
     });
   }
-  // Bumped when the name-tag rules change, so existing records are re-checked on load.
-  // 2: a bare note letter counts only beside the BPM tag, and a folder's
-  // note only for a sound with a pitch (see _folderNoteHolds).
+  // Version of the name-tag rules. Records read under another version are
+  // checked again on load (see _folderNoteHolds for the folder-note rule).
   var NAME_TAGS_VERSION = 2;
   function _baseAndFolder(path) {
     var parts = String(path).split("/");
@@ -733,7 +732,7 @@
       (rec.pitchFlatness <= PITCH_GATE.flatness && (rec.strength || 0) >= PITCH_GATE.strength);
   }
   // Settings > Clear: the folder library starts over - every added folder,
-  // every scanned record, favourites and confirmations go. Only this state
+  // every scanned record, favorites and confirmations go. Only this state
   // changes: the audio files and their folders on disk are never touched.
   // The times kept below let another host that is open at once take the
   // clear in instead of writing the old library back (see absorb()).

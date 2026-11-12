@@ -662,8 +662,7 @@
   });
   // One question, asked once: whether to switch on the update notice. Asked
   // on the first run (after the language) and once for anyone who has not
-  // answered yet, e.g. after updating from a version without the notice.
-  // Either answer is saved, so it is never asked again.
+  // answered yet. Either answer is saved, so it is never asked again.
   function askAboutUpdateNotice(then) {
     if (typeof initialSettings.updateCheck === "boolean") {
       then();
@@ -3969,9 +3968,9 @@
         // is more useful than the placeholder; shown in the panel's language.
         var raw = err && err.message ? err.message : String(err);
         var reason = _translateHostReason(raw);
-        // Another refusal than at the last poll is another selection (a
-        // Time Remap layer after a precomp): its reason replaces even the
-        // error an action put up for the layer selected before.
+        // A refusal different from the one at the last poll means another
+        // selection (a Time Remap layer after a precomp): its reason replaces
+        // even an error an action showed for the layer selected before.
         var otherRefusal = _lastHostRefusal !== null && raw !== _lastHostRefusal;
         _lastHostRefusal = raw;
         if (lastSelectionKey !== null) {

@@ -76,8 +76,8 @@ Release notes and packages for every version are on the
 - A layer whose media file is missing says so instead of "has no audio",
   and the clip line shows the reason for a newly selected layer even while
   an earlier error is on screen.
-- Settings' "Ready audio" hint is in the panel's language right after the
-  start.
+- The hint under **Settings → Finished audio** is in the panel's language
+  right after the start.
 
 ### License
 
@@ -92,8 +92,8 @@ Release notes and packages for every version are on the
   (x64).
 - The bundled Node.js, which runs the analysis on your computer, is 24.22.3,
   the security release of November 2026.
-- The ONNX runtime that runs the beat and key models is 1.31.1; it gives
-  exactly the same results as the one in 1.0.5.
+- The ONNX runtime that runs the beat and key models is 1.31.1; on the
+  test tracks it gave the same beats and keys as the one in 1.0.5.
 
 ## 1.0.5
 

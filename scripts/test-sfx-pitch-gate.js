@@ -118,7 +118,7 @@ function pinkNoise(sec) { // Paul Kellet's filter
       const r = await judge(wav.readExcerpt(p, info, range.startSec, range.lengthSec));
       if (SL.hasPitch(r)) { kept++; }
     }
-    check("labelled tonal sounds (key in the file name) mostly have a pitch", kept >= refs.length - 2, kept + " of " + refs.length);
+    check("labeled tonal sounds (key in the file name) mostly have a pitch", kept >= refs.length - 2, kept + " of " + refs.length);
   }
 })()
   .catch(function (e) { failures++; console.error("FAIL " + (e && e.stack ? e.stack : e)); })

@@ -102,7 +102,7 @@ const deepWin = { name: "file.wav", path: "C:/Audio/Packs/Boom Library/Cinematic
 check("a folder five levels above the file is searched from the added folder down", S.score(S.compile("airy"), deep) >= 0 && S.score(S.compile("sfx"), deep) >= 0 && S.score(S.compile("boom"), deepWin) >= 0);
 check("but not the path above the added folder (the user's name)", S.score(S.compile("volumes"), deep) === -1 && S.score(S.compile("audio"), deepWin) === -1 && S.score(S.compile("packs"), deepWin) >= 0);
 S.setRoots([]);
-check("without roots the last three folders are searched, as before", S.score(S.compile("soft"), file("file.wav", "/Volumes/SFX/Airy Pack/Whoosh/Long/Soft")) >= 0 && S.score(S.compile("airy"), file("file.wav", "/Volumes/SFX/Airy Pack/Whoosh/Long/Soft")) === -1);
+check("without roots the last three folders are searched", S.score(S.compile("soft"), file("file.wav", "/Volumes/SFX/Airy Pack/Whoosh/Long/Soft")) >= 0 && S.score(S.compile("airy"), file("file.wav", "/Volumes/SFX/Airy Pack/Whoosh/Long/Soft")) === -1);
 
 if (failures) {
   console.error("\n" + failures + " search check(s) failed");

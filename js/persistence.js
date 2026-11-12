@@ -608,7 +608,7 @@
   // save of settings.json, library.json and sound-library.json runs while
   // its panel holds <name>.json.lock, a file created only when there is
   // none:
-  //   - the panel that holds it reads, merges and writes as before;
+  //   - the panel that holds it reads, merges and writes as usual;
   //   - a panel that finds it held does not wait: it keeps its complete
   //     data as a copy (<name>.unsaved-<date>-<time>.json, see "A save
   //     Windows refused") and tries once more, saving normally if the lock
@@ -618,7 +618,8 @@
   //     other panel finds the lock free, so no copy waits for a restart;
   //   - a lock over a minute old was left by a host that quit mid-save and
   //     is removed; one that cannot be created for another reason (a
-  //     read-only folder) does not stop the save, which goes ahead as before.
+  //     read-only folder) does not stop the save, which then goes ahead
+  //     without one.
   var _waiting = {}; // file path -> true while its save goes to a copy (the other host holds the lock)
   function _fileName(kind) {
     return kind === "settings" ? SETTINGS_FILE_NAME : kind === "sound-library" ? SOUND_LIBRARY_FILE_NAME : FILE_NAME;
@@ -645,7 +646,7 @@
         fd = fs.openSync(lockPath, "wx");
       } catch (e) {
         if (!e || e.code !== "EEXIST" || _pathKind(fs, lockPath) !== "file") {
-          return { path: lockPath, token: null }; // cannot be locked here: saved as before
+          return { path: lockPath, token: null }; // cannot be locked here: saved without a lock
         }
         var age;
         try { age = Date.now() - fs.statSync(lockPath).mtimeMs; } catch (e2) { age = 0; }
@@ -702,7 +703,7 @@
       filePath = dir + "/" + _fileName(kind);
       lock = _lock(fs, filePath);
     } catch (e) {
-      save(); // cannot be locked here: saved as before, and the save reports any error
+      save(); // cannot be locked here: saved without a lock; the save reports any error
       return;
     }
     if (!lock) {

@@ -2424,7 +2424,7 @@ body.on-library #tabContentLibrary .g-lib-body > #libFolderList:empty { display:
 .lib-row.is-missing .lib-row-name,
 .lib-tree-row.is-missing .lib-tree-name { opacity: 0.5; text-decoration: line-through; }
 
-/* First-run language picker: the choices sit in the middle, under the centred title. */
+/* First-run language picker: the choices sit in the middle, under the centered title. */
 .lang-pick-card .lang-switch { justify-content: center; }
 
 /* A new version is out: a small dot on the settings gear. */

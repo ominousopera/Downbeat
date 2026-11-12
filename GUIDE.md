@@ -669,5 +669,7 @@ the drive is back.
 **Is Downbeat free? Can I see the source?**
 Yes to both. Downbeat is free software under the GNU AGPL-3.0 (Settings →
 License has the full text), which lets you use, study, share and change it.
-The full source code is on GitHub, and the installed plugin's files are
+One bundled file has other terms: the weights of the S-KEY key model
+(models/skey.onnx), which its authors limit to non-commercial research use
+(Settings → Third-party licenses). The full source code is on GitHub, and the installed plugin's files are
 plain, readable code.

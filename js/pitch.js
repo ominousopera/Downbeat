@@ -25,7 +25,7 @@
 
     var up = (pb - pa + 12) % 12; // 0..11
     var down = (up === 0) ? 0 : up - 12; // -11..0
-    // Ties (a tritone, 6 either way) resolve downward: less artefacting on
+    // Ties (a tritone, 6 either way) resolve downward: fewer artifacts on
     // the formants, and an editor reaching for a tritone is matching harmony,
     // not chasing a specific octave.
     var shortest = (Math.abs(down) <= up) ? down : up;
@@ -39,7 +39,7 @@
       modeChanges: a.scale !== b.scale
     };
   }
-  // What a shifter needs, in the three units they are labelled with.
+  // What a shifter needs, in the three units they are labeled with.
   // ratio/speedPercent apply only to shifters that resample (varispeed, a
   // sampler's tune, AE's Time Stretch) - those change the duration and
   // therefore the tempo as well, which is why tempo is reported alongside.

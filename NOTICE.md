@@ -6,8 +6,8 @@ third-party components below keep their own licenses, listed with each
 one: essentia.js is AGPL-3.0 itself; the rest are MIT, ISC, BSD, Apache-2.0
 or public domain, except `js/CSInterface.js`, which is under Adobe's own CEP
 terms, and the S-KEY model weights (`models/skey.onnx`), which upstream
-restricts to non-commercial research use (see that section). Downbeat is an independent project, not made, endorsed or sponsored
-by Adobe.
+restricts to non-commercial research use (see that section). Downbeat is an
+independent project, not made, endorsed or sponsored by Adobe.
 
 Update policy: components are pinned by hand and never auto-updated.
 Plugin release checks are optional in the background or explicit through

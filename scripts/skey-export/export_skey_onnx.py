@@ -1,5 +1,6 @@
-"""Exports Deezer's S-KEY key detector (ICASSP 2025, MIT) to ONNX for the
-analysis worker (worker/skey-worker.js). Dev-only, never shipped.
+"""Exports Deezer's S-KEY key detector (ICASSP 2025; code MIT, model weights
+for non-commercial research only - see NOTICE.md) to ONNX for the analysis
+worker (worker/skey-worker.js). Dev-only, never shipped.
 
 Input: the upstream code and checkpoint as fetched and hash-verified into
 a local folder, SKEY_SRC_DIR (commit in PINNED_COMMIT.txt there).

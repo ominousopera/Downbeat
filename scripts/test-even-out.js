@@ -1,12 +1,12 @@
 "use strict";
 // Evened-out markers: js/cuesheet.js evenOutTimes() replaces each beat time
-// by a local straight tempo line through its neighbours, removing Beat This!'s
+// by a local straight tempo line through its neighbors, removing Beat This!'s
 // 20 ms frame-grid steps. Checks:
 //  - a steady track's times, rounded to the 20 ms grid, come back within 3 ms
 //    of the true beats (they were up to 10 ms off);
 //  - a tempo change starts a new run: neither side is pulled across;
 //  - one bad detection (60 ms late) stays as detected and does not tilt its
-//    neighbours;
+//    neighbors;
 //  - a gradual tempo drift is followed to within 5 ms (a strong one, 4 BPM
 //    over 40 bars, only to within the 10 ms the grid steps gave: the line is
 //    straight over the 9 bars around each time);
@@ -58,7 +58,7 @@ const bad = detected.slice();
 bad[20] += 0.06;
 r = C.evenOutTimes(bad, 4);
 check("a detection 60 ms off stays as detected (a bigger move is not a grid step)", Math.abs(r.times[20] - bad[20]) < 1e-9);
-check("and does not tilt its neighbours", maxErrMs(r.times, truth, 15, 20) <= 3 && maxErrMs(r.times, truth, 21, 26) <= 3,
+check("and does not tilt its neighbors", maxErrMs(r.times, truth, 15, 20) <= 3 && maxErrMs(r.times, truth, 21, 26) <= 3,
   maxErrMs(r.times, truth, 15, 20).toFixed(1) + " / " + maxErrMs(r.times, truth, 21, 26).toFixed(1) + " ms");
 // A gradual drift: 120 -> 121 BPM over 40 bars, and a strong one, -> 124.
 function drifting(bpmGain) {

@@ -303,8 +303,8 @@ analyze("track 1")
             back.length + " markers (analysis: " + first.times.length + "), shift " + $.phaseDisplay.textContent);
         });
       }).then(function () {
-        // "Downbeats + beat grid": the D markers are exactly the
-        // downbeats-only mode's, every other beat is a "b".
+        // "Bars + beats": the D markers are exactly the Bars mode's,
+        // every other beat is a "b".
         function setCutMode(value) {
           panel.allEls.forEach(function (e) {
             if (e.attrs && e.attrs.name === "cutMode") { e.checked = e.attrs.value === value; }
@@ -317,7 +317,7 @@ analyze("track 1")
           const sameDowns = gridDowns.length === first.times.length &&
             gridDowns.every(function (t, i) { return Math.abs(t - first.times[i]) < 1e-6; });
           const beats = grid.labels.filter(function (l) { return l === "b"; }).length;
-          check("'Downbeats + beat grid' marks the same downbeats, plus every other beat",
+          check("'Bars + beats' marks the same downbeats, plus every other beat",
             sameDowns && beats > 2 * gridDowns.length && grid.count > 2 * first.count,
             gridDowns.length + " D (downbeats mode: " + first.times.length + "), " + beats + " b, " + grid.count + " in all");
           function setMarkerTarget(value) {

@@ -1624,7 +1624,7 @@ function _addEdgeFades(sequence, target, startSeconds, opts) {
             }
             out.clipSeen = { type: String(qeItem.type), start: qeItem.start ? qeItem.start.secs : null, fps: fps };
             // How much of the file lies beyond each edge of the clip (a
-            // transition centred on an edge needs some), and what the
+            // transition centered on an edge needs some), and what the
             // standard clip object offers about fades in this Premiere.
             var placedStd = _findClipStartingAt(sequence.audioTracks[target], startSeconds);
             if (placedStd) {

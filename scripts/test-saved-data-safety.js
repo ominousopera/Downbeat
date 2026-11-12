@@ -123,11 +123,11 @@ function sleep(ms) { const end = Date.now() + ms; while (Date.now() < end) { /* 
   SA.setFavorite("/lib/SFX/a.wav", true);
   save(A);
   sleep(5);
-  SB.confirm("/lib/SFX/b.wav", "3B", null); // B has not seen A's favourite
+  SB.confirm("/lib/SFX/b.wav", "3B", null); // B has not seen A's favorite
   save(B);
   load(A);
   const st = SA.getState().files;
-  check("a favourite set in one host survives the other host's later save",
+  check("a favorite set in one host survives the other host's later save",
     st["/lib/SFX/a.wav"] && st["/lib/SFX/a.wav"].fav === true && st["/lib/SFX/b.wav"].confirmedKey.camelot === "3B");
 
   sleep(5);

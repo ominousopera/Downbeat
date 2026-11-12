@@ -4,7 +4,7 @@
 //   - Enter held down or pressed twice while an insert is still running
 //     inserts the sound once;
 //   - Settings > Clear empties the whole library (added folders, scanned
-//     records, favourites, analyzed clips) and asks to reopen the panel -
+//     records, favorites, analyzed clips) and asks to reopen the panel -
 //     yet touches NO file on disk: every audio file, its folder, and
 //     anything else in Documents/Downbeat stay exactly as they were.
 // Run: node scripts/test-library-user-data.js
@@ -119,7 +119,7 @@ wait(800).then(function () {
   $.clearLibraryBtn._fire("click", { detail: 1 });
   Date.now = realNow;
   const saved = JSON.parse(fs.readFileSync(path.join(DOCS, "Downbeat", "sound-library.json"), "utf8"));
-  check("Clear empties folders, records and favourites", Object.keys(saved.files).length === 0 &&
+  check("Clear empties folders, records and favorites", Object.keys(saved.files).length === 0 &&
     saved.folders.music.length === 0 && saved.folders.sfx.length === 0, JSON.stringify(saved.folders));
   const timeline = JSON.parse(fs.readFileSync(path.join(DOCS, "Downbeat", "library.json"), "utf8")).filter(function (e) { return e.mediaPath; });
   check("Clear empties the timeline-clip library too", timeline.length === 0, JSON.stringify(timeline));
