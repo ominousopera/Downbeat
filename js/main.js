@@ -1060,8 +1060,8 @@
     var playback = _selectedPlayback();
     var camelot = playback && playback.sourceCamelot;
     var heard = playback && playback.heard;
-    // A speed within a hair of a whole octave-free semitone of 0 (say
-    // 100.2%) moves no key, so there is nothing to say about the key.
+    // A speed that rounds to 0 semitones (say 100.2%) moves no key, so
+    // there is nothing to say about the key.
     if (!heard || !camelot || (heard.onSemitone && heard.semitones === 0)) {
       heardKeyRow.hidden = true;
       return;
@@ -1101,8 +1101,8 @@
   // bars start: its grids have no margin, so the margin line never shows
   // for them. barsUnsure is set where Beat This! is applied (see
   // _runBeatThisOnCurrentAnalysis) and saved with the library entry.
-  // Analyses without it (the bar decoder did not run, or an older saved
-  // entry) fall back to the uneven-"1"s test (downbeatsLookUneven in
+  // Analyses without it (the bar decoder did not run, or the saved entry
+  // has no flag) fall back to the uneven-"1"s test (downbeatsLookUneven in
   // js/cuesheet.js) on the placed "1"s. The text asks to listen and points
   // to the "1" buttons first, then to the Basic grid.
   var phaseUncertainHint = document.getElementById("phaseUncertainHint");
@@ -3868,7 +3868,7 @@
         downbeatTimes: entry.downbeatTimes && entry.downbeatTimes.length
           ? window.BeatMarkerCuesheet.thinCloseDownbeats(entry.beatsArray, entry.downbeatTimes).times
           : null,
-        // The saved warning flag of decoded bars; null for older entries,
+        // The saved warning flag of decoded bars; null when the entry has none,
         // which then get the uneven test (see _updatePhaseUncertainHint).
         barsUnsure: typeof entry.barsUnsure === "boolean" ? entry.barsUnsure : null,
         // Which grid this is (_beatGridOf), so the Beat grid line lights the

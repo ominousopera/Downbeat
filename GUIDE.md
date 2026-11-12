@@ -410,8 +410,8 @@ and stays in view while the list scrolls:
   which mixes with it) — no pitch shift can turn major into minor. Sounds with
   no clear key play as they are. **Insert**, a double click and **Enter**
   on a row give a sound that pitch too, even before the pane has loaded it.
-  When the selected clip has no key, In key turns off and says why. Click it
-  again to switch it off;
+  Click it again to switch it off. When the selected clip has no key, In key
+  turns off by itself and says why;
 - **Add** puts it on the timeline at the playhead, like Insert. With a
   selected part and / or fades (no pitch, no Reverse) it inserts the
   **original file, trimmed to the part, with fades you can still change on the
@@ -671,5 +671,5 @@ Yes to both. Downbeat is free software under the GNU AGPL-3.0 (Settings →
 License has the full text), which lets you use, study, share and change it.
 One bundled file has other terms: the weights of the S-KEY key model
 (models/skey.onnx), which its authors limit to non-commercial research use
-(Settings → Third-party licenses). The full source code is on GitHub, and the installed plugin's files are
-plain, readable code.
+(Settings → Third-party licenses). The full source code is on GitHub, and
+the installed plugin's files are plain, readable code.

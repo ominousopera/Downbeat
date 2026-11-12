@@ -1157,7 +1157,7 @@ hr {
   --bg-well: #0b0b0b;
   --border: #2a2a2a;
   --border-bright: #5c5c5c;
-  /* Section rules (dark grey). --text-dim, --text-faint and --border-bright
+  /* Section rules (dark gray). --text-dim, --text-faint and --border-bright
      get their final values in TEXT LEVELS below. */
   --rule: #3a3a3a;
   --text: #e8e6e1;

@@ -58,7 +58,7 @@
       // GitHub's API allows few requests per hour from one address without
       // an account, and an address shared by many people (a provider, a
       // VPN) runs out: it answers 403 or 429. The release page itself has
-      // no such limit and names the latest release in its forward, so ask
+      // no such limit and names the latest release in its redirect, so ask
       // that instead before giving up.
       if (err && (err.status === 403 || err.status === 429)) {
         fetchFromPage(https, function (pageErr, pageValue) {

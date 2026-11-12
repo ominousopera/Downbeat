@@ -86,7 +86,7 @@ function ask(kind, body) {
   a = await ask("error");
   check("a network error is passed on", a.err && /ENOTFOUND/.test(a.err.message));
   // GitHub's API out of requests for this address (403 / 429): the release
-  // page's forward names the latest release instead.
+  // page's redirect names the latest release instead.
   function routed(apiStatus, pageAnswer) {
     const calls = [];
     return {
@@ -120,14 +120,14 @@ function ask(kind, body) {
   }
   let viaPage = routed(403, { status: 302, location: "https://github.com/ominousopera/Downbeat/releases/tag/v1.0.3" });
   let pg = await askVia(viaPage);
-  check("an API out of requests (403): the release page's forward gives the version and page",
+  check("an API out of requests (403): the release page's redirect gives the version and page",
     !pg.err && pg.value.version === "1.0.3" && /releases\/tag\/v1\.0\.3$/.test(pg.value.url) &&
     viaPage.calls.join() === "api.github.com/repos/ominousopera/Downbeat/releases/latest,github.com/ominousopera/Downbeat/releases/latest",
     JSON.stringify(pg.err ? pg.err.message : pg.value));
   pg = await askVia(routed(429, { status: 302, location: "https://github.com/ominousopera/Downbeat/releases/tag/v1.0.3" }));
   check("... and the same for 429", !pg.err && pg.value.version === "1.0.3");
   pg = await askVia(routed(403, { status: 302, location: "https://evil.example/releases/tag/v9.9.9" }));
-  check("a forward that is not this project's release page is not believed", pg.err && /limit of checks/.test(pg.err.message) && /release page/.test(pg.err.message), pg.err && pg.err.message);
+  check("a redirect that is not this project's release page is not believed", pg.err && /limit of checks/.test(pg.err.message) && /release page/.test(pg.err.message), pg.err && pg.err.message);
   pg = await askVia(routed(404, { status: 302, location: "https://github.com/ominousopera/Downbeat/releases/tag/v1.0.3" }));
   check("a plain 404 from the API is reported as is (no release yet), the page is not asked", pg.err && /404/.test(pg.err.message));
   // The panel: off by default, nothing asked

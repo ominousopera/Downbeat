@@ -2,7 +2,7 @@
 // The Library row says in words how sure a music key is (no percentages):
 // "key agreed" when at least two of the three key methods gave it, "key
 // uncertain" when all three differed, nothing for a key read from the file
-// name, a sound effect or an older record without the measure.
+// name, a sound effect or a record without the measure.
 // Run: node scripts/test-key-confidence-words.js
 const fs = require("fs");
 const os = require("os");

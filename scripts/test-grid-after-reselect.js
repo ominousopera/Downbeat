@@ -15,7 +15,7 @@
 //     audio in memory (both analyze the clip again);
 //   - a grid Beat This! turned away is saved as "kept" and the Beat grid
 //     line stays hidden when the clip is selected again;
-//   - an entry saved before the field existed counts as Refined when it has
+//   - an entry saved without a grid name counts as Refined when it has
 //     Beat This!'s "1" markers.
 // Run: node scripts/test-grid-after-reselect.js
 const fs = require("fs"), os = require("os"), path = require("path"), cp = require("child_process");
@@ -169,7 +169,7 @@ function clipFor(mediaPath) {
 
       const L = window.BeatMarkerLibrary;
       L.absorb([{ mediaPath: other, bpm: 120, beatsArray: refined, downbeatTimes: [0, 2, 4], phase: 0, updatedAt: Date.now() + 1000 }]);
-      check("an entry saved before the field existed counts as Refined", L.get(other) && L.get(other).beatGrid === "refined",
+      check("an entry saved without a grid name counts as Refined", L.get(other) && L.get(other).beatGrid === "refined",
         L.get(other) ? String(L.get(other).beatGrid) : "no entry");
     }
   } finally {

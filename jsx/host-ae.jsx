@@ -733,7 +733,7 @@ function dbAePasteMarkersData(dataJson, referenceJson) {
             try {
                 for (var w = 0; w < writes.length; w++) {
                     writes[w].prop.setValueAtTime(writes[w].time, writes[w].value); applied++;
-        }
+                }
             } catch (e) {
                 for (var r = applied - 1; r >= 0; r--) {
                     writes[r].prop.removeKey(writes[r].prop.nearestKeyIndex(writes[r].time));

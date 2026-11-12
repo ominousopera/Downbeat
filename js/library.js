@@ -184,7 +184,7 @@
     entry.downbeatTimes = analysisData.downbeatTimes || null;
     // Whether the bar decoder was unsure where those bars start: kept with
     // them, so the warning row comes back with the saved grid. null = no
-    // decoded bars (an essentia grid, or an older saved entry).
+    // decoded bars (an essentia grid, or an entry saved without this flag).
     entry.barsUnsure = entry.downbeatTimes && typeof analysisData.barsUnsure === "boolean" ? analysisData.barsUnsure : null;
     // Which grid beatsArray is (see validBeatGrid); a caller that does not
     // pass it leaves the saved value as it was.

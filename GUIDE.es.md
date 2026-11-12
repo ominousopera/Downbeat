@@ -418,9 +418,10 @@ inserción, y una inserción del sonido entero coloca el sonido entero, no
 solo de tu entrada a tu salida. Los archivos FLAC y OGG se pueden escuchar
 pero no insertar: Premiere Pro y After Effects no los importan, y el panel lo
 dice; guarda el sonido como WAV o MP3 para insertarlo. Si el panel de vista
-previa de abajo muestra ese mismo sonido y has puesto allí fundidos, una parte, un tono o Reverso,
-**Insertar**, el doble clic e **Intro** lo ponen en la línea de tiempo con
-todo eso, igual que el botón **Añadir** del propio panel.
+previa de abajo muestra ese mismo sonido y has puesto allí fundidos, una
+parte, un tono o Reverso, **Insertar**, el doble clic e **Intro** lo ponen
+en la línea de tiempo con todo eso, igual que el botón **Añadir** del
+propio panel.
 
 **El panel de escucha**, abajo en la pestaña, muestra el archivo elegido
 y se queda a la vista mientras la lista se desplaza:
@@ -459,8 +460,8 @@ y se queda a la vista mientras la lista se desplaza:
   mayor en menor. Los sonidos sin una tonalidad clara suenan tal cual.
   **Insertar**, un doble clic e **Intro** en una fila también le dan ese
   tono a un sonido, aunque el panel de escucha aún no lo haya cargado.
-  Cuando el clip seleccionado no tiene tonalidad, En tono se desactiva y
-  dice por qué. Pulsa de nuevo para desactivarlo;
+  Pulsa de nuevo para desactivarlo. Cuando el clip seleccionado no tiene
+  tonalidad, En tono se desactiva solo y dice por qué;
 - **Añadir** lo pone en la línea de tiempo en el cursor, como Insertar.
   Con una parte seleccionada y / o fundidos (sin cambio de tono ni
   Reverso) inserta el **archivo original, recortado a esa parte, con
