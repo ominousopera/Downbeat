@@ -1,7 +1,8 @@
 # Build-time tools (never shipped)
 
-Used by `scripts/check-code.js` (every build) and `scripts/strip-comments.js`
-(only with `STRIP_COMMENTS=1`). Not part of the package.
+These files are used by `scripts/check-code.js` (every build) and
+`scripts/strip-comments.js` (only with `STRIP_COMMENTS=1`). They are not
+part of the package.
 
 | File | Package | License | sha256 |
 |---|---|---|---|
@@ -13,4 +14,5 @@ Taken from the npm packages above, with these integrity values:
 - esprima 4.0.1: `sha512-eGuFFw7Upda+g4p+QHvnW0RyTX/SVeJBDM/gCtMARO0cLuT2HcEKnTPvhjV6aGeqrCB/sbNop0Kszm0jsaWU4A==`
 
 `strip-comments.js` checks both hashes before running and refuses to build
-if either file changed. Pinned by hand, never updated automatically.
+if either file changed. Both files are pinned by hand and never updated
+automatically.

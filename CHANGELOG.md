@@ -15,8 +15,8 @@ Release notes and packages for every version are on the
 - After a cut made exactly on a marker (Razor in Premiere Pro, Split Layer
   in After Effects), placing markers on the left piece again keeps the right
   piece's first marker.
-- Paste is much faster on long songs: a few hundred markers take seconds,
-  not half a minute.
+- Paste is much faster on long songs: a few hundred markers take seconds
+  instead of half a minute.
 
 ### Analyze
 
@@ -26,7 +26,7 @@ Release notes and packages for every version are on the
   was made longer.
 - Audio that is too short or silent is refused with a message that says so.
 - A song analyzed before shows its tempo and beat grid again after the
-  program is restarted, and a song analyzed in the other program shows them
+  program is restarted. A song analyzed in the other program shows them
   too, without a new **Analyze**.
 
 ### Pitch and inserts
@@ -41,7 +41,7 @@ Release notes and packages for every version are on the
 - After Effects names the undo steps **Downbeat: add metronome** and
   **Downbeat: change pitch**.
 - In Premiere Pro a stereo sound or pitched copy is not placed on a mono or
-  5.1 track: it goes to the next standard track, or the panel says that the
+  5.1 track. It goes to the next standard track, or the panel says that the
   free tracks there take only their own kind of clip.
 
 ### Library
@@ -50,8 +50,8 @@ Release notes and packages for every version are on the
   word or a one-letter folder name goes back to analysis. Stars stay.
 - A search for a word with a hyphen or an apostrophe ("sci-fi", "don't")
   finds it, and accented names are found however the accents are stored.
-- A missing file with a star or a key you set keeps its record, and a moved
-  file keeps its record.
+- A missing file with a star or a key you set keeps its record, and so does
+  a moved file.
 - Recycle folders on Synology and QNAP network drives are skipped.
 - A star set in one program while the other one scans is kept in both.
 - After **Clear** in the other program, the line under the list says the
@@ -59,7 +59,7 @@ Release notes and packages for every version are on the
 - **Clear** ignores a double click, and one click inserts a sound once.
 - Shortcuts are ignored while a dialog is open and work after a click in
   the Library.
-- FLAC and OGG files can be listened to but not inserted: the panel says so
+- FLAC and OGG files can be listened to but not inserted. The panel says so
   instead of Premiere Pro showing its own "File format not supported"
   dialog.
 - A scan with a folder on an unplugged drive ends with its normal summary
@@ -79,13 +79,13 @@ Release notes and packages for every version are on the
 - Temporary audio goes to the system's temp folder.
 - The analysis workers start hidden on Windows, stop when the panel closes
   and end at their own time limit.
-- Analysis failures and the host's refusals are short sentences in the
-  panel's language; the full text stays in the log.
-- A layer whose media file is missing says so instead of "has no audio",
-  and the clip line shows the reason for a newly selected layer even while
-  an earlier error is on screen.
+- Analysis failures and the host's refusals appear as short sentences in
+  the panel's language; the full text stays in the log.
+- A layer whose media file is missing says so instead of "has no audio".
+  The clip line shows the reason for a newly selected layer even while an
+  earlier error is on screen.
 - The hint under **Settings → Finished audio** is in the panel's language
-  right after the start.
+  right after the panel starts.
 
 ### Panel
 
@@ -94,11 +94,10 @@ Release notes and packages for every version are on the
 - In the narrowest panel the clip line moves under its heading instead of
   being cut to its last word, **Place markers** keeps whole words, and the
   Library's search box keeps room for what you type.
-- The start line ("Select an audio clip on the timeline…") is shortened at
-  its end in a narrow panel instead of losing its first words.
-- In the clip line a long file name is shortened first (its start stays),
-  then the BPM and key after it, instead of the line being cut from the
-  left.
+- In a narrow panel the start line ("Select an audio clip on the
+  timeline…") is shortened at its end instead of losing its first words.
+- A long file name in the clip line is shortened first (its start stays),
+  then the BPM and key after it. Before, the line was cut from the left.
 
 ### License
 
@@ -124,11 +123,12 @@ Release notes and packages for every version are on the
   bars over the whole song at once, so the "1" comes every four beats and
   does not jump to a loud beat 3. Silence before and after the music is left
   out of the count.
-- When the second detector's beats do not pass its checks and the first
-  detector's beats stay, it still counts the bars, on those beats. Before,
-  the "1" there was chosen from the low end and the chords alone.
-- A "1" less than a beat and a half after another one is left out, also on
-  tracks analyzed earlier. No "1" is moved or added.
+- When the second detector's beats fail its checks and the first detector's
+  beats are kept, the second detector still counts the bars on those beats.
+  Before, the "1" in that case was chosen from the low end and the chords
+  alone.
+- A "1" less than a beat and a half after another one is left out, on
+  tracks analyzed earlier too. No "1" is moved or added.
 - When the detector is unsure where the bars start, or its "1"s still come
   at uneven distances, a warning under **The "1" is beat** says so: listen to
   the click and pick the real "1" in **1 2 3 4**, or switch **Beat grid** to
@@ -138,9 +138,9 @@ Release notes and packages for every version are on the
 ### Tempo
 
 - The BPM now comes from the beats the markers use, so the number agrees
-  with the markers (before, it could be 1-5% off while the markers were
-  right, for example 91.4 for a 94 BPM song). The Library scan reads it the
-  same way. Tracks analyzed earlier keep their number until they are
+  with the markers. Before, it could be 1-5% off while the markers were
+  right (for example 91.4 for a 94 BPM song). The Library scan works it out
+  the same way. Tracks analyzed earlier keep their number until they are
   analyzed again.
 
 ### Markers
@@ -148,17 +148,17 @@ Release notes and packages for every version are on the
 - Paste in Premiere Pro adds a copied marker that differs from one already
   on the target only in color; the target's own marker stays.
 - Place and Clear leave your own markers alone even when they are named D
-  or b. Downbeat knows its markers by the name together with the
-  explanation in the comment (Premiere Pro), or with its color and a
-  "Downbeat" marker parameter (After Effects), and no length. A Downbeat
-  marker whose comment or length you change becomes yours. In After
-  Effects, D and b markers placed by 1.0.4 or earlier count as yours:
-  delete them by hand once.
+  or b. Downbeat recognizes its markers by the name plus the explanation in
+  the comment (Premiere Pro) or plus the color and a "Downbeat" marker
+  parameter (After Effects), and by having no length. A Downbeat marker
+  whose comment or length you change becomes yours. In After Effects, D and
+  b markers placed by 1.0.4 or earlier count as yours: delete them by hand
+  once.
 - When a clip with timeline markers was moved, placing markers on the clip
   also removes those earlier timeline markers. Downbeat remembers where it
-  put them also across a restart of Premiere Pro or After Effects, so Place
-  and Clear find that set after the clip moved.
-- **Shift − / +** counts only with **Timing: Exact**, where it is shown. A
+  put them, even across a restart of Premiere Pro or After Effects, so Place
+  and Clear find that set after the clip has moved.
+- **Shift − / +** applies only with **Timing: Exact**, where it is shown. A
   shift set earlier leaves the markers alone under Frame timing and in
   After Effects.
 - The reasons the host gives (nothing selected, a video clip, two clips, no
@@ -167,45 +167,46 @@ Release notes and packages for every version are on the
 
 ### Library
 
-- A star is saved at once, so closing the panel right after it keeps it. A
-  star set in the other program shows here after the next save and comes
-  off with one click. A star here keeps what the other program did to that
-  sound meanwhile (its analysis, a confirmed key).
+- A star is saved at once, so it stays even if the panel is closed right
+  after. A star set in the other program shows here after the next save and
+  comes off with one click. Setting a star here keeps what the other
+  program did to that sound in the meantime (its analysis, a confirmed key).
 - The search finds names in any letters (Polish, Czech, Greek, Ukrainian,
   Japanese, Arabic and others), one-letter words, and folder names at any
   depth below the folder you added. Before, the first letter typed did not
   update the list, and only the last three folders of a path were searched.
-- A held Space leaves the preview alone; one press starts or stops it.
+- Holding Space leaves the preview alone; one press starts or stops it.
 - A scan that reaches its limit of 50,000 files says so.
 - When the project's copy of a sound is offline (its drive was away while
   the project was open), Insert imports the file again and places a working
-  clip, not a Media Offline one. If Premiere Pro still keeps it offline, the
-  panel says so and places nothing.
-- Why an insert was refused (no free audio track, an offline or missing
-  file and the rest) is shown in the panel's language.
+  clip instead of a Media Offline one. If Premiere Pro still keeps it
+  offline, the panel says so and places nothing.
+- The reason an insert was refused (no free audio track, an offline or
+  missing file and others) is shown in the panel's language.
 
 ### Panel and texts
 
 - The in-panel Guide shows the sub-points of a numbered step under that
-  step, not as steps of their own.
-- The tour numbers its steps with no gap. Its buttons are two even rows
-  in every language: Back and Next, and Skip under them; nothing sticks
-  out past the edge.
-- **Beat grid** shows the right word on a clip selected again, and
-  switching it there works: when the other grid is not at hand, the clip
-  is analyzed again first. A track analyzed in an earlier session
-  shows no grid warning and no Beat grid switch until it is analyzed.
-- Check now with background checks off says only that the check failed,
+  step instead of as steps of their own.
+- The tour numbers its steps without gaps. In every language its buttons
+  sit in two even rows, Back and Next with Skip under them, and nothing
+  sticks out past the edge.
+- **Beat grid** shows the right word when a clip is selected again, and
+  switching it there works: when the other grid is not at hand, the clip is
+  analyzed again first. A track analyzed in an earlier session shows no
+  grid warning and no Beat grid switch until it is analyzed.
+- With background checks off, Check now says only that the check failed,
   and with no internet connection it says so in words.
-- Delete my data describes the other items in Documents/Downbeat
-  (finished audio in processed/ among them) as left as they are.
+- Delete my data says that the other items in Documents/Downbeat (finished
+  audio in processed/ among them) are left as they are.
 - A file too long for Analyze (it manages about 30 minutes) gets a message
   that says so instead of a technical error.
 
 ### Key
 
 - **Use detected key** sits next to **Detect key** and shows only when the
-  selected clip's key was set by hand, also right after the panel opens.
+  selected clip's key was set by hand, including right after the panel
+  opens.
 - **Pitch the clip** in Premiere Pro puts the project items of pitched clips
   into one "Pitched audio" bin inside the Downbeat bin instead of a new bin
   for each.
@@ -227,13 +228,14 @@ Release notes and packages for every version are on the
   `<name>.unsaved-<date>-<time>.json` and taken in at the next start. A file
   cut short by a failed save is set aside and replaced by that copy. The
   copies are removed only after the panel that holds their data saves
-  successfully, and by Delete my data.
+  successfully, or by Delete my data.
 - A data file that cannot be read is copied aside instead of moved, so the
-  other host never takes the moment without the file for Delete my data.
+  other host never sees the file missing for a moment and takes that for
+  Delete my data.
 - With Premiere Pro and After Effects open together, settings are merged
   setting by setting: a change made in one host is kept when the other one
-  saves, also when both save at the same moment.
-- Delete my data in one host is noticed by the other one also when it first
+  saves, even when both save at the same moment.
+- Delete my data in one host is noticed by the other one even when it first
   shows in the settings file (a language change there keeps the deleted
   analyses deleted) and when that panel started from kept copies.
 - A save that fails on a full disk removes its cut-short temp file at once.
@@ -252,46 +254,47 @@ Release notes and packages for every version are on the
   instead of overwriting them, and the start-up clean-up removes only
   temporary files older than six hours.
 - Settings → Clear empties the whole library (folders, scanned sounds,
-  favorites, analyzed clips) and asks to reopen the panel; audio files on
+  favorites, analyzed clips) and asks to reopen the panel. Audio files on
   disk are never touched.
 - The Library's Key/BPM confirmation panel and the "move markers" option are
-  gone: copying markers never removes anything.
-- After Effects: placing or pasting markers leaves your own marker where a
-  beat falls on the same moment. Premiere: placing again on a re-sped clip
-  replaces the whole earlier set.
+  gone, so copying markers never removes anything.
+- In After Effects, placing or pasting markers leaves your own marker where
+  a beat falls at the same moment. In Premiere, placing again on a re-sped
+  clip replaces the whole earlier set.
 - Enter in the Library inserts a sound once, however long it is held.
 - A Library insert in Premiere checks the free space for the file's real
-  length, also for a sound whose key and tempo come from its name; when the
-  length is unknown nothing is placed.
+  length, also for a sound whose key and tempo come from its name. When the
+  length is unknown, nothing is placed.
 - Analyzed songs on a disconnected drive are kept until it is back, and
   analyses saved by earlier versions survive the update.
-- Pasting markers onto the same song in another sequence adds no second set;
-  After Effects inserts a video file's sound without its picture; Russian and
-  Spanish words to leave out work in the Library search.
+- Pasting markers onto the same song in another sequence adds no second set.
+- After Effects inserts a video file's sound without its picture.
+- Russian and Spanish words to leave out work in the Library search.
 - Placing timeline markers on one use of a song keeps the markers of its
   other uses in the same sequence or composition. Pasting keeps markers that
   differ only in length.
 - A data file that briefly cannot be read (a network or cloud Documents
   folder) is never taken as deleted: nothing is cleared, and that save waits
-  for the next change. Delete my data in one host stays done in the other one,
-  even after new data was saved there.
+  for the next change. Delete my data in one host stays done in the other
+  one, even after new data was saved there.
 
 ### Metronome track
 
 **Analyze → Add metronome track** renders the current beat grid as a mono
 44.1 kHz WAV with accented downbeats and places it below the selected music.
-Trim, constant speed, the beat phase and grid adjustments are included. In
-Premiere, an unlocked audio track below the music needs room for the whole
-click track; add one if needed. The WAV stays on disk if the insert fails.
-Up to 30 minutes.
+It follows the clip's trim and constant speed, the beat phase and the grid
+adjustments. In Premiere, an unlocked audio track below the music needs
+room for the whole click track; add one if there is none. The WAV stays on
+disk if the insert fails. Clips up to 30 minutes long are supported.
 
 ### Where new audio goes
 
-**Settings → Finished audio** chooses Documents/Downbeat/processed,
-Downbeat/processed next to the saved project, or a folder of your own.
-Settings, libraries and temporary analysis files stay in Documents/Downbeat.
-Existing audio is never overwritten, and Delete my data keeps the WAVs it
-made. Pitch and Reverse are set on the clip; no audio copy is rendered.
+**Settings → Finished audio** sets where new audio goes:
+Documents/Downbeat/processed, Downbeat/processed next to the saved project,
+or a folder of your own. Settings, libraries and temporary analysis files
+stay in Documents/Downbeat. Existing audio is never overwritten, and Delete
+my data keeps the WAVs Downbeat made. Pitch and Reverse are set on the clip,
+so no audio copy is rendered.
 
 ### Key: source and timeline
 
@@ -303,7 +306,7 @@ made. Pitch and Reverse are set on the clip; no audio copy is rendered.
   (8A) at +2 semitones plays as B minor (10A). Maintain audio pitch and pitch
   effects are not taken into account.
 - Pitch the clip starts from the clip's current speed, so two +2-semitone
-  shifts give +4 (125.99%), and selects the new clip afterwards. If the
+  shifts give +4 (125.99%), and it selects the new clip afterwards. If the
   selection or speed changed before the click, check the new plan and click
   again.
 - In Premiere the pitched clip is a separate item without Downbeat's clip
@@ -317,7 +320,7 @@ made. Pitch and Reverse are set on the clip; no audio copy is rendered.
 ### Library and markers
 
 - A selected part of a Library sound is trimmed exactly on the inserted
-  Premiere clip; if the host refuses the trim, the insert is taken back.
+  Premiere clip. If the host refuses the trim, the insert is taken back.
 - Copied markers keep their place relative to what you hear, follow the
   target's trim and speed, and keep comments and length within one host.
 - Music and SFX folders must not overlap. Start scan retries failed files,
@@ -328,5 +331,5 @@ made. Pitch and Reverse are set on the clip; no audio copy is rendered.
 
 Replay the tour covers the metronome, key scope, Pitch the clip, the audio
 folder and updates. For support, copy the session log from **Settings →
-Diagnostics** and send it with the steps and a screenshot; the log has local
-file paths, so look through it first.
+Diagnostics** and send it with the steps and a screenshot. The log contains
+local file paths, so look through it first.

@@ -3,12 +3,12 @@
 Downbeat is a small, free CEP panel for Premiere Pro and After Effects.
 Bug reports, translations and focused pull requests are welcome.
 
-**Reporting a bug:** open an issue with the Downbeat version, host app and
-version, operating system, what you did and what happened. **Settings >
-Diagnostics > Copy log** puts the log on the clipboard; please paste it.
-Review the log for local file paths before posting it publicly.
+To report a bug, open an issue with the Downbeat version, the host app and
+its version, your operating system, what you did and what happened.
+**Settings > Diagnostics > Copy log** puts the log on the clipboard; please
+paste it. Check the log for local file paths before posting it publicly.
 
-**Before a pull request**
+Before you open a pull request:
 
 - Read `DEVELOPMENT.md` ("How the code is organized") and keep to the existing
   style: `.editorconfig`, a header comment at the top of every script, plain
@@ -20,15 +20,17 @@ Review the log for local file paths before posting it publicly.
 - Code, comments and docs are in English. User-facing text goes through
   `js/i18n.js` in all three languages (English first).
 - The panel must stay offline: no network calls, no telemetry. The one
-  exception is release metadata in `js/update-check.js`: explicit Check now
-  or optional background notices (off by default). The release page opens
-  through shared browser-link confirmation; download and installation are
-  manual outside the panel. Nothing writes into
-  the extension folder (it would break the signature); saved data lives in
-  `Documents/Downbeat`. Generated metronome WAVs use the selected Finished
-  audio destination and are kept when panel data is deleted.
-- Never change or delete a user's audio file; sounds are inserted as the file
-  itself, with pitch and reverse set on the clip.
+  exception is release metadata in `js/update-check.js`, fetched on an
+  explicit Check now or by the optional background notices (off by
+  default). The release page opens after the same confirmation as every
+  other browser link, and download and installation are manual, outside the
+  panel.
+- Nothing writes into the extension folder (it would break the signature);
+  saved data lives in `Documents/Downbeat`. Generated metronome WAVs go to
+  the selected Finished audio destination and are kept when panel data is
+  deleted.
+- Never change or delete a user's audio file. Sounds are inserted as the
+  file itself, with pitch and reverse set on the clip.
 - Third-party code is pinned by hand and recorded with its hash in
   `NOTICE.md`; do not add auto-updating dependencies.
 
