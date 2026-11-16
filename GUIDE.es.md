@@ -115,8 +115,8 @@ Tiene secciones numeradas, de arriba abajo:
   ajustes de la cuadrícula y el recorte y la velocidad del clip. Empieza
   con la música, no en el cursor, y va debajo de ella. En Premiere entra
   en una pista de audio bajo la música que no esté bloqueada ni
-  silenciada y tenga sitio para todo el WAV (si no hay ninguna libre, se
-  añade una pista); en After Effects, en una capa nueva justo debajo de
+  silenciada y tenga sitio para todo el WAV (si no hay ninguna libre, añade
+  una pista); en After Effects, en una capa nueva justo debajo de
   la capa de la música. La música se sigue oyendo. La carpeta donde se
   guarda el WAV se elige en **Ajustes → Audio terminado**; si no se puede
   insertar, la línea junto al botón muestra dónde se guardó. La pista de
@@ -297,6 +297,9 @@ entran en este cálculo.
 
 ## Pestaña Biblioteca: Música y SFX
 
+La biblioteca tiene dos secciones, **Música** y **SFX**, y cada una se
+forma con carpetas de tu equipo.
+
 Puedes añadir carpetas de audio, o una unidad entera, una tarjeta de
 memoria o una carpeta de red; lo único que no se puede añadir entero es el
 disco del sistema. Las carpetas de Música y SFX no deben solaparse. Si aun
@@ -310,9 +313,6 @@ hay más, añade carpetas más pequeñas. El siguiente Iniciar análisis vuelve
 a intentar los archivos que dieron error, y una carpeta que no se pudo
 leer conserva los registros que ya tenía. Si sustituyes un archivo en la
 misma ruta, su vista previa se vuelve a leer antes de insertarlo.
-
-La biblioteca tiene dos secciones, **Música** y **SFX**, y cada una se
-forma con carpetas de tu equipo.
 
 - Pulsa **+ Carpeta** una vez por carpeta (se incluyen las subcarpetas).
   Los archivos de audio de la carpeta (wav, aiff, mp3, m4a, aac, flac,
@@ -729,7 +729,7 @@ No. El análisis y la Biblioteca se ejecutan por completo en tu equipo. La
 ahora** o los avisos opcionales), que pide a GitHub la última versión y no
 envía nada sobre tu audio ni tus proyectos.
 
-**Un programa de seguridad (BlockBlock, Little Snitch…) pregunta por `node`. ¿Qué es?**
+**Un programa de seguridad (BlockBlock, Little Snitch…) pregunta por node. ¿Qué es?**
 Es el propio análisis de Downbeat. Analizar, Detectar tonalidad y el
 escaneo de la Biblioteca funcionan en una copia de Node.js que viene
 dentro del plugin (firmada por la Node.js Foundation), que inicia

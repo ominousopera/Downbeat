@@ -113,7 +113,7 @@ lists the tracks where that happens most.
   becomes audible and follow the target's trim and speed. In Premiere, markers
   pasted onto another clip of the same song keep their place in the song.
   Comments, duration and other supported marker data come along.
-- **Add a metronome track** renders the current beat grid as a WAV and
+- **Add metronome track** renders the current beat grid as a WAV and
   inserts it below the selected music. The WAV goes to the finished-audio
   folder you choose in Settings.
 

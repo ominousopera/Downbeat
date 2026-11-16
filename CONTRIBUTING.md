@@ -5,7 +5,7 @@ Bug reports, translations and focused pull requests are welcome.
 
 To report a bug, open an issue with the Downbeat version, the host app and
 its version, your operating system, what you did and what happened.
-**Settings > Diagnostics > Copy log** puts the log on the clipboard; please
+**Settings → Diagnostics → Copy log** puts the log on the clipboard; please
 paste it. Check the log for local file paths before posting it publicly.
 
 Before you open a pull request:

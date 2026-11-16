@@ -21,12 +21,12 @@ or saved settings file make the panel run code, read or write files outside
 the explicitly selected audio destination, `Documents/Downbeat` or the
 `Downbeat` folder in the system's temp folder (where the analysis helpers'
 temporary audio copies go), or delete a file that is not Downbeat's own
-(**Settings > Delete my data** is meant to touch only the files it lists).
+(**Settings → Delete my data** is meant to touch only the files it lists).
 
 Please send the report privately through GitHub's "Report a vulnerability"
 button on the repository's Security tab (private vulnerability reporting),
-not in a public issue. Include the Downbeat version (Settings >
-Diagnostics > Copy log shows it), your host app and operating system, and
+not in a public issue. Include the Downbeat version (Settings →
+Diagnostics → Copy log shows it), your host app and operating system, and
 the steps to reproduce. There is no bug bounty; fixes are made on a
 best-effort basis.
 
